@@ -310,6 +310,35 @@ class Http(unittest.TestCase):
         # Other visitors are unaffected.
         self.assertEqual(self.req("GET", "/api/balance", headers={"X-Visitor-Id": OTHER})[1]["credits"], 0)
 
+    def test_admin_reject_flow(self):
+        h = {"X-Visitor-Id": VISITOR}
+        code = self.req("POST", "/api/orders", {"amount": 15}, h)[1]["order"]["code"]
+        self.assertEqual(self.req("POST", f"/api/admin/orders/{code}/reject")[0], 401)
+        st, data = self.req("POST", f"/api/admin/orders/{code}/reject", headers=self.ADMIN)
+        self.assertEqual((st, data["order"]["status"]), (200, "rejected"))
+        self.assertIsNotNone(data["order"]["decidedAt"])
+        # Rejecting twice is harmless; it is gone from pending and cannot be approved.
+        self.assertEqual(self.req("POST", f"/api/admin/orders/{code}/reject", headers=self.ADMIN)[0], 200)
+        pending = self.req("GET", "/api/admin/orders?status=pending", headers=self.ADMIN)[1]["orders"]
+        self.assertNotIn(code, [o["code"] for o in pending])
+        st, data = self.req("POST", f"/api/admin/orders/{code}/approve", headers=self.ADMIN)
+        self.assertEqual((st, data["code"]), (409, "not_pending"))
+        self.assertEqual(self.req("GET", "/api/balance", headers=h)[1]["credits"], 0)
+        # Lower-case codes work; unknown codes give a clear 404.
+        code2 = self.req("POST", "/api/orders", {"amount": 30}, h)[1]["order"]["code"]
+        self.assertEqual(self.req("POST", f"/api/admin/orders/{code2.lower()}/reject", headers=self.ADMIN)[0], 200)
+        st, data = self.req("POST", "/api/admin/orders/MZZZZZ/reject", headers=self.ADMIN)
+        self.assertEqual((st, data["code"]), (404, "not_found"))
+        # Approved orders cannot be rejected.
+        code3 = self.req("POST", "/api/orders", {"amount": 45}, h)[1]["order"]["code"]
+        self.req("POST", f"/api/admin/orders/{code3}/approve", headers=self.ADMIN)
+        self.assertEqual(self.req("POST", f"/api/admin/orders/{code3}/reject", headers=self.ADMIN)[0], 409)
+
+    def test_admin_page_does_not_rely_on_native_dialogs(self):
+        import re
+        html = (ROOT / "static" / "admin.html").read_text(encoding="utf-8")
+        self.assertIsNone(re.search(r"\b(confirm|alert|prompt)\s*\(", html))
+
     def test_reading_requires_visitor(self):
         code, _ = self.req("POST", "/api/reading", {"name": "x", "birthDate": "2006-07-07"})
         self.assertEqual(code, 400)

@@ -33,6 +33,14 @@
     .pill.rejected { color:#ffb4b4; border-color: rgba(255,180,180,.4); }
     .err { color:#ffb4b4; }
     .empty { color: var(--muted); text-align:center; padding: 1.4rem 0; }
+    button.armed { outline: 2px solid var(--gold-soft); outline-offset: 2px; animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 50% { filter: brightness(1.25); } }
+    button:disabled { opacity: .6; cursor: wait; }
+    #notice { position: fixed; left: 50%; top: 12px; transform: translateX(-50%); z-index: 50; max-width: 92vw;
+      padding: .7rem 1.1rem; border-radius: 14px; font-weight: 600; font-size: .92rem; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+    #notice.ok { background: linear-gradient(90deg,#2f7a4a,#3f9a60); color:#fff; }
+    #notice.bad { background: linear-gradient(90deg,#8a2a3a,#b0405a); color:#fff; }
+    #notice.info { background: linear-gradient(90deg,#6b3fa0,#b0498f); color:#fff; }
     @media (max-width: 640px) {
       table, thead, tbody, tr, td { display:block; } thead { display:none; }
       tr { border-bottom: 1px solid var(--line); padding: .5rem 0; } td { border:0; padding: .2rem 0; }
@@ -40,6 +48,7 @@
   </style>
 </head>
 <body>
+<div id="notice" role="status" aria-live="assertive" hidden></div>
 <main>
   <h1>ถามจันทร์ · แอดมิน</h1>
   <p class="sub">ตรวจสลิปใน LINE แล้วกด “อนุมัติ” ให้ตรงรหัสคำสั่งซื้อและยอดเงิน · Check the LINE slip, then approve the matching order.</p>
@@ -84,12 +93,17 @@
   const fmt = (iso) => iso ? new Date(iso).toLocaleString("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "medium", timeStyle: "short" }) : "";
 
   async function call(path, method = "GET") {
-    const res = await fetch(path, { method, headers: { "X-Admin-Token": localStorage.getItem(KEY) || "" } });
+    let res;
+    try {
+      res = await fetch(path, { method, cache: "no-store", headers: { "X-Admin-Token": localStorage.getItem(KEY) || "" } });
+    } catch (_) {
+      throw new Error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง (network error)");
+    }
     let data = {};
     try { data = await res.json(); } catch (_) {}
     if (res.status === 401) { logout("รหัสไม่ถูกต้อง · Wrong token"); throw new Error("unauthorized"); }
     if (res.status === 503) { logout("ยังไม่ได้ตั้ง ADMIN_TOKEN บน Render · ADMIN_TOKEN is not set on the server"); throw new Error("disabled"); }
-    if (!res.ok || !data.ok) throw new Error(data.error || "Error");
+    if (!res.ok || !data.ok) throw new Error(`${data.error || "Error"} (HTTP ${res.status})`);
     return data;
   }
 
@@ -99,9 +113,12 @@
     if (msg) { $("login-err").textContent = msg; $("login-err").hidden = false; }
   }
 
+  let loadSeq = 0;
   async function load() {
+    const seq = ++loadSeq;
     $("panel-err").hidden = true;
     const data = await call("/api/admin/orders" + (status ? "?status=" + status : ""));
+    if (seq !== loadSeq) return; // a newer list request is on its way; ignore this stale one
     $("login").hidden = true; $("panel").hidden = false;
     const rows = data.orders.map((o) => `
       <tr>
@@ -115,6 +132,7 @@
              <button class="no" data-act="reject" data-code="${esc(o.code)}">ปฏิเสธ</button>`
           : `<small style="color:var(--muted)">${esc(fmt(o.decidedAt))}</small>`}</td>
       </tr>`).join("");
+    disarm();
     $("rows").innerHTML = rows || `<tr><td colspan="6" class="empty">ไม่มีคำสั่งซื้อ</td></tr>`;
   }
 
@@ -123,26 +141,65 @@
     localStorage.setItem(KEY, $("token").value.trim());
     $("token").value = "";
     $("login-err").hidden = true;
-    load().catch(() => {});
+    load().catch(showErr);
   });
+  // Two-tap confirmation instead of a native confirm dialog: some phone browsers (e.g. the
+  // LINE in-app browser, or Safari after "block dialogs") silently return
+  // false from the dialog call, which made the buttons look dead.
+  let armed = null;
+  let noticeTimer = null;
+  function notice(msg, kind = "info", ms = 4500) {
+    const n = $("notice");
+    n.textContent = msg; n.className = kind; n.hidden = false;
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => { n.hidden = true; }, ms);
+  }
+  function showErr(err) {
+    if (err && (err.message === "unauthorized" || err.message === "disabled")) return;
+    notice(`โหลดรายการไม่สำเร็จ: ${err && err.message}`, "bad", 9000);
+  }
+  function disarm() {
+    if (armed) { armed.btn.classList.remove("armed"); armed.btn.textContent = armed.label; clearTimeout(armed.timer); }
+    armed = null;
+  }
   $("rows").addEventListener("click", async (e) => {
     const b = e.target.closest("button[data-act]");
-    if (!b) return;
+    if (!b || b.disabled) return;
     const code = b.dataset.code, act = b.dataset.act;
-    if (act === "reject" && !confirm(`ปฏิเสธคำสั่งซื้อ ${code}?`)) return;
-    if (act === "approve" && !confirm(`อนุมัติ ${code} และเพิ่มคำถามให้ลูกค้า?`)) return;
+    if (!armed || armed.btn !== b) {
+      disarm();
+      armed = { btn: b, label: b.textContent, timer: setTimeout(disarm, 5000) };
+      b.classList.add("armed");
+      b.textContent = act === "approve" ? "แตะอีกครั้งเพื่ออนุมัติ" : "แตะอีกครั้งเพื่อปฏิเสธ";
+      notice(act === "approve" ? `แตะอีกครั้งเพื่ออนุมัติ ${code} และเพิ่มคำถามให้ลูกค้า` : `แตะอีกครั้งเพื่อปฏิเสธ ${code}`, "info", 5000);
+      return;
+    }
+    disarm();
     b.disabled = true;
-    try { await call(`/api/admin/orders/${encodeURIComponent(code)}/${act}`, "POST"); await load(); }
-    catch (err) { $("panel-err").textContent = err.message; $("panel-err").hidden = false; b.disabled = false; }
+    b.textContent = "กำลังบันทึก…";
+    try {
+      const res = await call(`/api/admin/orders/${encodeURIComponent(code)}/${act}`, "POST");
+      const st = res.order && res.order.status;
+      notice(act === "approve"
+        ? (res.alreadyApproved ? `${code} อนุมัติไปแล้วก่อนหน้านี้` : `อนุมัติ ${code} แล้ว · ลูกค้ามี ${res.credits} คำถาม`)
+        : `ปฏิเสธ ${code} แล้ว (${st})`, "ok");
+      await load();
+    } catch (err) {
+      const msg = `ทำรายการ ${code} ไม่สำเร็จ: ${err.message}`;
+      notice(msg, "bad", 9000);
+      $("panel-err").textContent = msg; $("panel-err").hidden = false;
+      b.disabled = false;
+      b.textContent = act === "approve" ? "อนุมัติ" : "ปฏิเสธ";
+    }
   });
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
     document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x === b));
-    status = b.dataset.status; load().catch(() => {});
+    status = b.dataset.status; load().catch(showErr);
   }));
-  $("refresh").addEventListener("click", () => load().catch(() => {}));
+  $("refresh").addEventListener("click", () => load().catch(showErr));
   $("logout").addEventListener("click", () => logout());
-  if (localStorage.getItem(KEY)) load().catch(() => {});
-  setInterval(() => { if (!$("panel").hidden && status === "pending") load().catch(() => {}); }, 20000);
+  if (localStorage.getItem(KEY)) load().catch(showErr);
+  setInterval(() => { if (!$("panel").hidden && status === "pending" && !armed) load().catch(showErr); }, 20000);
 })();
 </script>
 </body>
