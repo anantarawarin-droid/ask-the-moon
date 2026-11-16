@@ -431,6 +431,11 @@ class DatabaseUrl(unittest.TestCase):
                 billing.parse_database_url(bad)
             self.assertNotIn("secretpw", str(ctx.exception))
 
+    def test_low_scram_iteration_servers_are_accepted(self):
+        billing._import_pg8000()
+        import scramp.core
+        self.assertEqual(scramp.core.IterationCount(1024).value, 1024)
+
     def test_connection_failure_falls_back_to_json(self):
         url = "postgresql://u:secretpw@127.0.0.1:1/db?sslmode=disable"
         with mock.patch.dict(os.environ, {"DATABASE_URL": url}):

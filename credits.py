@@ -379,7 +379,26 @@ def _import_pg8000():
         if str(_VENDOR) not in sys.path:
             sys.path.append(str(_VENDOR))  # pure-Python copy shipped in the repo
         import pg8000.dbapi  # type: ignore
+    _allow_server_scram_iterations()
     return pg8000.dbapi
+
+
+def _allow_server_scram_iterations() -> None:
+    """Accept whatever SCRAM iteration count the server chose, like libpq/psql.
+
+    scramp rejects servers that use fewer than 4096 iterations, and some
+    hosted Postgres roles (e.g. on Neon) are set up with fewer, which made the
+    login fail with "The value must not be < 4096". The count is the server's
+    own choice for its stored verifier, so the client accepting it does not
+    weaken the TLS-protected connection.
+    """
+    try:
+        import scramp.core as scramp_core  # type: ignore
+    except ImportError:
+        return
+    cls = getattr(scramp_core, "IterationCount", None)
+    if cls is not None and getattr(cls, "MIN_ITERATION_COUNT", 1) > 1:
+        cls.MIN_ITERATION_COUNT = 1
 
 
 class DatabaseConfigError(Exception):
