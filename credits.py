@@ -399,7 +399,20 @@ def normalize_database_url(raw: str) -> str:
             url = url[1:-1].strip()
         if url == before:
             break
+    if not url.lower().startswith(("postgresql://", "postgres://")):
+        # Still wrapped in other text (a label, a command, an env line...):
+        # take the first postgres URL out of it.
+        m = re.search(r"postgres(?:ql)?://[^\s'\"]+", url, flags=re.IGNORECASE)
+        if m:
+            NORMALIZE_NOTES.append(
+                f"DATABASE_URL had {m.start()} extra characters before the URL"
+                f" and {len(url) - m.end()} after it; used only the postgresql:// part."
+            )
+            url = m.group(0)
     return url
+
+
+NORMALIZE_NOTES: list[str] = []
 
 
 def describe_bad_database_url(raw: str) -> str:

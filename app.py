@@ -1185,6 +1185,8 @@ def main() -> None:
     if STORE_KIND == "postgres":
         tls = "off" if SERVICE.cfg["sslmode"] == "disable" else "on"
         print(f"Credit store: Postgres (DATABASE_URL, TLS {tls}, tables ready)", flush=True)
+        for note in billing.NORMALIZE_NOTES[:1]:
+            print(f"Credit store note: {note} Please clean up the DATABASE_URL value on Render.", flush=True)
     elif STORE_PROBLEM:
         print(f"Credit store: JSON fallback because Postgres failed: {STORE_PROBLEM}", flush=True)
     else:
