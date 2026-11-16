@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>ถามจันทร์ · Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root { --bg:#0a0614; --card:rgba(22,12,40,.85); --line:rgba(201,182,255,.22); --gold:#d4af37; --gold-soft:#f3e2a8; --lav:#d9c8ff; --pink:#f5a3d0; --muted:#b7a8c9; --text:#f6f0e6; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; color:var(--text); font-family:"Noto Sans Thai",system-ui,sans-serif;
+      background: radial-gradient(1000px 600px at 50% -10%, #3a1d63 0%, var(--bg) 60%); }
+    main { max-width: 980px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+    h1 { margin: 0 0 .2rem; color: var(--gold-soft); font-size: 1.5rem; }
+    .sub { margin: 0 0 1.2rem; color: var(--muted); font-size: .9rem; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 1.1rem; margin-bottom: 1rem; }
+    input { width: 100%; padding: .7rem .8rem; border-radius: 12px; border: 1px solid var(--line); background: rgba(8,4,16,.7); color: var(--text); font: inherit; }
+    button { appearance:none; border:0; cursor:pointer; border-radius: 999px; padding: .55rem 1rem; font: 600 .9rem inherit; }
+    .gold { background: linear-gradient(180deg,#f3e2a8,#d4af37 50%,#9a7420); color:#1a1004; }
+    .ghost { background: transparent; color: var(--lav); border: 1px solid var(--line); }
+    .ok { background: linear-gradient(180deg,#bff3cf,#5fc983); color:#06210f; }
+    .no { background: rgba(255,180,180,.12); color:#ffb4b4; border:1px solid rgba(255,180,180,.4); }
+    .row { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; }
+    .tabs button.on { background: linear-gradient(90deg,#6b3fa0,#b0498f); color:#fff; }
+    table { width:100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { padding: .6rem .5rem; border-bottom: 1px solid var(--line); text-align:left; vertical-align: middle; }
+    th { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; }
+    td.code { font-family: ui-monospace, monospace; letter-spacing: .1em; color: var(--gold-soft); font-weight: 700; }
+    .pill { display:inline-block; padding:.1rem .5rem; border-radius:999px; font-size:.75rem; border:1px solid var(--line); }
+    .pill.pending { color: var(--gold-soft); border-color: rgba(212,175,55,.5); }
+    .pill.approved { color:#bff3cf; border-color: rgba(95,201,131,.5); }
+    .pill.rejected { color:#ffb4b4; border-color: rgba(255,180,180,.4); }
+    .err { color:#ffb4b4; }
+    .empty { color: var(--muted); text-align:center; padding: 1.4rem 0; }
+    @media (max-width: 640px) {
+      table, thead, tbody, tr, td { display:block; } thead { display:none; }
+      tr { border-bottom: 1px solid var(--line); padding: .5rem 0; } td { border:0; padding: .2rem 0; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ถามจันทร์ · แอดมิน</h1>
+  <p class="sub">ตรวจสลิปใน LINE แล้วกด “อนุมัติ” ให้ตรงรหัสคำสั่งซื้อและยอดเงิน · Check the LINE slip, then approve the matching order.</p>
+
+  <section class="card" id="login">
+    <p>ใส่ ADMIN_TOKEN (ตั้งไว้ใน Render) · Enter your ADMIN_TOKEN</p>
+    <form id="login-form" class="row">
+      <input type="password" id="token" autocomplete="current-password" placeholder="ADMIN_TOKEN" style="flex:1;min-width:220px" />
+      <button class="gold" type="submit">เข้าสู่ระบบ</button>
+    </form>
+    <p class="err" id="login-err" hidden></p>
+  </section>
+
+  <section id="panel" hidden>
+    <div class="row" style="justify-content:space-between;margin-bottom:.8rem">
+      <div class="row tabs">
+        <button class="ghost on" data-status="pending">รอตรวจสอบ</button>
+        <button class="ghost" data-status="approved">อนุมัติแล้ว</button>
+        <button class="ghost" data-status="rejected">ปฏิเสธ</button>
+        <button class="ghost" data-status="">ทั้งหมด</button>
+      </div>
+      <div class="row">
+        <button class="ghost" id="refresh">รีเฟรช</button>
+        <button class="ghost" id="logout">ออกจากระบบ</button>
+      </div>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr><th>รหัส</th><th>ยอด</th><th>คำถาม</th><th>เวลา (เวลาไทย)</th><th>สถานะ</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p class="err" id="panel-err" hidden></p>
+    </div>
+  </section>
+</main>
+<script>
+(() => {
+  const KEY = "moon-admin-token";
+  let status = "pending";
+  const $ = (id) => document.getElementById(id);
+  const esc = (v) => String(v).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const fmt = (iso) => iso ? new Date(iso).toLocaleString("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "medium", timeStyle: "short" }) : "";
+
+  async function call(path, method = "GET") {
+    const res = await fetch(path, { method, headers: { "X-Admin-Token": localStorage.getItem(KEY) || "" } });
+    let data = {};
+    try { data = await res.json(); } catch (_) {}
+    if (res.status === 401) { logout("รหัสไม่ถูกต้อง · Wrong token"); throw new Error("unauthorized"); }
+    if (res.status === 503) { logout("ยังไม่ได้ตั้ง ADMIN_TOKEN บน Render · ADMIN_TOKEN is not set on the server"); throw new Error("disabled"); }
+    if (!res.ok || !data.ok) throw new Error(data.error || "Error");
+    return data;
+  }
+
+  function logout(msg) {
+    localStorage.removeItem(KEY);
+    $("panel").hidden = true; $("login").hidden = false;
+    if (msg) { $("login-err").textContent = msg; $("login-err").hidden = false; }
+  }
+
+  async function load() {
+    $("panel-err").hidden = true;
+    const data = await call("/api/admin/orders" + (status ? "?status=" + status : ""));
+    $("login").hidden = true; $("panel").hidden = false;
+    const rows = data.orders.map((o) => `
+      <tr>
+        <td class="code">${esc(o.code)}</td>
+        <td>฿${esc(o.price)}</td>
+        <td>${esc(o.questions)}${o.bonus ? ` <small>(โบนัส ${esc(o.bonus)})</small>` : ""}</td>
+        <td>${esc(fmt(o.createdAt))}</td>
+        <td><span class="pill ${esc(o.status)}">${esc(o.status)}</span></td>
+        <td class="row">${o.status === "pending"
+          ? `<button class="ok" data-act="approve" data-code="${esc(o.code)}">อนุมัติ</button>
+             <button class="no" data-act="reject" data-code="${esc(o.code)}">ปฏิเสธ</button>`
+          : `<small style="color:var(--muted)">${esc(fmt(o.decidedAt))}</small>`}</td>
+      </tr>`).join("");
+    $("rows").innerHTML = rows || `<tr><td colspan="6" class="empty">ไม่มีคำสั่งซื้อ</td></tr>`;
+  }
+
+  $("login-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    localStorage.setItem(KEY, $("token").value.trim());
+    $("token").value = "";
+    $("login-err").hidden = true;
+    load().catch(() => {});
+  });
+  $("rows").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-act]");
+    if (!b) return;
+    const code = b.dataset.code, act = b.dataset.act;
+    if (act === "reject" && !confirm(`ปฏิเสธคำสั่งซื้อ ${code}?`)) return;
+    if (act === "approve" && !confirm(`อนุมัติ ${code} และเพิ่มคำถามให้ลูกค้า?`)) return;
+    b.disabled = true;
+    try { await call(`/api/admin/orders/${encodeURIComponent(code)}/${act}`, "POST"); await load(); }
+    catch (err) { $("panel-err").textContent = err.message; $("panel-err").hidden = false; b.disabled = false; }
+  });
+  document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x === b));
+    status = b.dataset.status; load().catch(() => {});
+  }));
+  $("refresh").addEventListener("click", () => load().catch(() => {}));
+  $("logout").addEventListener("click", () => logout());
+  if (localStorage.getItem(KEY)) load().catch(() => {});
+  setInterval(() => { if (!$("panel").hidden && status === "pending") load().catch(() => {}); }, 20000);
+})();
+</script>
+</body>
+</html>

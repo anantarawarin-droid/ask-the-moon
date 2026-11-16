@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """ถามจันทร์ (Ask the Moon) — destiny reading server.
 
-Serves the static web app and POST /api/reading.
+Serves the static web app, POST /api/reading, the question-credit and
+PromptPay order API (see credits.py), and a token-protected /admin page.
 Uses an OpenAI-compatible LLM when OPENAI_API_KEY is set; otherwise a
 template generator so the demo works offline. Never invents an API key.
 """
@@ -11,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import random
+import re
 import sys
 import traceback
 import urllib.error
@@ -20,10 +22,14 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+import credits as billing
+
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
 PORT = int(os.environ.get("PORT", "5050"))
 HOST = os.environ.get("HOST", "0.0.0.0")
+DATA_DIR = os.environ.get("DATA_DIR") or str(ROOT / "data")
+SERVICE = billing.CreditService(billing.JsonStore(DATA_DIR))
 
 # First day of each Chinese lunar year (Gregorian month, day).
 CNY: dict[int, tuple[int, int]] = {
@@ -899,7 +905,7 @@ def public_chart(chart: dict[str, Any], lang: str) -> dict[str, Any]:
     }
 
 
-def make_reading(body: dict[str, Any]) -> dict[str, Any]:
+def parse_reading_request(body: dict[str, Any]) -> dict[str, Any]:
     name = str(body.get("name") or "").strip()
     if not name or len(name) > 80:
         raise ValueError("Please enter a name.")
@@ -921,8 +927,14 @@ def make_reading(body: dict[str, Any]) -> dict[str, Any]:
     if len(question) > 280:
         raise ValueError("Please keep your question under 280 characters.")
     lang = "th" if str(body.get("lang") or "th").lower().startswith("th") else "en"
+    return {"name": name, "birth": birth, "birth_time": birth_time,
+            "topic": topic, "question": question, "lang": lang}
 
-    chart = build_chart(name, birth, birth_time)
+
+def generate_reading(params: dict[str, Any]) -> dict[str, Any]:
+    name, birth, lang = params["name"], params["birth"], params["lang"]
+    topic, question = params["topic"], params["question"]
+    chart = build_chart(name, birth, params["birth_time"])
     luck = lucky_set(birth, chart["path"], chart["chinese"]["key"], chart["chinese"]["element"])
     source = "template"
     text = None
@@ -948,6 +960,61 @@ def make_reading(body: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def make_reading(body: dict[str, Any]) -> dict[str, Any]:
+    """Generate a reading without touching credits (used by tests and tools)."""
+    return generate_reading(parse_reading_request(body))
+
+
+LOCKED_PREMIUM = {
+    "forecast": "✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦",
+    "gift": "✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦",
+    "shadow": "✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦",
+    "compatibility": "✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦",
+    "numbers": ["✦", "✦", "✦", "✦", "✦"],
+    "colors": [],
+    "day": "✦ ✦ ✦",
+}
+
+
+def paid_reading(body: dict[str, Any], visitor_id: Any) -> dict[str, Any]:
+    """Validate, reserve one credit (or the one free preview) atomically,
+    generate, and only keep the charge when the AI wrote the reading."""
+    if not billing.valid_visitor_id(visitor_id):
+        raise ValueError("Missing visitor id. Please reload the page.")
+    params = parse_reading_request(body)
+    kind = SERVICE.reserve_reading(visitor_id)  # raises PaymentError(402) at 0
+    try:
+        result = generate_reading(params)
+    except BaseException:
+        SERVICE.release_reading(visitor_id, kind)
+        raise
+    charged = result["source"] == "llm"
+    if not charged:
+        # Template fallback (AI unavailable): this question is on the house.
+        SERVICE.release_reading(visitor_id, kind)
+    result["charge"] = {"kind": kind, "charged": charged}
+    result["premiumUnlocked"] = kind == "paid"
+    if kind != "paid":
+        result["premium"] = dict(LOCKED_PREMIUM)
+    result["balance"] = SERVICE.balance(visitor_id)
+    return result
+
+
+ORDER_PATH = re.compile(r"^/api/admin/orders/([A-Za-z0-9]{4,12})/(approve|reject)$")
+
+
+def packages_payload() -> dict[str, Any]:
+    return {
+        "ok": True,
+        "currency": "THB",
+        "basePrice": billing.BASE_PRICE,
+        "maxAmount": billing.MAX_AMOUNT,
+        "packages": billing.PACKAGES,
+        "paymentEnabled": billing.promptpay_id_from_env() is not None,
+        "line": "ivymoonask",
+    }
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(STATIC), **kwargs)
@@ -961,36 +1028,146 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
-        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(data)
 
-    def do_OPTIONS(self) -> None:
-        self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
+    def _route(self) -> str:
+        return self.path.split("?")[0].rstrip("/") or "/"
 
-    def do_POST(self) -> None:
-        if self.path.split("?")[0] != "/api/reading":
-            self._send(404, {"ok": False, "error": "Not found."})
-            return
+    def _visitor(self) -> str | None:
+        vid = (self.headers.get("X-Visitor-Id") or "").strip()
+        return vid if billing.valid_visitor_id(vid) else None
+
+    def _admin_check(self) -> bool:
+        ok = billing.admin_token_ok(self.headers.get("X-Admin-Token"))
+        if ok is None:
+            self._send(503, {"ok": False, "error": "ADMIN_TOKEN is not set on the server.", "code": "admin_disabled"})
+            return False
+        if not ok:
+            self._send(401, {"ok": False, "error": "Unauthorized.", "code": "unauthorized"})
+            return False
+        return True
+
+    def _json_body(self) -> dict[str, Any]:
         length = int(self.headers.get("Content-Length") or 0)
         if length > 16_000:
-            self._send(413, {"ok": False, "error": "Request too large."})
-            return
+            raise billing.PaymentError("Request too large.", 413, "too_large")
         raw = self.rfile.read(length) if length else b"{}"
+        body = json.loads(raw.decode("utf-8") or "{}")
+        if not isinstance(body, dict):
+            raise ValueError("Invalid JSON body.")
+        return body
+
+    def _serve_admin_page(self) -> None:
+        page = (STATIC / "admin.html").read_bytes()
+        ok = billing.admin_token_ok(self.headers.get("X-Admin-Token"))
+        # Browsers cannot send the header on navigation, so the login form is
+        # served with 401; the page then calls the admin API with the header.
+        self.send_response(200 if ok else 401)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(page)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Robots-Tag", "noindex, nofollow")
+        self.end_headers()
+        self.wfile.write(page)
+
+    def _handle(self, fn) -> None:
         try:
-            body = json.loads(raw.decode("utf-8"))
-            if not isinstance(body, dict):
-                raise ValueError("Invalid JSON body.")
-            self._send(200, make_reading(body))
-        except ValueError as exc:
+            fn()
+        except billing.PaymentError as exc:
+            self._send(exc.status, {"ok": False, "error": str(exc), "code": exc.code})
+        except (ValueError, json.JSONDecodeError) as exc:
             self._send(400, {"ok": False, "error": str(exc)})
         except Exception:
             traceback.print_exc()
             self._send(500, {"ok": False, "error": "The stars flickered. Please try again."})
+
+    def do_GET(self) -> None:
+        route = self._route()
+        if route == "/admin":
+            self._serve_admin_page()
+            return
+        if route == "/admin.html":
+            self._send(404, {"ok": False, "error": "Not found."})
+            return
+        if route == "/api/packages":
+            self._send(200, packages_payload())
+            return
+        if route == "/api/balance":
+            def run() -> None:
+                vid = self._visitor()
+                if not vid:
+                    raise ValueError("Missing visitor id.")
+                self._send(200, {"ok": True, **SERVICE.balance(vid)})
+            self._handle(run)
+            return
+        if route == "/api/orders":
+            def run() -> None:
+                vid = self._visitor()
+                if not vid:
+                    raise ValueError("Missing visitor id.")
+                orders = [billing.public_order(o) for o in SERVICE.visitor_orders(vid)]
+                self._send(200, {"ok": True, "orders": orders, **SERVICE.balance(vid)})
+            self._handle(run)
+            return
+        if route == "/api/admin/orders":
+            def run() -> None:
+                if not self._admin_check():
+                    return
+                query = self.path.split("?", 1)[1] if "?" in self.path else ""
+                status = None
+                for part in query.split("&"):
+                    if part.startswith("status="):
+                        status = part.split("=", 1)[1] or None
+                if status not in (None, "pending", "approved", "rejected"):
+                    raise ValueError("Unknown status.")
+                self._send(200, {"ok": True, "orders": SERVICE.list_orders(status)})
+            self._handle(run)
+            return
+        if route.startswith("/api/"):
+            self._send(404, {"ok": False, "error": "Not found."})
+            return
+        super().do_GET()
+
+    def do_POST(self) -> None:
+        route = self._route()
+        if route == "/api/reading":
+            def run() -> None:
+                body = self._json_body()
+                vid = self._visitor() or body.get("visitorId")
+                self._send(200, paid_reading(body, vid))
+            self._handle(run)
+            return
+        if route == "/api/orders":
+            def run() -> None:
+                body = self._json_body()
+                vid = self._visitor()
+                if not vid:
+                    raise ValueError("Missing visitor id.")
+                pkg = billing.package_for_amount(body.get("amount"))
+                pp_id = billing.promptpay_id_from_env()
+                if pp_id is None:
+                    raise billing.PaymentError("Payment is coming soon.", 503, "payment_disabled")
+                order = SERVICE.create_order(vid, pkg["price"])
+                self._send(200, {
+                    "ok": True,
+                    "order": billing.public_order(order),
+                    "promptpay": {"payload": billing.promptpay_payload(pp_id, order["price"])},
+                    "line": "ivymoonask",
+                })
+            self._handle(run)
+            return
+        match = ORDER_PATH.match(route)
+        if match:
+            def run() -> None:
+                if not self._admin_check():
+                    return
+                code, action = match.group(1), match.group(2)
+                result = SERVICE.approve(code) if action == "approve" else SERVICE.reject(code)
+                self._send(200, {"ok": True, **result})
+            self._handle(run)
+            return
+        self._send(404, {"ok": False, "error": "Not found."})
 
 
 def main() -> None:
@@ -998,7 +1175,9 @@ def main() -> None:
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     has_key = bool(os.environ.get("OPENAI_API_KEY"))
     mode = "LLM (OPENAI_API_KEY is set)" if has_key else "template fallback (no OPENAI_API_KEY)"
-    print(f"ถามจันทร์ / Ask the Moon is listening on http://{HOST}:{PORT}  —  readings: {mode}")
+    pay = "PromptPay on" if billing.promptpay_id_from_env() else "PromptPay off (set PROMPTPAY_ID)"
+    admin = "admin on" if os.environ.get("ADMIN_TOKEN") else "admin off (set ADMIN_TOKEN)"
+    print(f"ถามจันทร์ / Ask the Moon is listening on http://{HOST}:{PORT}  —  readings: {mode}; {pay}; {admin}")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

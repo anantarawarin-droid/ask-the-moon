@@ -3,7 +3,7 @@ const I18N = {
     docTitle: "ถามจันทร์",
     brand: "ถามจันทร์",
     brandSub: "Ask the Moon",
-    footBrand: "ถามจันทร์ · prototype",
+    footBrand: "ถามจันทร์",
     eyebrow: "อ่านดวง · ราศี · นักษัตร · เลขศาสตร์",
     heroTitle: "ถามจันทร์",
     heroLede: "บอกชื่อและวันเกิด แล้วรับบทอ่านดวงที่ถักจากราศีตะวันตก ปีนักษัตรจีน และเลขเส้นทางชีวิต — เลือกหัวข้อที่อยากรู้ ดาวจะตอบเป็นคำของคุณเอง",
@@ -32,11 +32,60 @@ const I18N = {
     premTitle: "บทอ่านลึก",
     lockTitle: "ปลดล็อกบทอ่านลึก",
     lockCopy: "เลขนำโชค สีดวง วันมงคล ความเข้ากันได้ ของขวัญซ่อนเร้น และพยากรณ์ 12 เดือน",
-    upgrade: "ปลดล็อก — ฿49",
-    lockNote: "ปุ่มตัวอย่าง — ยังไม่เรียกเก็บเงิน",
-    modalTitle: "พรีเมียมกำลังจะมา",
-    modalBody: "นี่คือต้นแบบ คุณสามารถเชื่อมระบบชำระเงินอย่าง Stripe หรือ Omise / PromptPay แล้วส่งบทอ่านลึกให้ผู้ที่จ่ายเงินได้",
-    modalClose: "เข้าใจแล้ว",
+    upgrade: "เติมคำถามเพื่อปลดล็อก",
+    lockNote: "บทอ่านลึกเปิดให้อัตโนมัติทุกครั้งที่ใช้เครดิตคำถาม",
+    unlockedTag: "ปลดล็อกแล้ว",
+    paidTag: "บทอ่านของคุณ",
+    balanceShort: "คำถาม",
+    balanceTitle: (n) => `คุณมี ${n} คำถาม`,
+    creditFree: "คำถามแรกฟรี! ลองถามจันทร์ได้เลย (ไม่หักเครดิต)",
+    creditHave: (n) => `คุณเหลือ <b>${n}</b> คำถาม · ถาม 1 ครั้งใช้ 1 คำถาม และปลดล็อกบทอ่านลึก`,
+    creditNone: "คำถามของคุณหมดแล้ว เติมแพ็กเกจเพื่อถามต่อ",
+    topUp: "เติมคำถาม",
+    noCredits: "คำถามของคุณหมดแล้ว — เลือกแพ็กเกจด้านล่างเพื่อถามต่อนะคะ",
+    notCharged: "ดวงจันทร์ใช้บทอ่านสำรองครั้งนี้ จึงไม่หักเครดิต",
+    chargedPaid: "ใช้ 1 คำถาม · บทอ่านลึกปลดล็อกแล้ว",
+    chargedFree: "ใช้คำถามฟรีแล้ว · เติมคำถามเพื่อปลดล็อกบทอ่านลึก",
+    pricingEyebrow: "แพ็กเกจคำถาม · เติมผ่านพร้อมเพย์",
+    pricingTitle: "เติมพลังจันทร์ ถามได้มากขึ้น",
+    pricingLede: "คำถามละ 15 บาท ยิ่งเติมมาก ยิ่งได้คำถามโบนัสฟรี — สูงสุด 150 บาทต่อครั้ง ทุกคำถามที่ใช้เครดิตจะได้บทอ่านลึกครบทุกส่วน",
+    how1: "เลือกแพ็กเกจ แล้วสแกน QR พร้อมเพย์ด้วยแอปธนาคาร",
+    how2: "ส่งสลิปพร้อมรหัสคำสั่งซื้อทาง LINE: ivymoonask",
+    how3: "เมื่อตรวจสอบแล้ว คำถามจะเข้าบัญชีของคุณทันที",
+    baht: "บาท",
+    questionsUnit: () => "คำถาม",
+    bonusFree: (n) => `+ โบนัสฟรี ${n} คำถาม`,
+    noBonus: "ไม่มีโบนัส",
+    perQ: (v) => `เฉลี่ย ฿${v} / คำถาม`,
+    worth: (w) => `มูลค่า ฿${w}`,
+    worthPay: (w, pr) => `มูลค่า <s>฿${w}</s> จ่ายเพียง <b>฿${pr}</b>`,
+    split: (b, x) => `${b} คำถาม + ${x} ฟรี`,
+    save: (pct) => `ประหยัด ${pct}%`,
+    buy: "เลือกแพ็กเกจนี้",
+    buyBest: "รับดีลที่คุ้มที่สุด",
+    bestBadge: "BEST VALUE · คุ้มที่สุด",
+    bestPay: "จ่าย 150 บาท",
+    bestGet: "รับ 15 คำถาม",
+    bestBonus: "ฟรีโบนัส 5 คำถาม",
+    bestPer: "เพียงคำถามละ 10 บาท",
+    payTitle: "ชำระผ่านพร้อมเพย์",
+    payOrder: "รหัสคำสั่งซื้อ",
+    payAmount: "ยอดชำระ",
+    payGet: (q, b) => b ? `รับ ${q} คำถาม (รวมโบนัส ${b})` : `รับ ${q} คำถาม`,
+    payStep1: (a) => `สแกน QR นี้ด้วยแอปธนาคาร แล้วโอน <b>฿${a}</b> ให้ตรงยอด`,
+    payStep2: (c) => `ส่งสลิปพร้อมรหัส <b>${c}</b> ทาง LINE: ivymoonask`,
+    payStep3: "เมื่อแอดมินตรวจสอบแล้ว คำถามจะเข้าบัญชีของคุณทันที (หน้านี้จะอัปเดตเอง)",
+    payLine: "ส่งสลิปทาง LINE",
+    copyCode: "คัดลอกรหัส",
+    copied: "คัดลอกแล้ว",
+    payWaiting: "รอการตรวจสอบสลิป…",
+    payApproved: (q) => `เติมสำเร็จ! ได้รับ ${q} คำถามแล้ว ✨`,
+    payRejected: "คำสั่งซื้อนี้ถูกปฏิเสธ หากโอนแล้ว ติดต่อ LINE: ivymoonask",
+    paySoonTitle: "ระบบชำระเงินกำลังจะเปิด",
+    paySoonBody: "ดวงจันทร์กำลังเตรียมช่องทางพร้อมเพย์ให้คุณ หากต้องการเติมตอนนี้ ทักมาได้ที่ LINE: ivymoonask",
+    payError: "สร้างคำสั่งซื้อไม่สำเร็จ กรุณาลองใหม่",
+    close: "ปิด",
+    pendingNote: (c) => `มีคำสั่งซื้อ ${c} รอตรวจสอบ`,
     disclaimer: "บทอ่านดวงนี้จัดให้เพื่อแรงบันดาลใจ ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย การเงิน หรือคำทำนายที่รับประกันผล ทางเลือกยังเป็นของคุณเสมอ",
     badgeZodiac: "ราศีตะวันตก",
     badgeChinese: "ปีนักษัตร",
@@ -62,7 +111,7 @@ const I18N = {
     docTitle: "Ask the Moon",
     brand: "Ask the Moon",
     brandSub: "ถามจันทร์",
-    footBrand: "Ask the Moon · prototype",
+    footBrand: "Ask the Moon",
     eyebrow: "Readings · Zodiac · Lunar year · Numerology",
     heroTitle: "Ask the Moon",
     heroLede: "Share your name and birthday for a reading woven from Western zodiac, Chinese lunar year, and your numerology life path. Choose a topic, and the sky answers in your own words.",
@@ -91,11 +140,60 @@ const I18N = {
     premTitle: "Deep reading",
     lockTitle: "Unlock the deep reading",
     lockCopy: "Lucky numbers, colors, a fortunate day, compatibility, a hidden gift, and a 12-month forecast.",
-    upgrade: "Unlock — ฿49",
-    lockNote: "Placeholder button — no charge yet",
-    modalTitle: "Premium is almost here",
-    modalBody: "This is a prototype. You can later connect Stripe or Omise / PromptPay and send the deep reading to anyone who pays.",
-    modalClose: "Got it",
+    upgrade: "Top up to unlock",
+    lockNote: "The deep reading unlocks automatically whenever you use a question credit.",
+    unlockedTag: "Unlocked",
+    paidTag: "Your reading",
+    balanceShort: "questions",
+    balanceTitle: (n) => `You have ${n} questions`,
+    creditFree: "Your first question is free! Ask the moon now (no credit used).",
+    creditHave: (n) => `You have <b>${n}</b> questions left · each question uses 1 and unlocks the deep reading.`,
+    creditNone: "You're out of questions. Top up to keep asking.",
+    topUp: "Top up",
+    noCredits: "You're out of questions — pick a package below to keep asking.",
+    notCharged: "The moon used a backup reading this time, so no credit was used.",
+    chargedPaid: "1 question used · deep reading unlocked",
+    chargedFree: "Free question used · top up to unlock the deep reading",
+    pricingEyebrow: "Question packages · PromptPay",
+    pricingTitle: "Charge the moon, ask more",
+    pricingLede: "15 THB per question, with free bonus questions on bigger packs — up to 150 THB per top-up. Every credited question comes with the full deep reading.",
+    how1: "Pick a package and scan the PromptPay QR with your banking app.",
+    how2: "Send the slip with your order code on LINE: ivymoonask",
+    how3: "Once it's checked, the questions land in your balance right away.",
+    baht: "THB",
+    questionsUnit: (n) => (n === 1 ? "question" : "questions"),
+    bonusFree: (n) => `+ ${n} FREE bonus`,
+    noBonus: "No bonus",
+    perQ: (v) => `Avg ฿${v} / question`,
+    worth: (w) => `Worth ฿${w}`,
+    worthPay: (w, pr) => `Worth <s>฿${w}</s>, pay only <b>฿${pr}</b>`,
+    split: (b, x) => `${b} questions + ${x} free`,
+    save: (pct) => `Save ${pct}%`,
+    buy: "Choose this pack",
+    buyBest: "Get the best deal",
+    bestBadge: "BEST VALUE",
+    bestPay: "Pay 150 THB",
+    bestGet: "Receive 15 questions",
+    bestBonus: "Get 5 FREE bonus questions",
+    bestPer: "Only 10 THB per question",
+    payTitle: "Pay with PromptPay",
+    payOrder: "Order code",
+    payAmount: "Amount",
+    payGet: (q, b) => b ? `${q} questions (incl. ${b} bonus)` : `${q} questions`,
+    payStep1: (a) => `Scan this QR in your banking app and pay exactly <b>฿${a}</b>.`,
+    payStep2: (c) => `Send the slip with code <b>${c}</b> on LINE: ivymoonask`,
+    payStep3: "Once the admin checks it, the questions are added right away (this page updates itself).",
+    payLine: "Send slip on LINE",
+    copyCode: "Copy code",
+    copied: "Copied",
+    payWaiting: "Waiting for slip check…",
+    payApproved: (q) => `Top-up done! ${q} questions added ✨`,
+    payRejected: "This order was declined. If you already paid, contact LINE: ivymoonask",
+    paySoonTitle: "Payments are coming soon",
+    paySoonBody: "The moon is preparing PromptPay for you. To top up now, message LINE: ivymoonask",
+    payError: "Couldn't create the order. Please try again.",
+    close: "Close",
+    pendingNote: (c) => `Order ${c} is awaiting review`,
     disclaimer: "These readings are for inspiration, not medical, legal, or financial advice, and not a guaranteed prediction. Your choices remain your own.",
     badgeZodiac: "Western zodiac",
     badgeChinese: "Chinese zodiac",
@@ -119,10 +217,37 @@ const I18N = {
   },
 };
 
+function visitorId() {
+  let id = localStorage.getItem("moon-visitor");
+  if (!id || !/^[A-Za-z0-9_-]{16,64}$/.test(id)) {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    id = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    localStorage.setItem("moon-visitor", id);
+  }
+  return id;
+}
+
 const state = {
   lang: localStorage.getItem("duang-lang") || "th",
   last: null,
+  visitor: visitorId(),
+  balance: { credits: 0, freeAvailable: true },
+  packages: [],
+  paymentEnabled: false,
+  order: null,
+  pollTimer: null,
 };
+
+function api(path, options = {}) {
+  const headers = { "X-Visitor-Id": state.visitor, ...(options.headers || {}) };
+  if (options.body) headers["Content-Type"] = "application/json";
+  return fetch(path, { ...options, headers }).then(async (response) => {
+    let data = {};
+    try { data = await response.json(); } catch (_) { /* empty */ }
+    return { response, data };
+  });
+}
 
 function t() {
   return I18N[state.lang] || I18N.th;
@@ -143,6 +268,9 @@ function applyLang() {
   });
   document.getElementById("lang-th").classList.toggle("is-on", state.lang === "th");
   document.getElementById("lang-en").classList.toggle("is-on", state.lang === "en");
+  renderBalance();
+  renderPricing();
+  if (state.order) renderPayModal();
   if (state.last) renderResult(state.last);
 }
 
@@ -222,8 +350,16 @@ function renderResult(data) {
   if (hour) badges.push(badge(dict.badgeHour, hour));
   document.getElementById("badges").innerHTML = badges.join("");
   document.getElementById("reading-body").textContent = data.reading;
-  document.getElementById("source-note").textContent =
-    data.source === "llm" ? dict.sourceLlm : dict.sourceTemplate;
+  const charge = data.charge || {};
+  let note = data.source === "llm" ? dict.sourceLlm : dict.sourceTemplate;
+  if (charge.kind && !charge.charged) note += " · " + dict.notCharged;
+  else if (charge.kind === "paid") note += " · " + dict.chargedPaid;
+  else if (charge.kind === "free") note += " · " + dict.chargedFree;
+  document.getElementById("source-note").textContent = note;
+  const premiumCard = document.querySelector(".reading-card.premium");
+  premiumCard.classList.toggle("is-unlocked", Boolean(data.premiumUnlocked));
+  premiumCard.querySelector(".gold-tag").textContent = data.premiumUnlocked ? dict.unlockedTag : dict.premTag;
+  document.querySelector(".tag.free").textContent = data.premiumUnlocked ? dict.paidTag : dict.freeTag;
 
   const prem = data.premium || {};
   const colors = (prem.colors || [])
@@ -278,14 +414,18 @@ async function onSubmit(event) {
     return;
   }
 
+  if (!state.balance.freeAvailable && state.balance.credits <= 0) {
+    showNoCredits();
+    return;
+  }
+
   button.disabled = true;
   status.hidden = false;
   result.hidden = true;
 
   try {
-    const response = await fetch("/api/reading", {
+    const { response, data } = await api("/api/reading", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name,
         birthDate,
@@ -295,10 +435,15 @@ async function onSubmit(event) {
         lang: state.lang,
       }),
     });
-    const data = await response.json();
+    if (response.status === 402) {
+      await refreshBalance();
+      showNoCredits();
+      return;
+    }
     if (!response.ok || !data.ok) {
       throw new Error(data.error || "The stars flickered.");
     }
+    if (data.balance) setBalance(data.balance);
     state.last = data;
     renderResult(data);
     result.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -311,17 +456,247 @@ async function onSubmit(event) {
   }
 }
 
-function setupModal() {
-  const modal = document.getElementById("upgrade-modal");
-  const open = () => { modal.hidden = false; };
-  const close = () => { modal.hidden = true; };
-  document.getElementById("upgrade-btn").addEventListener("click", open);
-  document.getElementById("modal-close").addEventListener("click", close);
+function showNoCredits() {
+  const error = document.getElementById("form-error");
+  error.textContent = t().noCredits;
+  error.hidden = false;
+  document.getElementById("pricing").scrollIntoView({ behavior: "smooth", block: "start" });
+  document.getElementById("pricing").classList.add("flash");
+  setTimeout(() => document.getElementById("pricing").classList.remove("flash"), 1800);
+}
+
+function setBalance(balance) {
+  const before = state.balance.credits;
+  state.balance = { credits: Number(balance.credits) || 0, freeAvailable: Boolean(balance.freeAvailable) };
+  renderBalance(before !== state.balance.credits);
+}
+
+function renderBalance(bump = false) {
+  const dict = t();
+  const { credits, freeAvailable } = state.balance;
+  const chip = document.getElementById("balance-chip");
+  document.getElementById("balance-num").textContent = String(credits);
+  chip.title = dict.balanceTitle(credits);
+  chip.classList.toggle("is-empty", credits <= 0);
+  if (bump) {
+    chip.classList.remove("bump");
+    void chip.offsetWidth;
+    chip.classList.add("bump");
+  }
+  const text = document.getElementById("credit-text");
+  const strip = document.getElementById("credit-strip");
+  strip.classList.toggle("is-empty", credits <= 0 && !freeAvailable);
+  if (credits > 0) text.innerHTML = dict.creditHave(credits);
+  else if (freeAvailable) text.textContent = dict.creditFree;
+  else text.textContent = dict.creditNone;
+}
+
+async function refreshBalance() {
+  try {
+    const { response, data } = await api("/api/balance");
+    if (response.ok && data.ok) setBalance(data);
+  } catch (_) { /* offline: keep last known */ }
+}
+
+async function loadPackages() {
+  try {
+    const { response, data } = await api("/api/packages");
+    if (response.ok && data.ok) {
+      state.packages = data.packages;
+      state.paymentEnabled = Boolean(data.paymentEnabled);
+      renderPricing();
+    }
+  } catch (_) { /* leave the grid empty */ }
+}
+
+function tierOf(pkg) {
+  if (pkg.bestValue) return "tier-best";
+  if (pkg.bonus >= 2) return "tier-high";
+  if (pkg.bonus >= 1) return "tier-bonus";
+  return "tier-base";
+}
+
+function renderPricing() {
+  const grid = document.getElementById("price-grid");
+  if (!grid || !state.packages.length) return;
+  const dict = t();
+  grid.innerHTML = state.packages.map((pkg, i) => {
+    const tier = tierOf(pkg);
+    if (pkg.bestValue) {
+      return `
+      <article class="price-card ${tier}" style="--i:${i}">
+        <div class="best-badge">${escapeHtml(dict.bestBadge)}</div>
+        <div class="best-body">
+          <div class="best-main">
+            <p class="price"><span class="cur">฿</span>${pkg.price}</p>
+            <p class="qty"><b>${pkg.questions}</b> ${escapeHtml(dict.questionsUnit(pkg.questions))}</p>
+            <p class="bonus">${escapeHtml(dict.bonusFree(pkg.bonus))}</p>
+          </div>
+          <ul class="best-list">
+            <li>✦ ${escapeHtml(dict.bestPay)}</li>
+            <li>✦ ${escapeHtml(dict.bestGet)}</li>
+            <li>✦ ${escapeHtml(dict.bestBonus)}</li>
+            <li class="hi">✦ ${escapeHtml(dict.bestPer)}</li>
+          </ul>
+        </div>
+        <p class="meta"><span class="per">${escapeHtml(dict.perQ(pkg.perQuestion))}</span>
+          <span class="worth"><s>${escapeHtml(dict.worth(pkg.worth))}</s> · ${escapeHtml(dict.save(pkg.savingsPercent))}</span></p>
+        <button type="button" class="btn gold buy" data-amount="${pkg.price}">${escapeHtml(dict.buyBest)}</button>
+      </article>`;
+    }
+    const save = pkg.savingsPercent > 0
+      ? `<span class="save-pill">${escapeHtml(dict.save(pkg.savingsPercent))}</span>` : "";
+    return `
+      <article class="price-card ${tier}${pkg.bonus ? " has-save" : ""}" style="--i:${i}">
+        ${save}
+        <p class="price"><span class="cur">฿</span>${pkg.price}</p>
+        <p class="qty"><b>${pkg.questions}</b> ${escapeHtml(dict.questionsUnit(pkg.questions))}</p>
+        <p class="bonus ${pkg.bonus ? "" : "none"}">${escapeHtml(pkg.bonus ? dict.bonusFree(pkg.bonus) : dict.noBonus)}</p>
+        <p class="meta"><span class="per">${escapeHtml(dict.perQ(pkg.perQuestion))}</span>
+          ${pkg.bonus ? `<span class="split">✦ ${escapeHtml(dict.split(pkg.baseQuestions, pkg.bonus))}</span>
+          <span class="worth-line">${dict.worthPay(pkg.worth, pkg.price)}</span>` : ""}</p>
+        <button type="button" class="btn ${pkg.bonus ? "gold" : "soft"} buy" data-amount="${pkg.price}">${escapeHtml(dict.buy)}</button>
+      </article>`;
+  }).join("");
+}
+
+function stopPolling() {
+  if (state.pollTimer) clearInterval(state.pollTimer);
+  state.pollTimer = null;
+}
+
+function openPayModal() {
+  document.getElementById("pay-modal").hidden = false;
+}
+
+function closePayModal() {
+  document.getElementById("pay-modal").hidden = true;
+  stopPolling();
+  state.order = null;
+}
+
+function qrSvg(payload) {
+  if (typeof qrcode !== "function") return "";
+  const qr = qrcode(0, "M");
+  qr.addData(payload);
+  qr.make();
+  return qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+}
+
+function renderPayModal() {
+  const dict = t();
+  const box = document.getElementById("pay-content");
+  const o = state.order;
+  if (!o) return;
+  if (o.soon) {
+    box.innerHTML = `
+      <div class="pay-soon">
+        <div class="lock-icon" aria-hidden="true">☾</div>
+        <h3 id="pay-title">${escapeHtml(dict.paySoonTitle)}</h3>
+        <p>${escapeHtml(dict.paySoonBody)}</p>
+        <a class="btn gold line-btn" href="https://line.me/ti/p/~ivymoonask" target="_blank" rel="noopener">LINE: ivymoonask</a>
+      </div>`;
+    return;
+  }
+  const order = o.order;
+  let statusHtml = `<p class="pay-status waiting"><span class="pulse"></span>${escapeHtml(dict.payWaiting)}</p>`;
+  if (order.status === "approved") statusHtml = `<p class="pay-status ok">${escapeHtml(dict.payApproved(order.questions))}</p>`;
+  if (order.status === "rejected") statusHtml = `<p class="pay-status bad">${escapeHtml(dict.payRejected)}</p>`;
+  box.innerHTML = `
+    <h3 id="pay-title">${escapeHtml(dict.payTitle)}</h3>
+    <div class="pay-summary">
+      <div><small>${escapeHtml(dict.payOrder)}</small><b class="code">${escapeHtml(order.code)}</b></div>
+      <div><small>${escapeHtml(dict.payAmount)}</small><b>฿${order.price}</b></div>
+    </div>
+    <p class="pay-get">${escapeHtml(dict.payGet(order.questions, order.bonus))}</p>
+    <div class="qr-frame">
+      <div class="qr-head">PromptPay · พร้อมเพย์</div>
+      <div class="qr" id="qr">${qrSvg(o.promptpay.payload)}</div>
+      <div class="qr-amount">฿${order.price}.00</div>
+    </div>
+    <ol class="pay-steps">
+      <li>${dict.payStep1(order.price)}</li>
+      <li>${dict.payStep2(escapeHtml(order.code))}</li>
+      <li>${escapeHtml(dict.payStep3)}</li>
+    </ol>
+    ${statusHtml}
+    <div class="pay-actions">
+      <button type="button" class="btn ghost" id="copy-code">${escapeHtml(dict.copyCode)}</button>
+      <a class="btn gold line-btn" href="https://line.me/ti/p/~ivymoonask" target="_blank" rel="noopener">${escapeHtml(dict.payLine)}</a>
+    </div>`;
+  document.getElementById("copy-code").addEventListener("click", async (event) => {
+    try { await navigator.clipboard.writeText(order.code); } catch (_) { /* ignore */ }
+    event.currentTarget.textContent = dict.copied;
+  });
+}
+
+function toast(message) {
+  const el = document.getElementById("toast");
+  el.textContent = message;
+  el.hidden = false;
+  el.classList.add("show");
+  setTimeout(() => { el.classList.remove("show"); el.hidden = true; }, 4200);
+}
+
+async function checkOrders() {
+  try {
+    const { response, data } = await api("/api/orders");
+    if (!response.ok || !data.ok) return;
+    setBalance(data);
+    if (state.order && state.order.order) {
+      const fresh = data.orders.find((o) => o.code === state.order.order.code);
+      if (fresh && fresh.status !== state.order.order.status) {
+        state.order.order = fresh;
+        renderPayModal();
+        if (fresh.status === "approved") toast(t().payApproved(fresh.questions));
+        if (fresh.status !== "pending") stopPolling();
+      }
+    }
+  } catch (_) { /* try again next tick */ }
+}
+
+async function buy(amount) {
+  if (!state.paymentEnabled) {
+    state.order = { soon: true };
+    renderPayModal();
+    openPayModal();
+    return;
+  }
+  try {
+    const { response, data } = await api("/api/orders", {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    });
+    if (response.status === 503 && data.code === "payment_disabled") {
+      state.paymentEnabled = false;
+      return buy(amount);
+    }
+    if (!response.ok || !data.ok) throw new Error(data.error || t().payError);
+    state.order = data;
+    renderPayModal();
+    openPayModal();
+    stopPolling();
+    state.pollTimer = setInterval(checkOrders, 8000);
+  } catch (err) {
+    toast(err.message || t().payError);
+  }
+}
+
+function setupPricing() {
+  document.getElementById("price-grid").addEventListener("click", (event) => {
+    const btn = event.target.closest(".buy");
+    if (btn) buy(Number(btn.dataset.amount));
+  });
+  const modal = document.getElementById("pay-modal");
+  document.getElementById("pay-close-x").addEventListener("click", closePayModal);
   modal.addEventListener("click", (event) => {
-    if (event.target === modal) close();
+    if (event.target === modal) closePayModal();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") close();
+    if (event.key === "Escape" && !modal.hidden) closePayModal();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) checkOrders();
   });
 }
 
@@ -332,9 +707,11 @@ function setup() {
     btn.addEventListener("click", () => setLang(btn.dataset.lang));
   });
   document.getElementById("reading-form").addEventListener("submit", onSubmit);
-  setupModal();
+  setupPricing();
   applyLang();
   paintStars();
+  loadPackages();
+  checkOrders();
 }
 
 setup();

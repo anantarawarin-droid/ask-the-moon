@@ -41,6 +41,11 @@
       </span>
     </a>
     <div class="top-actions">
+      <a class="balance-chip" href="#pricing" id="balance-chip" title="">
+        <span class="balance-moon" aria-hidden="true">☾</span>
+        <span class="balance-num" id="balance-num">0</span>
+        <span class="balance-label" data-i18n="balanceShort">คำถาม</span>
+      </a>
       <div class="lang" role="group" aria-label="Language">
         <button type="button" id="lang-th" class="lang-btn is-on" data-lang="th">ไทย</button>
         <button type="button" id="lang-en" class="lang-btn" data-lang="en">EN</button>
@@ -94,6 +99,10 @@
           <span><span data-i18n="qLabel">คำถามถึงดาว</span> <em data-i18n="optional">(ไม่บังคับ)</em></span>
           <textarea name="question" id="question" rows="3" maxlength="280" data-i18n-placeholder="qPh" placeholder="เช่น ปีนี้ฉันควรกล้าเริ่มสิ่งใหม่ไหม?"></textarea>
         </label>
+        <div class="credit-strip" id="credit-strip">
+          <p class="credit-text" id="credit-text"></p>
+          <a class="credit-link" href="#pricing" data-i18n="topUp">เติมคำถาม</a>
+        </div>
         <p class="form-error" id="form-error" hidden></p>
         <button type="submit" class="btn gold" id="submit-btn">
           <span class="btn-label" data-i18n="submit">เปิดบทอ่านดวง</span>
@@ -132,8 +141,8 @@
                 <div class="lock-icon" aria-hidden="true">✧</div>
                 <p class="lock-title" data-i18n="lockTitle">ปลดล็อกบทอ่านลึก</p>
                 <p class="lock-copy" data-i18n="lockCopy">เลขนำโชค สีดวง วันมงคล ความเข้ากันได้ ของขวัญซ่อนเร้น และพยากรณ์ 12 เดือน</p>
-                <button type="button" class="btn gold" id="upgrade-btn" data-i18n="upgrade">ปลดล็อก — ฿49</button>
-                <p class="lock-note" data-i18n="lockNote">ปุ่มตัวอย่าง — ยังไม่เรียกเก็บเงิน</p>
+                <a class="btn gold" id="upgrade-btn" href="#pricing" data-i18n="upgrade">เติมคำถามเพื่อปลดล็อก</a>
+                <p class="lock-note" data-i18n="lockNote">บทอ่านลึกเปิดให้อัตโนมัติทุกครั้งที่ใช้เครดิตคำถาม</p>
               </div>
             </div>
           </article>
@@ -147,21 +156,35 @@
         </aside>
       </section>
     </section>
+
+    <section class="pricing" id="pricing" aria-labelledby="pricing-title">
+      <p class="eyebrow" data-i18n="pricingEyebrow">แพ็กเกจคำถาม · เติมผ่านพร้อมเพย์</p>
+      <h2 id="pricing-title" data-i18n="pricingTitle">เติมพลังจันทร์ ถามได้มากขึ้น</h2>
+      <p class="pricing-lede" data-i18n="pricingLede">คำถามละ 15 บาท ยิ่งเติมมาก ยิ่งได้คำถามโบนัสฟรี — สูงสุด 150 บาทต่อครั้ง ทุกคำถามที่ใช้เครดิตจะได้บทอ่านลึกครบทุกส่วน</p>
+      <div class="price-grid" id="price-grid" aria-live="polite"></div>
+      <ol class="how-to">
+        <li><span>1</span><p data-i18n="how1">เลือกแพ็กเกจ แล้วสแกน QR พร้อมเพย์ด้วยแอปธนาคาร</p></li>
+        <li><span>2</span><p data-i18n="how2">ส่งสลิปพร้อมรหัสคำสั่งซื้อทาง LINE: ivymoonask</p></li>
+        <li><span>3</span><p data-i18n="how3">เมื่อตรวจสอบแล้ว คำถามจะเข้าบัญชีของคุณทันที</p></li>
+      </ol>
+    </section>
   </main>
 
-  <div id="upgrade-modal" class="modal" hidden>
-    <div class="modal-card panel" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <h3 id="modal-title" data-i18n="modalTitle">พรีเมียมกำลังจะมา</h3>
-      <p data-i18n="modalBody">นี่คือต้นแบบ คุณสามารถเชื่อมระบบชำระเงินอย่าง Stripe หรือ Omise / PromptPay แล้วส่งบทอ่านลึกให้ผู้ที่จ่ายเงินได้</p>
-      <button type="button" class="btn ghost" id="modal-close" data-i18n="modalClose">เข้าใจแล้ว</button>
+  <div id="pay-modal" class="modal" hidden>
+    <div class="modal-card panel pay-card" role="dialog" aria-modal="true" aria-labelledby="pay-title">
+      <button type="button" class="modal-x" id="pay-close-x" aria-label="Close">×</button>
+      <div id="pay-content"></div>
     </div>
   </div>
 
+  <div id="toast" class="toast" role="status" hidden></div>
+
   <footer>
     <p data-i18n="disclaimer">บทอ่านดวงนี้จัดให้เพื่อแรงบันดาลใจ ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย การเงิน หรือคำทำนายที่รับประกันผล ทางเลือกยังเป็นของคุณเสมอ</p>
-    <p class="foot-brand" data-i18n="footBrand">ถามจันทร์ · prototype</p>
+    <p class="foot-brand" data-i18n="footBrand">ถามจันทร์</p>
   </footer>
 
+  <script src="/vendor/qrcode.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
