@@ -437,7 +437,9 @@ def fallback_reading(name: str, question: str, topic_th: str, topic_en: str,
         else:
             link = f"ตัวที่ฉุดไว้ชัดที่สุดคือ{_short(worst, 'th')} ซึ่งยังไม่คลี่คลายง่าย ๆ"
         p2 = f"ไพ่ที่ออก: {cards_txt}. เมื่ออ่านรวมกัน {link}."
-        caution = f"ระวังเรื่อง{worst['meaningTh']}" if card_score(worst) < 0 else "อย่าประมาทแม้ทิศทางจะดี"
+        m = worst["meaningTh"]
+        caution = (f"ระวัง{m}" if m.startswith("เรื่อง") else f"ระวังเรื่อง{m}") if card_score(worst) < 0 \
+            else "อย่าประมาทแม้ทิศทางจะดี"
         if v in ("unlikely", "no"):
             act_th = "ถ้ายังอยากผลักดันเรื่องนี้ " + act_th + " แต่ควรเตรียมทางเลือกอื่นไว้ด้วย"
         p3 = f"คำแนะนำ: 1) {act_th} 2) {caution}."
