@@ -161,20 +161,36 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 6vw 4rem; }
   max-width: 860px;
   border: 1px dashed rgba(212, 175, 55, 0.35);
   border-radius: 14px;
-  padding: 1rem 1.2rem;
+  padding: 1.15rem 1.35rem 1.25rem;
   text-align: center;
   background: rgba(212, 175, 55, 0.04);
   color: var(--muted);
 }
-.ad-kicker {
-  display: inline-block;
-  font-size: 0.68rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--gold-dim);
-  margin-bottom: 0.2rem;
+.ad-heading {
+  margin: 0 0 0.45rem;
+  font-family: "Noto Serif Thai", var(--font-display), serif;
+  font-size: 1.12rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--gold-soft);
 }
-.ad-slot p { margin: 0; font-size: 0.92rem; }
+body[data-lang="en"] .ad-heading {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+}
+.ad-line {
+  margin: 0.15rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--lilac);
+}
+.ad-contact {
+  display: inline-block;
+  margin: 0.75rem 0 0;
+  font-size: 0.88rem;
+  color: var(--gold-dim);
+  cursor: default;
+}
 .ad-after { margin-top: 1.6rem; }
 
 .panel {

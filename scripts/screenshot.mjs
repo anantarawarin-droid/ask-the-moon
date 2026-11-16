@@ -26,7 +26,7 @@ await page.waitForSelector("#reading-form");
 
 await page.click("#lang-th");
 await page.$eval("#name", (el) => { el.value = ""; });
-await page.type("#name", "นัมเภท");
+await page.type("#name", "น้ำเพชร");
 await page.$eval("#birthDate", (el) => {
   el.value = "2006-07-07";
   el.dispatchEvent(new Event("input", { bubbles: true }));

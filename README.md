@@ -33,7 +33,7 @@ If no API key is set, the site uses a built-in template generator that still wea
 
 ```json
 {
-  "name": "Namphet",
+  "name": "Nam Phet",
   "birthDate": "2006-07-07",
   "birthTime": "14:30",
   "topic": "life_path",
