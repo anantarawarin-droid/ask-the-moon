@@ -187,9 +187,19 @@ body[data-lang="en"] .ad-heading {
 .ad-contact {
   display: inline-block;
   margin: 0.75rem 0 0;
+  padding: 0.5rem 0.85rem;
   font-size: 0.88rem;
-  color: var(--gold-dim);
-  cursor: default;
+  line-height: 1.5;
+  color: var(--gold);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 2px;
+}
+.ad-contact:hover,
+.ad-contact:focus-visible {
+  color: var(--gold-soft);
+  border-bottom-color: var(--gold-soft);
+  outline: none;
 }
 .ad-after { margin-top: 1.6rem; }
 
