@@ -783,3 +783,22 @@ body[data-lang="en"] .pricing h2 { font-family: var(--font-display); letter-spac
   .top, main { padding-left: 1.1rem; padding-right: 1.1rem; }
   .hero { padding-top: 1.6rem; }
 }
+
+/* ---- slip upload ---- */
+.slip-box { margin: 14px 0 6px; padding: 14px; border: 1px dashed rgba(232, 197, 120, 0.55); border-radius: 14px; background: rgba(232, 197, 120, 0.06); display: grid; gap: 10px; text-align: left; }
+.slip-title { margin: 0; font-weight: 700; color: #f3d98b; }
+.slip-hint { margin: 0; font-size: 0.85rem; opacity: 0.8; }
+.slip-box .slip-pick { display: flex; flex-direction: row; justify-content: flex-start; text-align: left; margin: 0; font-size: 0.95rem; color: inherit; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); cursor: pointer; overflow: hidden; }
+.slip-pick input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.slip-box .slip-pick span { display: block; text-align: left; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slip-pick::before { content: "🧾"; }
+.slip-pick:focus-within { outline: 2px solid #f3d98b; }
+#slip-send { width: 100%; }
+#slip-send[disabled] { opacity: 0.6; cursor: progress; }
+.slip-msg { margin: 0; padding: 10px 12px; border-radius: 10px; font-size: 0.92rem; }
+.slip-msg.success { background: rgba(80, 200, 140, 0.15); color: #9ff0c4; }
+.slip-msg.failed { background: rgba(240, 100, 100, 0.14); color: #ffb3b3; }
+.slip-msg.review { background: rgba(240, 190, 90, 0.14); color: #ffd99a; }
+.or-line { margin: 4px 0 0; font-size: 0.85rem; opacity: 0.75; text-align: center; }
+.pay-status.ok { flex-wrap: wrap; }
+.new-balance { flex-basis: 100%; text-align: center; margin-top: 4px; }

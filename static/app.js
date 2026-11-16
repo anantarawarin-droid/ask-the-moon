@@ -80,12 +80,32 @@ const I18N = {
     copied: "คัดลอกแล้ว",
     payWaiting: "รอการตรวจสอบสลิป…",
     payApproved: (q) => `เติมสำเร็จ! ได้รับ ${q} คำถามแล้ว ✨`,
+    balanceNow: (n) => `ยอดคงเหลือ ${n} คำถาม`,
     payRejected: "คำสั่งซื้อนี้ถูกปฏิเสธ หากโอนแล้ว ติดต่อ LINE: ivymoonask",
     paySoonTitle: "ระบบชำระเงินกำลังจะเปิด",
     paySoonBody: "ดวงจันทร์กำลังเตรียมช่องทางพร้อมเพย์ให้คุณ หากต้องการเติมตอนนี้ ทักมาได้ที่ LINE: ivymoonask",
     payError: "สร้างคำสั่งซื้อไม่สำเร็จ กรุณาลองใหม่",
     close: "ปิด",
     pendingNote: (c) => `มีคำสั่งซื้อ ${c} รอตรวจสอบ`,
+    slipTitle: "อัปโหลดสลิป เติมคำถามอัตโนมัติ",
+    slipHint: "รูป JPG, PNG หรือ WEBP ไม่เกิน 4MB · ระบบตรวจสลิปและเติมคำถามให้ทันที",
+    slipChoose: "เลือกรูปสลิป",
+    slipCheck: "ตรวจสลิป",
+    slipChecking: "กำลังตรวจสลิป…",
+    slipBadType: "กรุณาเลือกรูป JPG, PNG หรือ WEBP เท่านั้น",
+    slipTooBig: "รูปใหญ่เกิน 4MB กรุณาลดขนาดหรือแคปหน้าจอใหม่",
+    slipNoFile: "กรุณาเลือกรูปสลิปก่อน",
+    slipErr: {
+      rate_limited: "อัปโหลดถี่เกินไป กรุณารอสักครู่แล้วลองใหม่",
+      too_many_slips: "อัปโหลดสลิปครบจำนวนครั้งแล้ว กรุณาส่งสลิปทาง LINE: ivymoonask",
+      not_pending: "คำสั่งซื้อนี้ปิดแล้ว กรุณาสร้างคำสั่งซื้อใหม่",
+      not_found: "ไม่พบคำสั่งซื้อนี้ กรุณาสร้างคำสั่งซื้อใหม่",
+      bad_file_type: "ไฟล์นี้ไม่ใช่รูป JPG, PNG หรือ WEBP",
+      file_too_large: "รูปใหญ่เกิน 4MB",
+      network: "เชื่อมต่อไม่ได้ กรุณาลองใหม่ หรือส่งสลิปทาง LINE",
+    },
+    orLine: "หรือส่งสลิปทาง LINE แทนได้",
+    payStep2Slip: (c) => `อัปโหลดสลิปด้านล่าง ระบบจะตรวจและเติมคำถามให้ทันที (หรือส่งทาง LINE พร้อมรหัส <b>${c}</b>)`,
     disclaimer: "บทอ่านดวงนี้จัดให้เพื่อแรงบันดาลใจ ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย การเงิน หรือคำทำนายที่รับประกันผล ทางเลือกยังเป็นของคุณเสมอ",
     badgeZodiac: "ราศีตะวันตก",
     badgeChinese: "ปีนักษัตร",
@@ -188,12 +208,32 @@ const I18N = {
     copied: "Copied",
     payWaiting: "Waiting for slip check…",
     payApproved: (q) => `Top-up done! ${q} questions added ✨`,
+    balanceNow: (n) => `Balance: ${n} question${n === 1 ? "" : "s"}`,
     payRejected: "This order was declined. If you already paid, contact LINE: ivymoonask",
     paySoonTitle: "Payments are coming soon",
     paySoonBody: "The moon is preparing PromptPay for you. To top up now, message LINE: ivymoonask",
     payError: "Couldn't create the order. Please try again.",
     close: "Close",
     pendingNote: (c) => `Order ${c} is awaiting review`,
+    slipTitle: "Upload your slip for instant top-up",
+    slipHint: "JPG, PNG, or WEBP up to 4MB · we verify it and add your questions right away",
+    slipChoose: "Choose slip image",
+    slipCheck: "Verify slip",
+    slipChecking: "Checking your slip…",
+    slipBadType: "Please choose a JPG, PNG, or WEBP image.",
+    slipTooBig: "The image is over 4MB. Please resize it or take a new screenshot.",
+    slipNoFile: "Please choose your slip image first.",
+    slipErr: {
+      rate_limited: "Too many uploads. Please wait a moment and try again.",
+      too_many_slips: "Upload limit reached for this order. Please send the slip on LINE: ivymoonask",
+      not_pending: "This order is closed. Please create a new one.",
+      not_found: "Order not found. Please create a new one.",
+      bad_file_type: "That file isn't a JPG, PNG, or WEBP image.",
+      file_too_large: "The image is over 4MB.",
+      network: "Couldn't connect. Try again, or send the slip on LINE.",
+    },
+    orLine: "Or send your slip on LINE instead",
+    payStep2Slip: (c) => `Upload your slip below and we'll verify it instantly (or send it on LINE with code <b>${c}</b>).`,
     disclaimer: "These readings are for inspiration, not medical, legal, or financial advice, and not a guaranteed prediction. Your choices remain your own.",
     badgeZodiac: "Western zodiac",
     badgeChinese: "Chinese zodiac",
@@ -235,6 +275,11 @@ const state = {
   balance: { credits: 0, freeAvailable: true },
   packages: [],
   paymentEnabled: false,
+  slipEnabled: false,
+  slipMaxBytes: 4 * 1024 * 1024,
+  slipResult: null,
+  slipBusy: false,
+  slipFile: null,
   order: null,
   pollTimer: null,
 };
@@ -504,6 +549,8 @@ async function loadPackages() {
     if (response.ok && data.ok) {
       state.packages = data.packages;
       state.paymentEnabled = Boolean(data.paymentEnabled);
+      state.slipEnabled = Boolean(data.slipEnabled);
+      if (data.slipMaxBytes) state.slipMaxBytes = data.slipMaxBytes;
       renderPricing();
     }
   } catch (_) { /* leave the grid empty */ }
@@ -571,6 +618,8 @@ function openPayModal() {
 
 function closePayModal() {
   document.getElementById("pay-modal").hidden = true;
+  state.slipResult = null;
+  state.slipFile = null;
   stopPolling();
   state.order = null;
 }
@@ -600,7 +649,11 @@ function renderPayModal() {
   }
   const order = o.order;
   let statusHtml = `<p class="pay-status waiting"><span class="pulse"></span>${escapeHtml(dict.payWaiting)}</p>`;
-  if (order.status === "approved") statusHtml = `<p class="pay-status ok">${escapeHtml(dict.payApproved(order.questions))}</p>`;
+  if (order.status === "approved") {
+    const r = state.slipResult;
+    const head = r && r.kind === "success" ? (state.lang === "th" ? r.th : r.en) : dict.payApproved(order.questions);
+    statusHtml = `<p class="pay-status ok">${escapeHtml(head)}<br><b class="new-balance">${escapeHtml(dict.balanceNow(state.balance.credits))}</b></p>`;
+  }
   if (order.status === "rejected") statusHtml = `<p class="pay-status bad">${escapeHtml(dict.payRejected)}</p>`;
   box.innerHTML = `
     <h3 id="pay-title">${escapeHtml(dict.payTitle)}</h3>
@@ -616,17 +669,113 @@ function renderPayModal() {
     </div>
     <ol class="pay-steps">
       <li>${dict.payStep1(order.price)}</li>
-      <li>${dict.payStep2(escapeHtml(order.code))}</li>
+      <li>${state.slipEnabled && order.status === "pending" ? dict.payStep2Slip(escapeHtml(order.code)) : dict.payStep2(escapeHtml(order.code))}</li>
       <li>${escapeHtml(dict.payStep3)}</li>
     </ol>
+    ${state.slipEnabled && order.status === "pending" ? slipSectionHtml(dict) : ""}
     ${statusHtml}
+    ${state.slipEnabled && order.status === "pending" ? `<p class="or-line">${escapeHtml(dict.orLine)}</p>` : ""}
     <div class="pay-actions">
       <button type="button" class="btn ghost" id="copy-code">${escapeHtml(dict.copyCode)}</button>
       <a class="btn gold line-btn" href="https://line.me/ti/p/~ivymoonask" target="_blank" rel="noopener">${escapeHtml(dict.payLine)}</a>
     </div>`;
+  if (state.slipEnabled && order.status === "pending") setupSlipUpload();
   document.getElementById("copy-code").addEventListener("click", async (event) => {
     try { await navigator.clipboard.writeText(order.code); } catch (_) { /* ignore */ }
     event.currentTarget.textContent = dict.copied;
+  });
+}
+
+function slipSectionHtml(dict) {
+  const r = state.slipResult;
+  let msg = "";
+  if (r) {
+    const text = state.lang === "th" ? r.th : r.en;
+    msg = `<p class="slip-msg ${escapeHtml(r.kind)}" role="status">${escapeHtml(text)}</p>`;
+  }
+  return `
+    <div class="slip-box">
+      <p class="slip-title">${escapeHtml(dict.slipTitle)}</p>
+      <p class="slip-hint">${escapeHtml(dict.slipHint)}</p>
+      <label class="slip-pick">
+        <input type="file" id="slip-file" accept="image/jpeg,image/png,image/webp" />
+        <span id="slip-file-label">${escapeHtml(state.slipFile ? state.slipFile.name : dict.slipChoose)}</span>
+      </label>
+      <button type="button" class="btn gold" id="slip-send" ${state.slipBusy ? "disabled" : ""}>${escapeHtml(state.slipBusy ? dict.slipChecking : dict.slipCheck)}</button>
+      ${msg}
+    </div>`;
+}
+
+function setSlipResult(kind, th, en) {
+  state.slipResult = { kind, th, en };
+}
+
+function setupSlipUpload() {
+  const input = document.getElementById("slip-file");
+  const label = document.getElementById("slip-file-label");
+  const send = document.getElementById("slip-send");
+  let file = state.slipFile || null;
+  const OK_TYPES = ["image/jpeg", "image/png", "image/webp"];
+  const validate = (f) => {
+    const dict = t();
+    if (!f) return dict.slipNoFile;
+    const typeOk = OK_TYPES.includes(f.type) || /\.(jpe?g|png|webp)$/i.test(f.name || "");
+    if (!typeOk) return dict.slipBadType;
+    if (f.size > state.slipMaxBytes) return dict.slipTooBig;
+    return null;
+  };
+  input.addEventListener("change", () => {
+    file = (input.files && input.files[0]) || null;
+    state.slipFile = file;
+    const problem = validate(file);
+    label.textContent = file ? file.name : t().slipChoose;
+    if (problem && file) {
+      setSlipResult("failed", problem, problem);
+      renderPayModal();
+    }
+  });
+  send.addEventListener("click", async () => {
+    const problem = validate(file);
+    if (problem) {
+      const th = I18N.th[problem === t().slipNoFile ? "slipNoFile" : problem === t().slipTooBig ? "slipTooBig" : "slipBadType"];
+      const en = I18N.en[problem === t().slipNoFile ? "slipNoFile" : problem === t().slipTooBig ? "slipTooBig" : "slipBadType"];
+      setSlipResult("failed", th, en);
+      renderPayModal();
+      return;
+    }
+    const code = state.order.order.code;
+    state.slipBusy = true;
+    state.slipResult = null;
+    renderPayModal();
+    try {
+      const response = await fetch(`/api/orders/${encodeURIComponent(code)}/slip`, {
+        method: "POST",
+        headers: { "X-Visitor-Id": state.visitor, "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      let data = {};
+      try { data = await response.json(); } catch (_) { /* empty */ }
+      if (response.ok && data.ok) {
+        setSlipResult(data.result, data.messageTh, data.messageEn);
+        if (data.balance) setBalance(data.balance);
+        if (data.order && state.order && state.order.order.code === data.order.code) state.order.order = data.order;
+        if (data.result === "success") {
+          stopPolling();
+          toast(state.lang === "th" ? data.messageTh : data.messageEn);
+        }
+      } else {
+        const key = data.code || "network";
+        setSlipResult("failed", I18N.th.slipErr[key] || data.error || I18N.th.slipErr.network,
+          I18N.en.slipErr[key] || data.error || I18N.en.slipErr.network);
+      }
+    } catch (_) {
+      setSlipResult("failed", I18N.th.slipErr.network, I18N.en.slipErr.network);
+    } finally {
+      state.slipBusy = false;
+      renderPayModal();
+      const target = document.querySelector("#pay-content .slip-msg, #pay-content .pay-status.ok");
+      if (target) target.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
   });
 }
 
@@ -672,6 +821,8 @@ async function buy(amount) {
       return buy(amount);
     }
     if (!response.ok || !data.ok) throw new Error(data.error || t().payError);
+    state.slipResult = null;
+    state.slipFile = null;
     state.order = data;
     renderPayModal();
     openPayModal();

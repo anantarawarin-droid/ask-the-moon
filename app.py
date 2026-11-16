@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 import credits as billing
+import slips
 
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
@@ -1001,6 +1002,49 @@ def paid_reading(body: dict[str, Any], visitor_id: Any) -> dict[str, Any]:
 
 
 ORDER_PATH = re.compile(r"^/api/admin/orders/([A-Za-z0-9]{4,12})/(approve|reject)$")
+SLIP_PATH = re.compile(r"^/api/orders/([A-Za-z0-9]{4,12})/slip$")
+
+
+def verify_slip(code: str, visitor_id: str, image: bytes) -> tuple[int, dict[str, Any]]:
+    """Check one uploaded slip and approve the order when SlipOK confirms it."""
+    mime = slips.sniff_image(image)
+    if mime is None:
+        raise billing.PaymentError("Please upload a JPG, PNG, or WEBP image of your slip.", 415, "bad_file_type")
+    if not slips.LIMITER.allow(visitor_id):
+        raise billing.PaymentError("Too many uploads. Please wait a few minutes.", 429, "rate_limited")
+    order = SERVICE.begin_slip_check(code, visitor_id, slips.MAX_ATTEMPTS_PER_ORDER)
+    if order["status"] == "approved":
+        return 200, {"ok": True, "result": "success", "code": "already_approved",
+                     "messageTh": slips.MSG["success"][0], "messageEn": slips.MSG["success"][1],
+                     "order": billing.public_order(order), "balance": SERVICE.balance(visitor_id)}
+    prior_review = order.get("slipStatus") == "review"
+    check = slips.check_slip(image, mime, int(order["price"]))
+    outcome = slips.classify(check, int(order["price"]), prior_review=prior_review)
+    print(f"Slip check {order['code']}: {outcome.kind} ({outcome.code})", flush=True)
+
+    if outcome.kind == "success" and outcome.trans_ref:
+        try:
+            res = SERVICE.approve_with_slip(order["code"], outcome.trans_ref, outcome.summary)
+            order = res["order"]
+        except billing.PaymentError as exc:
+            if exc.code == "duplicate_slip":
+                outcome = slips.Outcome("failed", "duplicate_local", "transRef already used on another order",
+                                        *slips.MSG["duplicate"], summary=outcome.summary)
+            else:  # e.g. the admin rejected this order meanwhile
+                outcome = slips.Outcome("review", exc.code, f"valid slip but order is {exc.code}; check manually",
+                                        *slips.MSG["review"], summary=outcome.summary)
+    if outcome.kind != "success":
+        order = SERVICE.set_slip_result(order["code"], "failed" if outcome.kind == "failed" else "review",
+                                        outcome.note, outcome.summary)
+    return 200, {
+        "ok": True,
+        "result": outcome.kind,
+        "code": outcome.code,
+        "messageTh": outcome.th,
+        "messageEn": outcome.en,
+        "order": billing.public_order(order),
+        "balance": SERVICE.balance(visitor_id),
+    }
 
 
 def packages_payload() -> dict[str, Any]:
@@ -1011,6 +1055,8 @@ def packages_payload() -> dict[str, Any]:
         "maxAmount": billing.MAX_AMOUNT,
         "packages": billing.PACKAGES,
         "paymentEnabled": billing.promptpay_id_from_env() is not None,
+        "slipEnabled": billing.promptpay_id_from_env() is not None and slips.enabled(),
+        "slipMaxBytes": slips.MAX_BYTES,
         "line": "ivymoonask",
     }
 
@@ -1161,6 +1207,24 @@ class Handler(SimpleHTTPRequestHandler):
                 })
             self._handle(run)
             return
+        slip_match = SLIP_PATH.match(route)
+        if slip_match:
+            def run() -> None:
+                if not slips.enabled():
+                    raise billing.PaymentError("Slip upload is not available.", 503, "slip_disabled")
+                vid = self._visitor()
+                if not vid:
+                    raise ValueError("Missing visitor id.")
+                length = int(self.headers.get("Content-Length") or 0)
+                if length <= 0:
+                    raise billing.PaymentError("Please choose a slip image.", 400, "empty_file")
+                if length > slips.MAX_BYTES:
+                    raise billing.PaymentError("The image is larger than 4 MB.", 413, "file_too_large")
+                image = self.rfile.read(length)
+                status, payload = verify_slip(slip_match.group(1), vid, image)
+                self._send(status, payload)
+            self._handle(run)
+            return
         match = ORDER_PATH.match(route)
         if match:
             def run() -> None:
@@ -1181,6 +1245,7 @@ def main() -> None:
     mode = "LLM (OPENAI_API_KEY is set)" if has_key else "template fallback (no OPENAI_API_KEY)"
     pay = "PromptPay on" if billing.promptpay_id_from_env() else "PromptPay off (set PROMPTPAY_ID)"
     admin = "admin on" if os.environ.get("ADMIN_TOKEN") else "admin off (set ADMIN_TOKEN)"
+    admin += "; slip auto-check on" if slips.enabled() else "; slip auto-check off"
     print(f"ถามจันทร์ / Ask the Moon is listening on http://{HOST}:{PORT}  —  readings: {mode}; {pay}; {admin}", flush=True)
     if STORE_KIND == "postgres":
         tls = "off" if SERVICE.cfg["sslmode"] == "disable" else "on"

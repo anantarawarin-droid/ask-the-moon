@@ -26,6 +26,7 @@ Optional environment variables:
 | `OPENAI_MODEL` | Optional, default `gpt-4o-mini`. For Gemini a current Flash model such as `gemini-3.5-flash-lite` |
 | `PROMPTPAY_ID` | Your PromptPay phone (10 digits) or national ID (13 digits). Unset = "payment coming soon" |
 | `ADMIN_TOKEN` | Long random password for `/admin`. Unset = admin disabled |
+| `SLIPOK_BRANCH_ID`, `SLIPOK_API_KEY` | SlipOK branch + API key for automatic slip checks. Unset = no upload box (QR + LINE flow only) |
 | `DATABASE_URL` | Postgres URL (e.g. Neon). When set, balances and orders live in Postgres and survive redeploys. TLS is required by default |
 | `DATA_DIR` | JSON fallback location when there is no `DATABASE_URL` (default `./data`) |
 
@@ -53,6 +54,22 @@ Storage: with `DATABASE_URL` set, `PostgresCreditService` (in `credits.py`) crea
 Tests: `python3 -m unittest discover -s tests -v` (add `TEST_DATABASE_URL=postgresql://user:pw@127.0.0.1:5432/testdb?sslmode=disable` to also run the Postgres tests; they truncate the `moon_*` tables).
 
 If no API key is set, or the model request fails or times out (about 20 seconds), the site uses a built-in template generator that still weaves in the person's signs and numbers. Do not invent or paste a key you do not have, and never commit one to the repo.
+
+## Slip upload (SlipOK)
+
+When both SlipOK variables are set, the payment window shows an upload box under the QR.
+The browser sends the raw image (JPG/PNG/WEBP, ≤ 4 MB; type is checked by magic bytes) to
+`POST /api/orders/<code>/slip` with the `X-Visitor-Id` header. The server forwards it to
+SlipOK (`amount` = order price, `log=true`, 20 s timeout, one retry on timeout/network/5xx).
+
+* **Verified** → the order is approved immediately (credits added once), `transRef` is saved.
+  A `transRef` can only belong to one order (unique index in Postgres).
+* **Clear failure** (1012 repeated, 1013 wrong amount, 1014 wrong receiver, 1005–1008 not a slip,
+  or the slip's amount ≠ order) → friendly Thai/English message, order stays pending.
+* **Uncertain** (timeout, quota/setup 1000–1004, bank 1009/1010/1011, anything else) → order
+  stays pending with slip status `review`; `/admin` shows the note and slip summary.
+* Images are never stored; only a small summary (ref, amount, date, names, banks).
+* Limits: 5 uploads per order, 8 per visitor per 10 minutes.
 
 ## API
 

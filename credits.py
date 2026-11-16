@@ -347,9 +347,62 @@ class CreditService:
             order["decidedAt"] = _now()
             return {"order": dict(order)}
 
+    # -- slips ----------------------------------------------------------------
+    def begin_slip_check(self, code: str, visitor_id: str, max_attempts: int) -> dict[str, Any]:
+        with self.store.transaction() as data:
+            order = data["orders"].get(str(code).upper())
+            if order is None or order["visitor"] != visitor_id:
+                raise PaymentError("Order not found.", 404, "not_found")
+            if order["status"] == "approved":
+                return dict(order)
+            if order["status"] != "pending":
+                raise PaymentError("This order is closed. Please create a new one.", 409, "not_pending")
+            if int(order.get("slipAttempts") or 0) >= max_attempts:
+                raise PaymentError("Too many slip uploads for this order.", 429, "too_many_slips")
+            order["slipAttempts"] = int(order.get("slipAttempts") or 0) + 1
+            return dict(order)
+
+    def set_slip_result(self, code: str, status: str, note: str, summary: dict[str, Any]) -> dict[str, Any]:
+        with self.store.transaction() as data:
+            order = data["orders"][str(code).upper()]
+            if order["status"] == "pending":
+                order["slipStatus"] = status
+                order["slipNote"] = note[:200]
+                order["slipSummary"] = summary
+                order["slipCheckedAt"] = _now()
+            return dict(order)
+
+    def trans_ref_used(self, trans_ref: str, except_code: str | None = None) -> bool:
+        with self.store.read() as data:
+            return any(o.get("slipTransRef") == trans_ref and o["code"] != except_code for o in data["orders"].values())
+
+    def approve_with_slip(self, code: str, trans_ref: str, summary: dict[str, Any]) -> dict[str, Any]:
+        """Atomically: refuse a transRef used by another order, store it, approve once."""
+        with self.store.transaction() as data:
+            order = data["orders"].get(str(code).upper())
+            if order is None:
+                raise PaymentError("Order not found.", 404, "not_found")
+            for other in data["orders"].values():
+                if other.get("slipTransRef") == trans_ref and other["code"] != order["code"]:
+                    raise PaymentError("This slip was already used.", 409, "duplicate_slip")
+            if order["status"] == "approved":
+                if not order.get("slipTransRef"):
+                    order["slipTransRef"] = trans_ref
+                v = self._visitor(data, order["visitor"])
+                return {"order": dict(order), "alreadyApproved": True, "credits": v["credits"]}
+            if order["status"] != "pending":
+                raise PaymentError("Only pending orders can be approved.", 409, "not_pending")
+            v = self._visitor(data, order["visitor"])
+            v["credits"] += int(order["questions"])
+            order.update(status="approved", decidedAt=_now(), slipTransRef=trans_ref, slipStatus="verified",
+                         slipNote="verified by SlipOK", slipSummary=summary, slipCheckedAt=_now())
+            return {"order": dict(order), "alreadyApproved": False, "credits": v["credits"]}
+
 
 def public_order(order: dict[str, Any]) -> dict[str, Any]:
-    return {k: order[k] for k in ("code", "price", "questions", "bonus", "status", "createdAt", "decidedAt")}
+    out = {k: order[k] for k in ("code", "price", "questions", "bonus", "status", "createdAt", "decidedAt")}
+    out["slipStatus"] = order.get("slipStatus")
+    return out
 
 
 def admin_token_ok(given: str | None) -> bool | None:
@@ -506,6 +559,13 @@ CREATE TABLE IF NOT EXISTS moon_orders (
 );
 CREATE INDEX IF NOT EXISTS moon_orders_status_idx ON moon_orders (status, created_at DESC);
 CREATE INDEX IF NOT EXISTS moon_orders_visitor_idx ON moon_orders (visitor, created_at DESC);
+ALTER TABLE moon_orders ADD COLUMN IF NOT EXISTS slip_attempts INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE moon_orders ADD COLUMN IF NOT EXISTS slip_status TEXT;
+ALTER TABLE moon_orders ADD COLUMN IF NOT EXISTS slip_note TEXT;
+ALTER TABLE moon_orders ADD COLUMN IF NOT EXISTS slip_summary TEXT;
+ALTER TABLE moon_orders ADD COLUMN IF NOT EXISTS slip_trans_ref TEXT;
+ALTER TABLE moon_orders ADD COLUMN IF NOT EXISTS slip_checked_at TIMESTAMPTZ;
+CREATE UNIQUE INDEX IF NOT EXISTS moon_orders_slip_ref_idx ON moon_orders (slip_trans_ref) WHERE slip_trans_ref IS NOT NULL;
 """
 
 
@@ -527,7 +587,9 @@ class PostgresCreditService:
     """
 
     kind = "postgres"
-    ORDER_COLS = "code, visitor, price, questions, bonus, status, created_at, decided_at"
+    ORDER_COLS = ("code, visitor, price, questions, bonus, status, created_at, decided_at, "
+                  "slip_attempts, slip_status, slip_note, slip_summary, slip_trans_ref, slip_checked_at")
+    NCOLS = 14
 
     def __init__(self, url: str):
         self.cfg = parse_database_url(url)
@@ -621,9 +683,16 @@ class PostgresCreditService:
             return fn(cur)
 
     def _order(self, row) -> dict[str, Any]:
-        code, visitor, price, questions, bonus, status, created, decided = row
+        (code, visitor, price, questions, bonus, status, created, decided,
+         attempts, slip_status, slip_note, slip_summary, slip_ref, slip_checked) = row
+        try:
+            summary = json.loads(slip_summary) if slip_summary else None
+        except ValueError:
+            summary = None
         return {"code": code, "visitor": visitor, "price": price, "questions": questions, "bonus": bonus,
-                "status": status, "createdAt": _iso(created), "decidedAt": _iso(decided)}
+                "status": status, "createdAt": _iso(created), "decidedAt": _iso(decided),
+                "slipAttempts": attempts or 0, "slipStatus": slip_status, "slipNote": slip_note,
+                "slipSummary": summary, "slipTransRef": slip_ref, "slipCheckedAt": _iso(slip_checked)}
 
     # -- visitors -------------------------------------------------------------
     def balance(self, visitor_id: str) -> dict[str, Any]:
@@ -717,8 +786,8 @@ class PostgresCreditService:
             cur.execute(sql, params + (limit,))
             out = []
             for r in cur.fetchall():
-                o = self._order(r[:8])
-                o["visitorCredits"] = int(r[8])
+                o = self._order(r[: self.NCOLS])
+                o["visitorCredits"] = int(r[self.NCOLS])
                 out.append(o)
             return out
         return self._run(fn)
@@ -766,6 +835,83 @@ class PostgresCreditService:
                 (order["code"],),
             )
             return {"order": self._order(cur.fetchone())}
+        return self._run(fn)
+
+    # -- slips ----------------------------------------------------------------
+    def begin_slip_check(self, code: str, visitor_id: str, max_attempts: int) -> dict[str, Any]:
+        def fn(cur):
+            cur.execute(f"SELECT {self.ORDER_COLS} FROM moon_orders WHERE code = %s FOR UPDATE", (str(code).upper(),))
+            row = cur.fetchone()
+            if row is None:
+                raise PaymentError("Order not found.", 404, "not_found")
+            order = self._order(row)
+            if order["visitor"] != visitor_id:
+                raise PaymentError("Order not found.", 404, "not_found")
+            if order["status"] == "approved":
+                return order
+            if order["status"] != "pending":
+                raise PaymentError("This order is closed. Please create a new one.", 409, "not_pending")
+            if order["slipAttempts"] >= max_attempts:
+                raise PaymentError("Too many slip uploads for this order.", 429, "too_many_slips")
+            cur.execute(f"UPDATE moon_orders SET slip_attempts = slip_attempts + 1 WHERE code = %s RETURNING {self.ORDER_COLS}",
+                        (order["code"],))
+            return self._order(cur.fetchone())
+        return self._run(fn)
+
+    def set_slip_result(self, code: str, status: str, note: str, summary: dict[str, Any]) -> dict[str, Any]:
+        def fn(cur):
+            cur.execute(
+                "UPDATE moon_orders SET slip_status = %s, slip_note = %s, slip_summary = %s, slip_checked_at = now() "
+                f"WHERE code = %s AND status = 'pending' RETURNING {self.ORDER_COLS}",
+                (status, note[:200], json.dumps(summary, ensure_ascii=False), str(code).upper()),
+            )
+            row = cur.fetchone()
+            if row is None:
+                cur.execute(f"SELECT {self.ORDER_COLS} FROM moon_orders WHERE code = %s", (str(code).upper(),))
+                row = cur.fetchone()
+            return self._order(row)
+        return self._run(fn)
+
+    def trans_ref_used(self, trans_ref: str, except_code: str | None = None) -> bool:
+        def fn(cur):
+            cur.execute("SELECT 1 FROM moon_orders WHERE slip_trans_ref = %s AND code <> %s",
+                        (trans_ref, (except_code or "").upper()))
+            return cur.fetchone() is not None
+        return self._run(fn)
+
+    def approve_with_slip(self, code: str, trans_ref: str, summary: dict[str, Any]) -> dict[str, Any]:
+        def fn(cur):
+            # Serialize on the transRef so two orders can't claim one slip at once.
+            cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", ("moon-slip:" + trans_ref,))
+            cur.execute(f"SELECT {self.ORDER_COLS} FROM moon_orders WHERE code = %s FOR UPDATE", (str(code).upper(),))
+            row = cur.fetchone()
+            if row is None:
+                raise PaymentError("Order not found.", 404, "not_found")
+            order = self._order(row)
+            cur.execute("SELECT 1 FROM moon_orders WHERE slip_trans_ref = %s AND code <> %s", (trans_ref, order["code"]))
+            if cur.fetchone():
+                raise PaymentError("This slip was already used.", 409, "duplicate_slip")
+            if order["status"] == "approved":
+                cur.execute("UPDATE moon_orders SET slip_trans_ref = COALESCE(slip_trans_ref, %s) WHERE code = %s",
+                            (trans_ref, order["code"]))
+                cur.execute("SELECT credits FROM moon_visitors WHERE id = %s", (order["visitor"],))
+                r = cur.fetchone()
+                return {"order": order, "alreadyApproved": True, "credits": int(r[0]) if r else 0}
+            if order["status"] != "pending":
+                raise PaymentError("Only pending orders can be approved.", 409, "not_pending")
+            cur.execute(
+                "INSERT INTO moon_visitors (id, credits) VALUES (%s, %s) "
+                "ON CONFLICT (id) DO UPDATE SET credits = moon_visitors.credits + EXCLUDED.credits RETURNING credits",
+                (order["visitor"], int(order["questions"])),
+            )
+            credits_now = int(cur.fetchone()[0])
+            cur.execute(
+                "UPDATE moon_orders SET status = 'approved', decided_at = now(), slip_trans_ref = %s, "
+                "slip_status = 'verified', slip_note = 'verified by SlipOK', slip_summary = %s, slip_checked_at = now() "
+                f"WHERE code = %s RETURNING {self.ORDER_COLS}",
+                (trans_ref, json.dumps(summary, ensure_ascii=False), order["code"]),
+            )
+            return {"order": self._order(cur.fetchone()), "alreadyApproved": False, "credits": credits_now}
         return self._run(fn)
 
 

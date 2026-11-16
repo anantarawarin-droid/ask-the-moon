@@ -1,0 +1,252 @@
+"""Automatic payment-slip verification through SlipOK (https://slipok.com).
+
+Enabled only when SLIPOK_BRANCH_ID and SLIPOK_API_KEY are set. The key is
+sent as a header and never logged. Slip images are forwarded to SlipOK and
+not stored; only a short summary is kept on the order.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import secrets
+import sys
+import threading
+import time
+import urllib.error
+import urllib.request
+from dataclasses import dataclass, field
+from typing import Any
+
+SLIPOK_URL = "https://api.slipok.com/api/line/apikey/"
+TIMEOUT_SECONDS = 20
+MAX_BYTES = 4 * 1024 * 1024
+MAX_ATTEMPTS_PER_ORDER = 5
+VISITOR_WINDOW_SECONDS = 600
+MAX_UPLOADS_PER_VISITOR_WINDOW = 8
+
+EXTENSIONS = {"image/jpeg": "slip.jpg", "image/png": "slip.png", "image/webp": "slip.webp"}
+
+
+def config() -> tuple[str, str] | None:
+    branch = os.environ.get("SLIPOK_BRANCH_ID", "").strip()
+    key = os.environ.get("SLIPOK_API_KEY", "").strip()
+    if not branch or not key:
+        return None
+    return branch, key
+
+
+def enabled() -> bool:
+    return config() is not None
+
+
+def sniff_image(data: bytes) -> str | None:
+    """Return the MIME type from the file's magic bytes, or None."""
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Rate limiting (in memory; resets on restart, the per-order cap is stored)
+# ---------------------------------------------------------------------------
+class VisitorLimiter:
+    def __init__(self, limit: int = MAX_UPLOADS_PER_VISITOR_WINDOW, window: int = VISITOR_WINDOW_SECONDS):
+        self.limit = limit
+        self.window = window
+        self._hits: dict[str, list[float]] = {}
+        self._lock = threading.Lock()
+
+    def allow(self, key: str) -> bool:
+        now = time.monotonic()
+        with self._lock:
+            hits = [t for t in self._hits.get(key, []) if now - t < self.window]
+            if len(hits) >= self.limit:
+                self._hits[key] = hits
+                return False
+            hits.append(now)
+            self._hits[key] = hits
+            if len(self._hits) > 5000:  # keep memory bounded
+                for k in list(self._hits)[:1000]:
+                    self._hits.pop(k, None)
+            return True
+
+
+LIMITER = VisitorLimiter()
+
+
+# ---------------------------------------------------------------------------
+# SlipOK call
+# ---------------------------------------------------------------------------
+def _multipart(fields: dict[str, str], file_bytes: bytes, filename: str, mime: str) -> tuple[bytes, str]:
+    boundary = "----moon" + secrets.token_hex(12)
+    out = bytearray()
+    for name, value in fields.items():
+        out += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n").encode()
+    out += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"files\"; filename=\"{filename}\"\r\n"
+            f"Content-Type: {mime}\r\n\r\n").encode()
+    out += file_bytes + b"\r\n" + f"--{boundary}--\r\n".encode()
+    return bytes(out), f"multipart/form-data; boundary={boundary}"
+
+
+def slipok_request(image: bytes, mime: str, amount: int) -> tuple[int, dict[str, Any]]:
+    """One HTTP call to SlipOK. Returns (status, json). Raises on network errors/timeouts."""
+    cfg = config()
+    if cfg is None:
+        raise RuntimeError("SlipOK is not configured")
+    branch, key = cfg
+    body, ctype = _multipart({"amount": str(amount), "log": "true"}, image, EXTENSIONS[mime], mime)
+    req = urllib.request.Request(
+        SLIPOK_URL + urllib.request.quote(branch, safe=""),
+        data=body,
+        method="POST",
+        headers={"x-authorization": key, "Content-Type": ctype, "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS) as resp:
+            status, raw = resp.status, resp.read()
+    except urllib.error.HTTPError as exc:
+        status, raw = exc.code, exc.read()
+    try:
+        payload = json.loads(raw.decode("utf-8") or "{}")
+    except ValueError:
+        payload = {}
+    return status, payload if isinstance(payload, dict) else {}
+
+
+def check_slip(image: bytes, mime: str, amount: int) -> dict[str, Any]:
+    """Call SlipOK with one retry on timeouts, network errors, and 5xx.
+
+    Returns {"status", "payload", "retried", "error"}; never raises.
+    """
+    result: dict[str, Any] = {"status": None, "payload": {}, "retried": False, "error": None}
+    for attempt in (1, 2):
+        try:
+            status, payload = slipok_request(image, mime, amount)
+            result.update(status=status, payload=payload, error=None)
+            if status >= 500 and attempt == 1:
+                result["retried"] = True
+                time.sleep(1.0)
+                continue
+            return result
+        except (TimeoutError, urllib.error.URLError, OSError) as exc:
+            reason = getattr(exc, "reason", exc)
+            result["error"] = "timeout" if isinstance(reason, TimeoutError) or isinstance(exc, TimeoutError) else type(exc).__name__
+            if attempt == 1:
+                result["retried"] = True
+                time.sleep(1.0)
+                continue
+            return result
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Interpreting the answer
+# ---------------------------------------------------------------------------
+@dataclass
+class Outcome:
+    kind: str  # "success" | "failed" | "review"
+    code: str
+    note: str  # short admin-facing note (no secrets)
+    th: str
+    en: str
+    summary: dict[str, Any] = field(default_factory=dict)
+    trans_ref: str | None = None
+
+
+def summarize(data: Any) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        return {}
+    sender = data.get("sender") or {}
+    receiver = data.get("receiver") or {}
+    keep = {
+        "transRef": data.get("transRef"),
+        "amount": data.get("amount"),
+        "transDate": data.get("transDate"),
+        "transTime": data.get("transTime"),
+        "sendingBank": data.get("sendingBank"),
+        "receivingBank": data.get("receivingBank"),
+        "sender": (sender.get("displayName") or sender.get("name")) if isinstance(sender, dict) else None,
+        "receiver": (receiver.get("displayName") or receiver.get("name")) if isinstance(receiver, dict) else None,
+    }
+    return {k: (str(v)[:60] if v is not None else None) for k, v in keep.items() if v not in (None, "")}
+
+
+def _amount_matches(value: Any, price: int) -> bool:
+    try:
+        return abs(float(value) - float(price)) < 0.005
+    except (TypeError, ValueError):
+        return False
+
+
+MSG = {
+    "success": ("ตรวจสลิปผ่านแล้ว! เติมคำถามให้เรียบร้อย ✨", "Slip verified! Your questions have been added ✨"),
+    "amount": ("ยอดในสลิปไม่ตรงกับคำสั่งซื้อ กรุณาโอนให้ตรงยอด หรือส่งสลิปที่ถูกต้อง",
+               "The slip amount doesn't match this order. Please pay the exact amount or upload the right slip."),
+    "receiver": ("บัญชีผู้รับในสลิปไม่ใช่บัญชีของถามจันทร์ กรุณาตรวจสอบการโอนอีกครั้ง",
+                 "This slip was paid to a different account. Please check your transfer."),
+    "duplicate": ("สลิปนี้เคยใช้ไปแล้ว ไม่สามารถใช้ซ้ำได้", "This slip has already been used and can't be used again."),
+    "not_slip": ("อ่านสลิปไม่ได้ กรุณาอัปโหลดรูปสลิปที่เห็น QR ชัดเจน (ไม่ครอป)",
+                 "We couldn't read a payment slip. Please upload the full slip image with its QR code visible."),
+    "review": ("ได้รับสลิปแล้ว ระบบยังยืนยันอัตโนมัติไม่ได้ แอดมินจะตรวจและเติมคำถามให้เร็วที่สุด (หรือทักทาง LINE: ivymoonask)",
+               "We got your slip but couldn't verify it automatically. The admin will check it and add your questions soon (or message LINE: ivymoonask)."),
+    "delay": ("ธนาคารนี้ต้องรอสักครู่ก่อนตรวจสลิปได้ ลองอัปโหลดอีกครั้งในอีกไม่กี่นาที หรือรอแอดมินตรวจให้",
+              "This bank needs a few minutes before slips can be checked. Try again in a few minutes, or wait for the admin to check it."),
+}
+
+
+def classify(check: dict[str, Any], price: int, prior_review: bool = False) -> Outcome:
+    status = check.get("status")
+    payload = check.get("payload") or {}
+    data = payload.get("data")
+    summary = summarize(data)
+
+    if status is None:
+        err = check.get("error") or "network"
+        return Outcome("review", err, f"SlipOK unreachable ({err}); check manually", *MSG["review"])
+
+    if status == 200 and payload.get("success") and isinstance(data, dict) and data.get("success") is not False:
+        ref = str(data.get("transRef") or "").strip()
+        if not ref:
+            return Outcome("review", "no_ref", "SlipOK OK but no transRef; check manually", *MSG["review"], summary=summary)
+        if not _amount_matches(data.get("amount"), price):
+            return Outcome("failed", "amount_local", f"slip amount {data.get('amount')} ≠ order {price}",
+                           *MSG["amount"], summary=summary, trans_ref=ref)
+        return Outcome("success", "ok", "verified by SlipOK", *MSG["success"], summary=summary, trans_ref=ref)
+
+    code = payload.get("code")
+    try:
+        code_i = int(code)
+    except (TypeError, ValueError):
+        code_i = None
+
+    if code_i == 1013:
+        return Outcome("failed", "1013", "SlipOK 1013 wrong amount", *MSG["amount"], summary=summary)
+    if code_i == 1014:
+        return Outcome("failed", "1014", "SlipOK 1014 wrong receiver", *MSG["receiver"], summary=summary)
+    if code_i == 1012:
+        if (check.get("retried") or prior_review) and _amount_matches(summary.get("amount"), price):
+            # Likely our own earlier call that SlipOK already logged (a timed-out
+            # first try, or an earlier "check manually" upload): let the admin decide.
+            return Outcome("review", "1012", "SlipOK 1012 repeated slip; amount matches — confirm it isn't reused",
+                           *MSG["review"], summary=summary, trans_ref=None)
+        return Outcome("failed", "1012", "SlipOK 1012 repeated slip", *MSG["duplicate"], summary=summary)
+    if code_i in (1005, 1006, 1007, 1008):
+        return Outcome("failed", str(code_i), f"SlipOK {code_i} not a readable payment slip", *MSG["not_slip"], summary=summary)
+    if code_i == 1010:
+        delay = (data or {}).get("delay") if isinstance(data, dict) else None
+        return Outcome("review", "1010", f"SlipOK 1010 bank delay{f' ({delay} min)' if delay else ''}; retry or check manually",
+                       *MSG["delay"], summary=summary)
+    if code_i in (1009, 1011):
+        return Outcome("review", str(code_i), f"SlipOK {code_i} bank data not available yet; check manually",
+                       *MSG["review"], summary=summary)
+    if code_i in (1000, 1001, 1002, 1003, 1004):
+        print(f"SlipOK configuration/quota problem: code {code_i}", file=sys.stderr, flush=True)
+        return Outcome("review", str(code_i), f"SlipOK {code_i} (setup/quota problem); check manually",
+                       *MSG["review"], summary=summary)
+    return Outcome("review", str(code_i or status), f"SlipOK HTTP {status} code {code_i}; check manually",
+                   *MSG["review"], summary=summary)

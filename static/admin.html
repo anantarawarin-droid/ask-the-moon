@@ -31,6 +31,10 @@
     .pill.pending { color: var(--gold-soft); border-color: rgba(212,175,55,.5); }
     .pill.approved { color:#bff3cf; border-color: rgba(95,201,131,.5); }
     .pill.rejected { color:#ffb4b4; border-color: rgba(255,180,180,.4); }
+    .slip { display:block; margin-top:.3rem; font-size:.72rem; color: var(--muted); max-width: 16rem; }
+    .slip b.review { color: var(--gold-soft); }
+    .slip b.failed { color:#ffb4b4; }
+    .slip b.verified { color:#bff3cf; }
     .err { color:#ffb4b4; }
     .empty { color: var(--muted); text-align:center; padding: 1.4rem 0; }
     button.armed { outline: 2px solid var(--gold-soft); outline-offset: 2px; animation: pulse 1s ease-in-out infinite; }
@@ -113,6 +117,22 @@
     if (msg) { $("login-err").textContent = msg; $("login-err").hidden = false; }
   }
 
+  const SLIP_LABEL = { verified: "สลิปผ่าน (อัตโนมัติ)", review: "สลิป: ต้องตรวจเอง", failed: "สลิปไม่ผ่าน" };
+  function slipInfo(o) {
+    if (!o.slipStatus) return "";
+    const s = o.slipSummary || {};
+    const bits = [];
+    if (s.amount != null) bits.push("฿" + s.amount);
+    if (s.sender) bits.push("จาก " + s.sender);
+    if (s.transDate || s.transTime) bits.push([s.transDate, s.transTime].filter(Boolean).join(" "));
+    if (o.slipTransRef || s.transRef) bits.push("ref " + (o.slipTransRef || s.transRef));
+    return `<span class="slip"><b class="${esc(o.slipStatus)}">${esc(SLIP_LABEL[o.slipStatus] || o.slipStatus)}</b>`
+      + (o.slipNote ? ` · ${esc(o.slipNote)}` : "")
+      + (bits.length ? `<br>${esc(bits.join(" · "))}` : "")
+      + (o.slipAttempts ? ` <br>อัปโหลด ${esc(o.slipAttempts)} ครั้ง` : "")
+      + `</span>`;
+  }
+
   let loadSeq = 0;
   async function load() {
     const seq = ++loadSeq;
@@ -126,7 +146,7 @@
         <td>฿${esc(o.price)}</td>
         <td>${esc(o.questions)}${o.bonus ? ` <small>(โบนัส ${esc(o.bonus)})</small>` : ""}</td>
         <td>${esc(fmt(o.createdAt))}</td>
-        <td><span class="pill ${esc(o.status)}">${esc(o.status)}</span></td>
+        <td><span class="pill ${esc(o.status)}">${esc(o.status)}</span>${slipInfo(o)}</td>
         <td class="row">${o.status === "pending"
           ? `<button class="ok" data-act="approve" data-code="${esc(o.code)}">อนุมัติ</button>
              <button class="no" data-act="reject" data-code="${esc(o.code)}">ปฏิเสธ</button>`
