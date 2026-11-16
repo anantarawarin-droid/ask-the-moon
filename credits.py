@@ -554,7 +554,18 @@ class PostgresCreditService:
                 application_name="ask-the-moon",
             )
         except Exception as exc:  # never include the URL; pg8000 messages do not contain it
-            raise DatabaseConfigError(f"Could not connect to Postgres ({type(exc).__name__}: {_safe_msg(exc, cfg)})") from None
+            hint = ""
+            if "28P01" in str(exc):
+                pw = cfg.get("password")
+                if not pw:
+                    hint = " Hint: the URL has no password."
+                elif set(pw) <= set("*•●x") or "****" in pw:
+                    hint = " Hint: the password in the URL looks masked (asterisks/dots); copy it with the password revealed."
+                else:
+                    hint = " Hint: the password does not match this role; reset or re-copy it in Neon."
+            raise DatabaseConfigError(
+                f"Could not connect to Postgres ({type(exc).__name__}: {_safe_msg(exc, cfg)}){hint}"
+            ) from None
         conn.autocommit = False
         return conn
 

@@ -431,6 +431,17 @@ class DatabaseUrl(unittest.TestCase):
                 billing.parse_database_url(bad)
             self.assertNotIn("secretpw", str(ctx.exception))
 
+    @unittest.skipUnless(TEST_PG, "needs Postgres")
+    def test_wrong_and_masked_password_hints(self):
+        from urllib.parse import urlsplit
+        parts = urlsplit(TEST_PG)
+        host = f"{parts.hostname}:{parts.port}"
+        for pw, hint in (("********", "looks masked"), ("definitely-wrong", "does not match")):
+            with self.assertRaises(billing.DatabaseConfigError) as ctx:
+                billing.PostgresCreditService(f"postgresql://moonuser:{pw}@{host}/moontest?sslmode=disable")
+            self.assertIn(hint, str(ctx.exception))
+            self.assertNotIn(pw, str(ctx.exception))
+
     def test_low_scram_iteration_servers_are_accepted(self):
         billing._import_pg8000()
         import scramp.core
