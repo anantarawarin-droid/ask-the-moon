@@ -412,7 +412,9 @@ class CreditService:
                 moved = int(v["credits"])
                 wallet["credits"] += moved
                 v["credits"] = 0
-                if v["freeUsed"]:
+                # Only a free question the visitor really used counts. A visitor that was
+                # already merged is marked used only to stop a second anonymous freebie.
+                if v["freeUsed"] and not v.get("mergedInto"):
                     wallet["freeUsed"] = True
                 v["freeUsed"] = True  # the free question now lives with the account
                 v["mergedInto"] = account_id
@@ -991,10 +993,12 @@ class PostgresCreditService:
             moved, used = 0, False
             if visitor_id and visitor_id != account_id:
                 cur.execute("INSERT INTO moon_visitors (id) VALUES (%s) ON CONFLICT (id) DO NOTHING", (visitor_id,))
-                cur.execute("SELECT credits, free_used FROM moon_visitors WHERE id = %s FOR UPDATE", (visitor_id,))
+                cur.execute("SELECT credits, free_used, merged_into FROM moon_visitors WHERE id = %s FOR UPDATE",
+                            (visitor_id,))
                 r = cur.fetchone()
                 if r is not None:
-                    moved, used = int(r[0]), bool(r[1])
+                    # an already-merged visitor is marked used only to block a second freebie
+                    moved, used = int(r[0]), bool(r[1]) and r[2] is None
                     cur.execute("UPDATE moon_visitors SET credits = 0, free_used = TRUE, merged_into = %s WHERE id = %s",
                                 (account_id, visitor_id))
             cur.execute("UPDATE moon_visitors SET credits = credits + %s, free_used = (free_used OR %s) WHERE id = %s",

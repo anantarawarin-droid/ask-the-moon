@@ -152,6 +152,21 @@ class AccountHttp(tc.Http):
         code, r, _ = self.raw("POST", "/api/reading", {"name": "A", "topic": "love", "lang": "th"}, {"X-Visitor-Id": V1})
         self.assertEqual(code, 402)
 
+    def test_relogin_keeps_unused_free_question(self):
+        # Sign up, log out, log back in on the same device: the account keeps its unused free question,
+        # while the anonymous device itself doesn't get a second one.
+        code, data, ck = self.auth("/api/auth/signup", "comeback", "password-1", V1)
+        self.assertTrue(data["freeAvailable"])
+        self.raw("POST", "/api/auth/logout", {}, {"Cookie": ck.split(";")[0], "X-Visitor-Id": V1})
+        self.assertFalse(self.me(None, V1)["freeAvailable"])
+        code, data, _ = self.auth("/api/auth/login", "comeback", "password-1", V1)
+        self.assertEqual(code, 200)
+        self.assertTrue(data["freeAvailable"])
+        # A different device that already used its free question still uses it up on merge.
+        self.raw("POST", "/api/reading", {"name": "A", "topic": "love", "lang": "th"}, {"X-Visitor-Id": V2})
+        code, data, _ = self.auth("/api/auth/login", "comeback", "password-1", V2)
+        self.assertFalse(data["freeAvailable"])
+
     def test_buy_and_deduct_on_account_across_devices(self):
         _, _, ck = self.auth("/api/auth/signup", "buyer_01", "password-1", V1)
         cookie = ck.split(";")[0]
