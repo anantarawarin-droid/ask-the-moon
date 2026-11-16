@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+.venv/
+venv/
+env/
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Local / generated
+screenshot.png
+*.png
+.DS_Store
+.idea/
+.vscode/
