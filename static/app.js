@@ -6,7 +6,19 @@ const I18N = {
     footBrand: "ถามจันทร์",
     eyebrow: "ไพ่ทาโรต์ · ตอบตรง · ไม่อ้อมค้อม",
     heroTitle: "ถามจันทร์",
-    heroLede: "พิมพ์คำถามที่อยากรู้ จันทร์จะเปิดไพ่ทาโรต์ 3 ใบ แล้วตอบให้ตรงประเด็น พร้อมเหตุผลจากไพ่และคำแนะนำที่ทำได้จริง",
+    heroLede: "พิมพ์คำถามที่อยากรู้ จันทร์จะเปิดไพ่ทาโรต์ 3 ใบ แล้วตอบให้ตรงประเด็น พร้อมเหตุผลจากไพ่และคำแนะนำที่ทำได้จริง — ใส่วันเกิดเพื่อดูปีนักษัตร เลขวันเกิด และราศีของคุณด้วย",
+    heroOffer: "✨ สมัครฟรี รับคำถามแรกฟรี 1 ข้อ",
+    heroOfferIn: (n) => n > 0 ? `✨ คุณมีคำถามเหลือ ${n} ข้อ` : "✨ คุณมีคำถามฟรี 1 ข้อ ถามได้เลย",
+    creditLogin: "สมัครฟรี รับคำถามแรกฟรี 1 ข้อ · เข้าสู่ระบบก่อนถามไพ่นะคะ",
+    accNeedLoginAsk: "สมัครฟรี รับคำถามแรกฟรี 1 ข้อ ✨ กรุณาสมัครหรือเข้าสู่ระบบก่อนถามไพ่ค่ะ",
+    profileTitle: "โปรไฟล์ดวงของคุณ",
+    profileNote: "ข้อมูลนี้คำนวณจากวันเกิดของคุณ แยกจากคำตอบของไพ่ซึ่งอ่านจากไพ่ 3 ใบเท่านั้น",
+    profileSub: (p) => `เกิด${p.weekdayTh}ที่ ${p.dateTh}${p.birthTime ? " เวลา " + p.birthTime + " น." : ""}`,
+    profChinese: "ปีนักษัตร",
+    profNumber: "เลขวันเกิด",
+    profWestern: "ราศีตะวันตก",
+    profHour: "ยามเกิด",
+    profMaster: "เลขมาสเตอร์",
     adHeading: "พื้นที่แห่งโอกาสสำหรับแบรนด์ของคุณ",
     adLine1: "ร่วมเป็นส่วนหนึ่งของจักรวาลแห่งการพยากรณ์",
     adLine2: "เปิดรับโฆษณา ประชาสัมพันธ์สินค้าและบริการ สำหรับผู้ที่สนใจร่วมลงพื้นที่โฆษณาบนเว็บไซต์",
@@ -172,7 +184,19 @@ const I18N = {
     footBrand: "Ask the Moon",
     eyebrow: "Tarot · Straight answers · No riddles",
     heroTitle: "Ask the Moon",
-    heroLede: "Type what you want to know. The Moon draws three tarot cards and gives you a straight answer, the reasons in the cards, and advice you can act on.",
+    heroLede: "Type what you want to know. The Moon draws three tarot cards and gives you a straight answer, the reasons in the cards, and advice you can act on. Add your birthday to see your Chinese zodiac, birth number, and star sign too.",
+    heroOffer: "✨ Sign up free — your first question is on us",
+    heroOfferIn: (n) => n > 0 ? `✨ You have ${n} questions left` : "✨ You have 1 free question — ask away",
+    creditLogin: "Sign up free and get your first question free · please log in to ask.",
+    accNeedLoginAsk: "Sign up free and get 1 free question ✨ Please sign up or log in to ask the cards.",
+    profileTitle: "Your birth profile",
+    profileNote: "Worked out from your birthday, separate from the tarot answer, which reads only the three cards.",
+    profileSub: (p) => `Born on a ${p.weekdayEn}, ${p.dateEn}${p.birthTime ? " at " + p.birthTime : ""}`,
+    profChinese: "Chinese zodiac",
+    profNumber: "Birth number",
+    profWestern: "Star sign",
+    profHour: "Hour of birth",
+    profMaster: "Master number",
     adHeading: "A space of opportunity for your brand",
     adLine1: "Become part of the universe of fortune-telling",
     adLine2: "Now accepting ads to promote your products and services",
@@ -348,7 +372,7 @@ const state = {
   lang: localStorage.getItem("duang-lang") || "th",
   last: null,
   visitor: visitorId(),
-  balance: { credits: 0, freeAvailable: true },
+  balance: { credits: 0, freeAvailable: false },
   packages: [],
   paymentEnabled: false,
   slipEnabled: false,
@@ -510,6 +534,42 @@ function renderTarot(tarot) {
   tarotRevealed = key;
 }
 
+const ANIMAL_ICON = { rat: "🐀", ox: "🐂", tiger: "🐅", rabbit: "🐇", dragon: "🐉", snake: "🐍",
+  horse: "🐎", goat: "🐐", monkey: "🐒", rooster: "🐓", dog: "🐕", pig: "🐖" };
+
+function renderProfile(p) {
+  const panel = document.getElementById("profile-panel");
+  if (!p) {
+    panel.hidden = true;
+    return;
+  }
+  const th = state.lang === "th";
+  const dict = t();
+  const L = (o, k) => (th ? o[k + "Th"] : o[k + "En"]);
+  const item = (icon, label, value, extra, meaning) => `
+    <div class="prof-item">
+      <div class="prof-icon" aria-hidden="true">${escapeHtml(icon)}</div>
+      <div class="prof-text">
+        <small>${escapeHtml(label)}</small>
+        <b>${escapeHtml(value)}</b>
+        ${extra ? `<span class="prof-extra">${escapeHtml(extra)}</span>` : ""}
+        <p>${escapeHtml(meaning)}</p>
+      </div>
+    </div>`;
+  const c = p.chinese, n = p.number, w = p.western;
+  const items = [
+    item(ANIMAL_ICON[c.key] || "☯", dict.profChinese, th ? `ปี${c.th}` : `${c.en}`,
+      th ? `ปีนักษัตรเริ่มตรุษจีน พ.ศ. ${c.lunarYear + 543}` : `Lunar year from Chinese New Year ${c.lunarYear}`,
+      `${L(c, "meaning")} · ${L(c, "element")}`),
+    item(String(n.value), dict.profNumber, `${n.value} · ${L(n, "title")}`, n.master ? dict.profMaster : "", L(n, "meaning")),
+    item(w.glyph, dict.profWestern, th ? w.th : w.en, `${L(w, "dates")} · ${L(w, "element")}`, L(w, "meaning")),
+  ];
+  if (p.hour) items.push(item("☾", dict.profHour, th ? p.hour.th : p.hour.en, p.birthTime || "", L(p.hour, "meaning")));
+  document.getElementById("profile-grid").innerHTML = items.join("");
+  document.getElementById("profile-sub").textContent = dict.profileSub(p);
+  panel.hidden = false;
+}
+
 function renderResult(data) {
   const dict = t();
   const result = document.getElementById("result");
@@ -519,6 +579,7 @@ function renderResult(data) {
   const badges = data.question ? [badge(dict.qLabel, data.question)] : [];
   document.getElementById("badges").innerHTML = badges.join("");
   renderTarot(data.tarot);
+  renderProfile(data.profile);
   document.getElementById("reading-body").textContent = data.reading;
   const charge = data.charge || {};
   let note = data.source === "llm" ? dict.sourceLlm : dict.sourceTemplate;
@@ -571,9 +632,24 @@ async function onSubmit(event) {
   const question = document.getElementById("question").value.trim();
   const topic = (document.querySelector('input[name="topic"]:checked') || {}).value || "life_path";
 
+  const birthDate = document.getElementById("birthDate").value;
+  const birthTime = document.getElementById("birthTime").value;
+
   if (!name) {
     error.textContent = dict.needName;
     error.hidden = false;
+    return;
+  }
+  if (!birthDate) {
+    error.textContent = dict.needDate;
+    error.hidden = false;
+    return;
+  }
+
+  if (!state.account) {
+    // Every question (the free one too) needs an account.
+    state.afterLogin = () => document.getElementById("reading-form").requestSubmit();
+    openAccountModal("signup", dict.accNeedLoginAsk);
     return;
   }
 
@@ -591,6 +667,8 @@ async function onSubmit(event) {
       method: "POST",
       body: JSON.stringify({
         name,
+        birthDate,
+        birthTime,
         topic,
         question,
         lang: state.lang,
@@ -599,6 +677,13 @@ async function onSubmit(event) {
     if (response.status === 402) {
       await refreshBalance();
       showNoCredits();
+      return;
+    }
+    if (response.status === 401 && data.code === "login_required") {
+      state.account = null;
+      renderAccountButton();
+      state.afterLogin = () => document.getElementById("reading-form").requestSubmit();
+      openAccountModal("signup", dict.accNeedLoginAsk);
       return;
     }
     if (!response.ok || !data.ok) {
@@ -631,9 +716,30 @@ function setBalance(balance) {
     state.account = balance.account;
     renderAccountButton();
   }
+  if (balance.birth) prefillBirth(balance.birth);
   const before = state.balance.credits;
   state.balance = { credits: Number(balance.credits) || 0, freeAvailable: Boolean(balance.freeAvailable) };
   renderBalance(before !== state.balance.credits);
+}
+
+function prefillBirth(birth) {
+  // Returning users: fill saved birth data, but never overwrite what they typed.
+  const d = document.getElementById("birthDate");
+  const tm = document.getElementById("birthTime");
+  if (birth.date && !d.value) d.value = birth.date;
+  if (birth.time && !tm.value) tm.value = birth.time;
+}
+
+function renderOffer() {
+  const dict = t();
+  const btn = document.getElementById("hero-signup");
+  if (!btn) return;
+  const { credits, freeAvailable } = state.balance;
+  if (!state.account) btn.textContent = dict.heroOffer;
+  else if (credits > 0 || freeAvailable) btn.textContent = dict.heroOfferIn(credits);
+  else btn.textContent = dict.heroOffer;
+  btn.parentElement.hidden = Boolean(state.account) && credits <= 0 && !freeAvailable;
+  btn.classList.toggle("is-in", Boolean(state.account));
 }
 
 function renderBalance(bump = false) {
@@ -651,9 +757,14 @@ function renderBalance(bump = false) {
   const text = document.getElementById("credit-text");
   const strip = document.getElementById("credit-strip");
   strip.classList.toggle("is-empty", credits <= 0 && !freeAvailable);
-  if (credits > 0) text.innerHTML = dict.creditHave(credits);
+  strip.classList.toggle("needs-login", !state.account);
+  if (!state.account && credits <= 0) {
+    strip.classList.remove("is-empty");
+    text.textContent = dict.creditLogin;
+  } else if (credits > 0) text.innerHTML = dict.creditHave(credits);
   else if (freeAvailable) text.textContent = dict.creditFree;
   else text.textContent = dict.creditNone;
+  renderOffer();
 }
 
 async function refreshBalance() {
@@ -1129,6 +1240,10 @@ async function logout() {
   } catch (_) { /* ignore */ }
   state.account = null;
   renderAccountButton();
+  renderBalance();
+  // Shared device: don't leave the saved birthday in the form.
+  document.getElementById("birthDate").value = "";
+  document.getElementById("birthTime").value = "";
   closeAccountModal();
   toast(t().accLoggedOut);
 }
@@ -1165,6 +1280,12 @@ function setupAccount() {
 }
 
 function setup() {
+  const dateInput = document.getElementById("birthDate");
+  dateInput.max = new Date().toISOString().slice(0, 10);
+  document.getElementById("hero-signup").addEventListener("click", () => {
+    if (state.account) document.getElementById("oracle").scrollIntoView({ behavior: "smooth", block: "start" });
+    else openAccountModal("signup", t().accNeedLoginAsk);
+  });
   document.querySelectorAll(".lang-btn").forEach((btn) => {
     btn.addEventListener("click", () => setLang(btn.dataset.lang));
   });

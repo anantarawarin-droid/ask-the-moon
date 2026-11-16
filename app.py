@@ -24,6 +24,7 @@ import credits as billing
 import slips
 import tarot
 import accounts
+import birthprofile
 
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
@@ -144,7 +145,8 @@ def parse_reading_request(body: dict[str, Any]) -> dict[str, Any]:
     name = str(body.get("name") or "").strip()
     if not name or len(name) > 80:
         raise ValueError("Please enter a name.")
-    # Birth date/time are no longer used (readings are tarot-only); older clients may still send them.
+    # Birth date/time feed only the separate profile panel, never the tarot answer.
+    birth, birth_time = birthprofile.parse_birth(body.get("birthDate"), body.get("birthTime"))
     topic = str(body.get("topic") or "life_path").strip()
     if topic not in TOPICS:
         raise ValueError("Please choose a topic.")
@@ -152,13 +154,15 @@ def parse_reading_request(body: dict[str, Any]) -> dict[str, Any]:
     if len(question) > 280:
         raise ValueError("Please keep your question under 280 characters.")
     lang = "th" if str(body.get("lang") or "th").lower().startswith("th") else "en"
-    return {"name": name, "topic": topic, "question": question, "lang": lang}
+    return {"name": name, "topic": topic, "question": question, "lang": lang,
+            "birth": birth, "birthTime": birth_time}
 
 
 def generate_reading(params: dict[str, Any]) -> dict[str, Any]:
     name, lang = params["name"], params["lang"]
     topic, question = params["topic"], params["question"]
     cards = tarot.draw()
+    # The AI only ever sees the name, topic, question and the three cards (never birth data).
     premium = tarot.premium_from_cards(cards, lang)
     source = "template"
     text = None
@@ -180,6 +184,7 @@ def generate_reading(params: dict[str, Any]) -> dict[str, Any]:
         "premium": premium,
         "tarot": {"headingTh": tarot.HEADING_TH, "headingEn": tarot.HEADING_EN, "cards": cards,
                   "lean": tarot.verdict(cards)},
+        "profile": birthprofile.build_profile(params["birth"], params.get("birthTime")) if params.get("birth") else None,
     }
 
 
@@ -333,8 +338,12 @@ class Handler(SimpleHTTPRequestHandler):
     def _account_payload(self) -> dict[str, Any]:
         user = self._user()
         owner = self._owner()
-        bal = SERVICE.balance(owner) if owner else {"credits": 0, "freeAvailable": True}
-        return {"account": {"username": user["username"]} if user else None, **bal}
+        bal = SERVICE.balance(owner) if owner else {"credits": 0, "freeAvailable": False}
+        if not user:
+            # Asking needs an account; the free question is one per account.
+            return {"account": None, "credits": bal["credits"], "freeAvailable": False, "loginRequired": True}
+        return {"account": {"username": user["username"]},
+                "birth": {"date": user.get("birthDate"), "time": user.get("birthTime")}, **bal}
 
     def _start_session(self, user: dict[str, Any], visitor: str | None, status: int = 200) -> None:
         merged = SERVICE.merge_visitor(visitor, user["id"]) if visitor else {"movedCredits": 0, "movedOrders": 0}
@@ -444,11 +453,17 @@ class Handler(SimpleHTTPRequestHandler):
             def run() -> None:
                 body = self._json_body()
                 user = self._user()
-                owner = user["id"] if user else (self._visitor() or body.get("visitorId"))
-                if not user and accounts.is_account_id(owner):
-                    owner = None
-                result = paid_reading(body, owner)
-                result["account"] = {"username": user["username"]} if user else None
+                if not user:
+                    raise billing.PaymentError(
+                        "กรุณาสมัครหรือเข้าสู่ระบบก่อนถามไพ่ค่ะ (สมัครฟรี รับคำถามแรกฟรี 1 ข้อ) · "
+                        "Please sign up or log in to ask (free sign-up includes 1 free question).",
+                        401, "login_required")
+                result = paid_reading(body, user["id"])
+                if result.get("profile"):
+                    bd, bt = result["profile"]["birthDate"], result["profile"]["birthTime"]
+                    if (bd, bt) != (user.get("birthDate"), user.get("birthTime")):
+                        SERVICE.set_birth(user["id"], bd, bt)  # prefill next time
+                result["account"] = {"username": user["username"]}
                 self._send(200, result)
             self._handle(run)
             return

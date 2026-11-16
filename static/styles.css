@@ -883,3 +883,31 @@ body[data-lang="en"] .pricing h2 { font-family: var(--font-display); letter-spac
 .acc-change { margin: 0 0 1rem; text-align: left; }
 .acc-change summary { cursor: pointer; color: var(--muted); font-size: 0.86rem; margin-bottom: 0.6rem; }
 #acc-logout { width: 100%; }
+
+/* Sign-up offer + login-required strip */
+.hero-offer { margin: 1rem 0 0; }
+.hero-offer[hidden] { display: none; }
+.offer-pill { font: inherit; font-size: 0.95rem; font-weight: 600; cursor: pointer; padding: 0.55rem 1.1rem; border-radius: 999px;
+  color: #2a1640; background: linear-gradient(135deg, #f3e2a8, #d4af37); border: 0;
+  box-shadow: 0 6px 22px rgba(212, 175, 55, 0.28); }
+.offer-pill.is-in { color: var(--gold-soft, #f3e2a8); background: rgba(107, 63, 160, 0.35); border: 1px solid rgba(243, 226, 168, 0.4); box-shadow: none; }
+.offer-pill:focus-visible { outline: 2px solid #f3e2a8; outline-offset: 3px; }
+.credit-strip.needs-login { border-color: rgba(243, 226, 168, 0.55); }
+.credit-strip.needs-login .credit-text { color: var(--gold-soft, #f3e2a8); }
+
+/* Birth profile panel (separate from the tarot answer) */
+.profile-panel { margin: 1.2rem 0; padding: 1.2rem 1.25rem; }
+.profile-panel[hidden] { display: none; }
+.profile-head h3 { margin: 0; font-family: var(--display, inherit); color: var(--gold-soft, #f3e2a8); font-size: 1.25rem; }
+.profile-sub { margin: 0.2rem 0 0.9rem; color: var(--lavender, #d9c8f5); font-size: 0.88rem; }
+.profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.8rem; }
+.prof-item { display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.8rem 0.85rem; border-radius: 14px;
+  background: rgba(20, 10, 40, 0.45); border: 1px solid rgba(243, 226, 168, 0.18); }
+.prof-icon { flex: 0 0 auto; width: 2.6rem; height: 2.6rem; border-radius: 50%; display: grid; place-items: center;
+  font-size: 1.2rem; font-weight: 700; color: #2a1640; background: radial-gradient(circle at 35% 30%, #fff6d6, #d4af37); }
+.prof-text small { display: block; font-size: 0.72rem; letter-spacing: 0.04em; color: var(--lavender, #d9c8f5); opacity: 0.85; }
+.prof-text b { display: block; font-size: 1.02rem; color: #fff7e0; margin-top: 0.1rem; }
+.prof-extra { display: inline-block; margin-top: 0.2rem; font-size: 0.72rem; color: var(--gold-soft, #f3e2a8);
+  border: 1px solid rgba(243, 226, 168, 0.35); border-radius: 999px; padding: 0.05rem 0.5rem; }
+.prof-text p { margin: 0.35rem 0 0; font-size: 0.86rem; line-height: 1.55; color: #ece4ff; }
+.profile-note { margin: 0.8rem 0 0; font-size: 0.74rem; color: var(--lavender, #d9c8f5); opacity: 0.75; }

@@ -4,7 +4,6 @@ import sys
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -115,10 +114,30 @@ class AccountHttp(tc.Http):
     def test_purchase_requires_login(self):
         code, data, _ = self.raw("POST", "/api/orders", {"amount": 15}, {"X-Visitor-Id": V1})
         self.assertEqual((code, data["code"]), (401, "login_required"))
-        # Free question still works anonymously.
-        code, data, _ = self.raw("POST", "/api/reading", {"name": "น้ำเพชร", "topic": "love", "lang": "th"},
-                                 {"X-Visitor-Id": V1})
-        self.assertEqual((code, data["charge"]["kind"]), (200, "free"))
+
+    def test_asking_requires_login_even_the_free_question(self):
+        body = {"name": "น้ำเพชร", "topic": "love", "lang": "th"}
+        # Fresh anonymous ids (e.g. switching links / clearing storage) can never ask.
+        for vid in (V1, V2, "f" * 32):
+            code, data, _ = self.raw("POST", "/api/reading", body, {"X-Visitor-Id": vid})
+            self.assertEqual((code, data["code"]), (401, "login_required"))
+            self.assertIn("สมัคร", data["error"])
+        code, data, _ = self.raw("POST", "/api/reading", body, {})
+        self.assertEqual(code, 401)
+        # Anonymous balance never advertises a free question.
+        me = self.me(None, V1)
+        self.assertEqual((me["account"], me["freeAvailable"], me["loginRequired"]), (None, False, True))
+        # A new account gets exactly one free question.
+        _, data, ck = self.auth("/api/auth/signup", "first_q", "password-1", V1)
+        self.assertTrue(data["freeAvailable"])
+        cookie = ck.split(";")[0]
+        code, r, _ = self.raw("POST", "/api/reading", body, {"X-Visitor-Id": V1, "Cookie": cookie})
+        self.assertEqual((code, r["charge"]["kind"]), (200, "free"))
+        code, r, _ = self.raw("POST", "/api/reading", body, {"X-Visitor-Id": V2, "Cookie": cookie})
+        self.assertEqual((code, r["code"]), (402, "no_credits"))
+        # Logging out and back in (any device) doesn't refill it.
+        _, data, _ = self.auth("/api/auth/login", "first_q", "password-1", "a" * 20)
+        self.assertFalse(data["freeAvailable"])
 
     def test_merge_is_idempotent_and_orders_follow(self):
         # Anonymous visitor with 3 credits (e.g. bought before accounts existed), free used, and a pending order.
@@ -127,7 +146,8 @@ class AccountHttp(tc.Http):
         code, data, ck = self.auth("/api/auth/signup", "merge_me", "password-1", V1)
         self.assertEqual(code, 201)
         self.assertEqual(data["merged"]["movedCredits"], 3)
-        self.assertEqual((data["credits"], data["freeAvailable"]), (3, False))
+        # Paid credits always move; the free question is per account, so the new account still has it.
+        self.assertEqual((data["credits"], data["freeAvailable"]), (3, True))
         # Login again from the same device: nothing moves twice.
         code, data, ck2 = self.auth("/api/auth/login", "merge_me", "password-1", V1)
         self.assertEqual((data["merged"]["movedCredits"], data["credits"]), (0, 3))
@@ -141,16 +161,19 @@ class AccountHttp(tc.Http):
         o = next(x for x in adm["orders"] if x["code"] == anon_order["code"])
         self.assertEqual(o["username"], "merge_me")
 
-    def test_free_question_carries_over_once(self):
-        # Unused free question moves into the account; the device can't get another one after logout.
+    def test_free_question_once_per_account(self):
         code, data, ck = self.auth("/api/auth/signup", "freebie", "password-1", V1)
         self.assertTrue(data["freeAvailable"])
         cookie = ck.split(";")[0]
         r = self.raw("POST", "/api/reading", {"name": "A", "topic": "love", "lang": "th"},
                      {"X-Visitor-Id": V1, "Cookie": cookie})[1]
         self.assertEqual(r["charge"]["kind"], "free")
-        code, r, _ = self.raw("POST", "/api/reading", {"name": "A", "topic": "love", "lang": "th"}, {"X-Visitor-Id": V1})
+        code, r, _ = self.raw("POST", "/api/reading", {"name": "A", "topic": "love", "lang": "th"},
+                              {"X-Visitor-Id": V1, "Cookie": cookie})
         self.assertEqual(code, 402)
+        # After logout the device can't ask at all.
+        code, r, _ = self.raw("POST", "/api/reading", {"name": "A", "topic": "love", "lang": "th"}, {"X-Visitor-Id": V1})
+        self.assertEqual(code, 401)
 
     def test_relogin_keeps_unused_free_question(self):
         # Sign up, log out, log back in on the same device: the account keeps its unused free question,
@@ -162,10 +185,15 @@ class AccountHttp(tc.Http):
         code, data, _ = self.auth("/api/auth/login", "comeback", "password-1", V1)
         self.assertEqual(code, 200)
         self.assertTrue(data["freeAvailable"])
-        # A different device that already used its free question still uses it up on merge.
-        self.raw("POST", "/api/reading", {"name": "A", "topic": "love", "lang": "th"}, {"X-Visitor-Id": V2})
+        # An old anonymous id that used a free question before accounts doesn't take the account's.
+        _give(app.SERVICE, V2, 0, free_used=True)
         code, data, _ = self.auth("/api/auth/login", "comeback", "password-1", V2)
-        self.assertFalse(data["freeAvailable"])
+        self.assertTrue(data["freeAvailable"])
+        # Existing accounts keep their state: once used, it stays used.
+        _, other, ck2 = self.auth("/api/auth/signup", "used_one", "password-1", "b" * 20)
+        self.raw("POST", "/api/reading", {"name": "A", "topic": "love", "lang": "th"},
+                 {"X-Visitor-Id": "b" * 20, "Cookie": ck2.split(";")[0]})
+        self.assertFalse(self.auth("/api/auth/login", "used_one", "password-1", "c" * 20)[1]["freeAvailable"])
 
     def test_buy_and_deduct_on_account_across_devices(self):
         _, _, ck = self.auth("/api/auth/signup", "buyer_01", "password-1", V1)
@@ -189,7 +217,8 @@ class AccountHttp(tc.Http):
         acct = app.SERVICE.find_user("buyer_01")["id"]
         code, _, _ = self.raw("POST", "/api/reading", {"name": "A", "topic": "career", "lang": "th"},
                               {"X-Visitor-Id": acct})
-        self.assertEqual(code, 400)
+        self.assertEqual(code, 401)
+        self.assertEqual(self.raw("GET", "/api/balance", None, {"X-Visitor-Id": acct})[0], 400)
         self.assertNotIn(acct, repr(r))
 
     def test_admin_reset_password_and_change(self):

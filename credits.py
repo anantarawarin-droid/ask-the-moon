@@ -376,6 +376,12 @@ class CreditService:
             data["users"][user_id]["password"] = password_record
             data["users"][user_id]["passwordChangedAt"] = _now()
 
+    def set_birth(self, user_id: str, birth_date: str | None, birth_time: str | None) -> None:
+        with self.store.transaction() as data:
+            u = data["users"].get(user_id)
+            if u is not None:
+                u["birthDate"], u["birthTime"] = birth_date, birth_time
+
     def create_session(self, user_id: str, token_hash: str, expires_at: datetime) -> None:
         with self.store.transaction() as data:
             now = datetime.now(timezone.utc).isoformat()
@@ -390,7 +396,8 @@ class CreditService:
             if not sess or sess["expiresAt"] <= datetime.now(timezone.utc).isoformat():
                 return None
             u = data["users"].get(sess["userId"])
-            return {"id": u["id"], "username": u["username"]} if u else None
+            return ({"id": u["id"], "username": u["username"], "birthDate": u.get("birthDate"),
+                     "birthTime": u.get("birthTime")} if u else None)
 
     def delete_session(self, token_hash: str) -> None:
         with self.store.transaction() as data:
@@ -412,11 +419,9 @@ class CreditService:
                 moved = int(v["credits"])
                 wallet["credits"] += moved
                 v["credits"] = 0
-                # Only a free question the visitor really used counts. A visitor that was
-                # already merged is marked used only to stop a second anonymous freebie.
-                if v["freeUsed"] and not v.get("mergedInto"):
-                    wallet["freeUsed"] = True
-                v["freeUsed"] = True  # the free question now lives with the account
+                # The free question belongs to the account (one per account); the
+                # anonymous id's old free-question state no longer matters.
+                v["freeUsed"] = True
                 v["mergedInto"] = account_id
             for o in data["orders"].values():
                 if visitor_id and o["visitor"] == visitor_id and o["status"] == "pending":
@@ -664,6 +669,8 @@ CREATE TABLE IF NOT EXISTS moon_sessions (
 );
 CREATE INDEX IF NOT EXISTS moon_sessions_user_idx ON moon_sessions (user_id);
 ALTER TABLE moon_visitors ADD COLUMN IF NOT EXISTS merged_into TEXT;
+ALTER TABLE moon_users ADD COLUMN IF NOT EXISTS birth_date TEXT;
+ALTER TABLE moon_users ADD COLUMN IF NOT EXISTS birth_time TEXT;
 """
 
 
@@ -975,11 +982,16 @@ class PostgresCreditService:
     def session_user(self, token_hash: str) -> dict[str, Any] | None:
         def fn(cur):
             cur.execute(
-                "SELECT u.id, u.username FROM moon_sessions s JOIN moon_users u ON u.id = s.user_id "
+                "SELECT u.id, u.username, u.birth_date, u.birth_time FROM moon_sessions s "
+                "JOIN moon_users u ON u.id = s.user_id "
                 "WHERE s.token_hash = %s AND s.expires_at > now()", (token_hash,))
             r = cur.fetchone()
-            return {"id": r[0], "username": r[1]} if r else None
+            return {"id": r[0], "username": r[1], "birthDate": r[2], "birthTime": r[3]} if r else None
         return self._run(fn)
+
+    def set_birth(self, user_id: str, birth_date: str | None, birth_time: str | None) -> None:
+        self._run(lambda cur: cur.execute("UPDATE moon_users SET birth_date = %s, birth_time = %s WHERE id = %s",
+                                          (birth_date, birth_time, user_id)))
 
     def delete_session(self, token_hash: str) -> None:
         self._run(lambda cur: cur.execute("DELETE FROM moon_sessions WHERE token_hash = %s", (token_hash,)))
@@ -990,19 +1002,17 @@ class PostgresCreditService:
     def merge_visitor(self, visitor_id: str, account_id: str) -> dict[str, Any]:
         def fn(cur):
             cur.execute("INSERT INTO moon_visitors (id) VALUES (%s) ON CONFLICT (id) DO NOTHING", (account_id,))
-            moved, used = 0, False
+            moved = 0
             if visitor_id and visitor_id != account_id:
                 cur.execute("INSERT INTO moon_visitors (id) VALUES (%s) ON CONFLICT (id) DO NOTHING", (visitor_id,))
-                cur.execute("SELECT credits, free_used, merged_into FROM moon_visitors WHERE id = %s FOR UPDATE",
-                            (visitor_id,))
+                cur.execute("SELECT credits FROM moon_visitors WHERE id = %s FOR UPDATE", (visitor_id,))
                 r = cur.fetchone()
                 if r is not None:
-                    # an already-merged visitor is marked used only to block a second freebie
-                    moved, used = int(r[0]), bool(r[1]) and r[2] is None
+                    # the free question is per account, so the visitor's free flag isn't carried over
+                    moved = int(r[0])
                     cur.execute("UPDATE moon_visitors SET credits = 0, free_used = TRUE, merged_into = %s WHERE id = %s",
                                 (account_id, visitor_id))
-            cur.execute("UPDATE moon_visitors SET credits = credits + %s, free_used = (free_used OR %s) WHERE id = %s",
-                        (moved, used, account_id))
+            cur.execute("UPDATE moon_visitors SET credits = credits + %s WHERE id = %s", (moved, account_id))
             cur.execute("UPDATE moon_orders SET visitor = %s WHERE visitor = %s AND status = 'pending'",
                         (account_id, visitor_id or ""))
             return {"movedCredits": moved, "movedOrders": cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0}

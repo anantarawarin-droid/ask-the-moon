@@ -16,7 +16,7 @@ import app  # noqa: E402
 import tarot  # noqa: E402
 import test_credits as tc  # noqa: E402
 
-BODY = {"name": "น้ำเพชร", "birthDate": "2006-07-07", "topic": "love", "question": "เขาคิดยังไงกับเรา", "lang": "th"}
+BODY = {"name": "น้ำเพชร", "birthDate": "2006-07-07", "birthTime": "14:30", "topic": "love", "question": "เขาคิดยังไงกับเรา", "lang": "th"}
 POSITION_WORDS = ["past:", "present:", "future:", "past —", "present —", "future —", "อดีต:", "ปัจจุบัน:",
                   "อนาคต:", "อดีต —", "ปัจจุบัน —", "อนาคต —", "position", "ตำแหน่ง"]
 
@@ -114,6 +114,10 @@ class Reading(unittest.TestCase):
         self.assertIn("First sentence: the clear answer", prompt)
         self.assertIn(tarot.VERDICT_HINT_EN[tarot.verdict(data["tarot"]["cards"])], prompt)
         self.assertNotIn("chart", data)
+        for banned in ("14:30", "afternoon", "ยามบ่าย", "master builder", "ปรมาจารย์"):
+            self.assertNotIn(banned, full)
+        # The birth data shows up only in the separate profile panel.
+        self.assertEqual(data["profile"]["western"]["key"], "cancer")
         card_block = tarot.prompt_lines(data["tarot"]["cards"]).lower()
         for w in POSITION_WORDS:
             self.assertNotIn(w, card_block)

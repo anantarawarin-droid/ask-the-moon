@@ -263,9 +263,9 @@ class Http(unittest.TestCase):
     def req(self, method, path, body=None, headers=None):
         headers = dict(headers or {})
         vid = headers.get("X-Visitor-Id")
-        if vid and method == "POST" and path == "/api/orders" and vid not in self.sessions \
-                and "Cookie" not in headers:
-            self.signup(vid)  # buying needs an account: sign up first, like the UI asks
+        if vid and method == "POST" and path in ("/api/orders", "/api/reading") and vid not in self.sessions \
+                and "Cookie" not in headers and not headers.pop("X-No-Auto-Login", None):
+            self.signup(vid)  # asking and buying need an account: sign up first, like the UI asks
         if vid in self.sessions and "Cookie" not in headers:
             headers["Cookie"] = self.sessions[vid].split(";")[0]
         data = json.dumps(body).encode() if body is not None else None
@@ -375,9 +375,13 @@ class Http(unittest.TestCase):
         html = (ROOT / "static" / "admin.html").read_text(encoding="utf-8")
         self.assertIsNone(re.search(r"\b(confirm|alert|prompt)\s*\(", html))
 
-    def test_reading_requires_visitor(self):
-        code, _ = self.req("POST", "/api/reading", {"name": "x", "birthDate": "2006-07-07"})
-        self.assertEqual(code, 400)
+    def test_reading_requires_login(self):
+        code, data = self.req("POST", "/api/reading", {"name": "x", "birthDate": "2006-07-07"})
+        self.assertEqual((code, data["code"]), (401, "login_required"))
+        code, data = self.req("POST", "/api/reading", {"name": "x"},
+                              {"X-Visitor-Id": VISITOR, "X-No-Auto-Login": "1"})
+        self.assertEqual((code, data["code"]), (401, "login_required"))
+        self.assertIn("สมัคร", data["error"])
 
     def test_admin_page_401_without_token(self):
         code, _ = self.req("GET", "/admin")

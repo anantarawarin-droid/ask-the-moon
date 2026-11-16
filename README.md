@@ -1,6 +1,6 @@
 # ถามจันทร์ — Ask the Moon
 
-A bilingual (Thai / English) tarot web app. Visitors enter a name, a topic, and a question. The server draws three Rider-Waite-Smith cards and the AI gives a direct answer based only on those cards: a clear answer first, then how the cards support it, then 1–2 concrete pieces of advice. (Zodiac, Chinese zodiac, birth date/time and numerology were removed in Nov 2026.)
+A bilingual (Thai / English) tarot web app. Visitors enter a name, a topic, and a question. The server draws three Rider-Waite-Smith cards and the AI gives a direct answer based only on those cards: a clear answer first, then how the cards support it, then 1–2 concrete pieces of advice. The visitor's birth date (and optional time) feeds a separate **profile panel** — ปีนักษัตร, the birth-date (life path) number with its meaning, and the Western sign — computed in `birthprofile.py`. Birth data is never sent to the AI; the tarot answer stays cards-only.
 
 Visitors get one free question, then buy question credits (PromptPay, approved by the owner on `/admin`). Each AI-written reading uses 1 credit and unlocks the deep reading. Ad banners point advertisers to LINE `ivymoonask`.
 
@@ -90,6 +90,8 @@ are listed in `static/tarot/SOURCES.json`. Images are 300 px wide WebP files (~4
 ```json
 {
   "name": "Nam Phet",
+  "birthDate": "2006-07-07",
+  "birthTime": "14:30",
   "topic": "career",
   "question": "งานใหม่ที่สมัครไว้จะได้ไหม",
   "lang": "th"
@@ -97,7 +99,9 @@ are listed in `static/tarot/SOURCES.json`. Images are 300 px wide WebP files (~4
 ```
 
 `topic` may be `love`, `career`, `money`, or `life_path`. `lang` may be `th` or `en`. `question` is optional
-(without one, the cards answer about the topic). Old clients may still send `birthDate`/`birthTime`; they are ignored.
+(without one, the cards answer about the topic). `birthDate`/`birthTime` are optional for the API (the page asks for
+the date); when given, the response has a `profile` object and the date is saved on the account to prefill next time.
+**Asking requires login** (`401 login_required`), including the free question.
 
 ## Accounts
 
@@ -108,7 +112,9 @@ Username + password (3–20 letters/numbers/_, case-insensitive unique; password
   only its SHA-256 is stored (`moon_sessions`). Logout deletes it.
 * Sign-up/login merges the device's anonymous balance, free-question use, and pending orders into the
   account once (idempotent). The account's credits live in a wallet row whose id never reaches the browser.
-* Buying requires an account (`401 login_required`); the free first question works anonymously.
+* Asking and buying require an account (`401 login_required`). Every account gets **one** free question
+  (new accounts start with it; existing accounts keep their state). Anonymous ids get none, and their old free-question
+  flag is not merged; their paid credits and pending orders still move into the account on login.
 * Rate limits (in memory): login 20 per IP and 10 per username per 10 minutes; sign-up 5 per IP per hour.
 * Forgotten password: `/admin` → “รีเซ็ตรหัสผ่าน” sets a temporary password to send on LINE
   (all of that user's sessions end). Users can change their password in the account menu.

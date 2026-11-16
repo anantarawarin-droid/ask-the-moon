@@ -62,6 +62,7 @@
       <p class="eyebrow" data-i18n="eyebrow">อ่านดวง · ราศี · นักษัตร · เลขศาสตร์</p>
       <h1 data-i18n="heroTitle">ถามจันทร์</h1>
       <p class="lede" data-i18n="heroLede">บอกชื่อและวันเกิด แล้วรับบทอ่านดวงที่ถักจากราศีตะวันตก ปีนักษัตรจีน และเลขเส้นทางชีวิต — เลือกหัวข้อที่อยากรู้ ดาวจะตอบเป็นคำของคุณเอง</p>
+      <p class="hero-offer" id="hero-offer"><button type="button" class="offer-pill" id="hero-signup" data-i18n="heroOffer">✨ สมัครฟรี รับคำถามแรกฟรี 1 ข้อ</button></p>
     </section>
 
     <aside class="ad-slot" aria-label="Advertisement">
@@ -78,6 +79,16 @@
           <label>
             <span data-i18n="nameLabel">ชื่อ</span>
             <input type="text" name="name" id="name" maxlength="80" required autocomplete="given-name" data-i18n-placeholder="namePh" placeholder="เช่น น้ำเพชร" />
+          </label>
+          <label>
+            <span data-i18n="dateLabel">วันเกิด</span>
+            <input type="date" name="birthDate" id="birthDate" required min="1900-01-01" />
+          </label>
+        </div>
+        <div class="grid-2">
+          <label>
+            <span><span data-i18n="timeLabel">เวลาเกิด</span> <em data-i18n="optional">(ไม่บังคับ)</em></span>
+            <input type="time" name="birthTime" id="birthTime" />
           </label>
           <fieldset class="topic-field">
             <legend data-i18n="topicLabel">หัวข้อที่อยากรู้</legend>
@@ -146,6 +157,15 @@
             </div>
           </article>
         </div>
+
+        <section class="panel profile-panel" id="profile-panel" hidden aria-live="polite">
+          <header class="profile-head">
+            <h3 data-i18n="profileTitle">โปรไฟล์ดวงของคุณ</h3>
+            <p class="profile-sub" id="profile-sub"></p>
+          </header>
+          <div class="profile-grid" id="profile-grid"></div>
+          <p class="profile-note" data-i18n="profileNote">ข้อมูลนี้คำนวณจากวันเกิดของคุณ แยกจากคำตอบของไพ่ซึ่งอ่านจากไพ่ 3 ใบเท่านั้น</p>
+        </section>
 
         <aside class="ad-slot ad-after" aria-label="Advertisement">
           <p class="ad-heading" data-i18n="adHeading">พื้นที่แห่งโอกาสสำหรับแบรนด์ของคุณ</p>
