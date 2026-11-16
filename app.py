@@ -29,7 +29,7 @@ STATIC = ROOT / "static"
 PORT = int(os.environ.get("PORT", "5050"))
 HOST = os.environ.get("HOST", "0.0.0.0")
 DATA_DIR = os.environ.get("DATA_DIR") or str(ROOT / "data")
-SERVICE = billing.CreditService(billing.JsonStore(DATA_DIR))
+SERVICE, STORE_KIND, STORE_PROBLEM = billing.make_service(DATA_DIR)
 
 # First day of each Chinese lunar year (Gregorian month, day).
 CNY: dict[int, tuple[int, int]] = {
@@ -1093,6 +1093,10 @@ class Handler(SimpleHTTPRequestHandler):
         if route == "/api/packages":
             self._send(200, packages_payload())
             return
+        if route == "/api/health":
+            self._send(200, {"ok": True, "store": STORE_KIND, "databaseConfigured": bool(os.environ.get("DATABASE_URL")),
+                             "storeError": STORE_PROBLEM is not None})
+            return
         if route == "/api/balance":
             def run() -> None:
                 vid = self._visitor()
@@ -1177,7 +1181,14 @@ def main() -> None:
     mode = "LLM (OPENAI_API_KEY is set)" if has_key else "template fallback (no OPENAI_API_KEY)"
     pay = "PromptPay on" if billing.promptpay_id_from_env() else "PromptPay off (set PROMPTPAY_ID)"
     admin = "admin on" if os.environ.get("ADMIN_TOKEN") else "admin off (set ADMIN_TOKEN)"
-    print(f"ถามจันทร์ / Ask the Moon is listening on http://{HOST}:{PORT}  —  readings: {mode}; {pay}; {admin}")
+    print(f"ถามจันทร์ / Ask the Moon is listening on http://{HOST}:{PORT}  —  readings: {mode}; {pay}; {admin}", flush=True)
+    if STORE_KIND == "postgres":
+        tls = "off" if SERVICE.cfg["sslmode"] == "disable" else "on"
+        print(f"Credit store: Postgres (DATABASE_URL, TLS {tls}, tables ready)", flush=True)
+    elif STORE_PROBLEM:
+        print(f"Credit store: JSON fallback because Postgres failed: {STORE_PROBLEM}", flush=True)
+    else:
+        print("Credit store: JSON file in DATA_DIR (no DATABASE_URL; resets on redeploy)", flush=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

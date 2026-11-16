@@ -26,7 +26,8 @@ Optional environment variables:
 | `OPENAI_MODEL` | Optional, default `gpt-4o-mini`. For Gemini a current Flash model such as `gemini-3.5-flash-lite` |
 | `PROMPTPAY_ID` | Your PromptPay phone (10 digits) or national ID (13 digits). Unset = "payment coming soon" |
 | `ADMIN_TOKEN` | Long random password for `/admin`. Unset = admin disabled |
-| `DATA_DIR` | Where balances and orders are stored (default `./data`) |
+| `DATABASE_URL` | Postgres URL (e.g. Neon). When set, balances and orders live in Postgres and survive redeploys. TLS is required by default |
+| `DATA_DIR` | JSON fallback location when there is no `DATABASE_URL` (default `./data`) |
 
 ## Pricing and credits
 
@@ -47,9 +48,9 @@ The package table lives once in `credits.py` (`PACKAGE_TABLE`) and the page read
 
 Flow: the browser keeps an anonymous visitor id in localStorage → `POST /api/orders {amount}` creates a pending order with a short code and a PromptPay QR for that exact amount → the visitor sends the slip and code on LINE `ivymoonask` → the owner approves on `/admin` → the package's questions (bonus included) are added once. `POST /api/reading` takes 1 credit atomically and keeps it only when the AI wrote the reading (a template fallback is free). New visitors get one free preview reading without the deep section. At 0 credits the API answers 402.
 
-Storage is a JSON file (`DATA_DIR/credits.json`) with a lock and atomic writes. On Render's free plan there is no persistent disk, so balances and orders reset on every deploy or restart. Add a Render disk and point `DATA_DIR` at it, or swap `JsonStore` for a database, before taking real money at scale.
+Storage: with `DATABASE_URL` set, `PostgresCreditService` (in `credits.py`) creates its tables (`moon_visitors`, `moon_orders`) on startup and uses `UPDATE ... WHERE credits > 0 RETURNING` for the 1-credit deduction and `SELECT ... FOR UPDATE` for one-time approval. The driver is pure-Python `pg8000` (`requirements.txt`); a copy is also shipped in `vendor/` so the app runs even when the host's build step does not install requirements. Without `DATABASE_URL` (or if the connection fails, which is logged without the URL) it falls back to a JSON file in `DATA_DIR`, which resets on Render redeploys. `GET /api/health` shows which store is in use.
 
-Tests: `python3 -m unittest discover -s tests -v`
+Tests: `python3 -m unittest discover -s tests -v` (add `TEST_DATABASE_URL=postgresql://user:pw@127.0.0.1:5432/testdb?sslmode=disable` to also run the Postgres tests; they truncate the `moon_*` tables).
 
 If no API key is set, or the model request fails or times out (about 20 seconds), the site uses a built-in template generator that still weaves in the person's signs and numbers. Do not invent or paste a key you do not have, and never commit one to the repo.
 

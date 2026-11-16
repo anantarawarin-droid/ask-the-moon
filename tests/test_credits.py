@@ -31,8 +31,24 @@ VISITOR = "a" * 32
 OTHER = "b" * 32
 
 
-def fresh_service():
+TEST_PG = os.environ.get("TEST_DATABASE_URL")  # e.g. postgresql://postgres@127.0.0.1:54329/moontest?sslmode=disable
+_PG = None
+
+
+def json_service():
     return billing.CreditService(billing.JsonStore(tempfile.mkdtemp(prefix="moon-")))
+
+
+def pg_service():
+    global _PG
+    if _PG is None:
+        _PG = billing.PostgresCreditService(TEST_PG)
+    with _PG._tx() as cur:
+        cur.execute("TRUNCATE moon_visitors, moon_orders")
+    return _PG
+
+
+fresh_service = json_service
 
 
 class PackageTable(unittest.TestCase):
@@ -90,12 +106,14 @@ class PromptPay(unittest.TestCase):
 
 
 class Orders(unittest.TestCase):
+    make = staticmethod(json_service)
+
     def setUp(self):
-        self.svc = fresh_service()
+        self.svc = self.make()
 
     def test_order_approve_balance_and_idempotent(self):
         for price, (questions, _bonus, _avg) in EXPECTED.items():
-            svc = fresh_service()
+            svc = self.make()
             order = svc.create_order(VISITOR, price)
             self.assertEqual(order["status"], "pending")
             self.assertEqual(svc.balance(VISITOR)["credits"], 0)
@@ -106,11 +124,37 @@ class Orders(unittest.TestCase):
             self.assertTrue(again["alreadyApproved"])
             self.assertEqual(svc.balance(VISITOR)["credits"], questions)
 
-    def test_balance_persists_to_disk(self):
+    def reopen(self):
+        return billing.CreditService(billing.JsonStore(self.svc.store.dir))
+
+    def test_balance_persists_after_restart(self):
         order = self.svc.create_order(VISITOR, 150)
         self.svc.approve(order["code"])
-        reopened = billing.CreditService(billing.JsonStore(self.svc.store.dir))
+        self.svc.reserve_reading(OTHER)  # free question used
+        pending = self.svc.create_order(OTHER, 45)
+        reopened = self.reopen()
         self.assertEqual(reopened.balance(VISITOR)["credits"], 15)
+        self.assertFalse(reopened.balance(OTHER)["freeAvailable"])
+        self.assertEqual([o["code"] for o in reopened.list_orders("pending")], [pending["code"]])
+
+    def test_same_price_pending_order_is_reused(self):
+        a = self.svc.create_order(VISITOR, 60)
+        b = self.svc.create_order(VISITOR, 60)
+        self.assertEqual(a["code"], b["code"])
+        for amount in (15, 30, 45, 75):
+            self.svc.create_order(VISITOR, amount)
+        with self.assertRaises(billing.PaymentError) as ctx:
+            self.svc.create_order(VISITOR, 90)
+        self.assertEqual(ctx.exception.status, 429)
+
+    def test_release_gives_back(self):
+        self.assertEqual(self.svc.reserve_reading(VISITOR), "free")
+        self.svc.release_reading(VISITOR, "free")
+        self.assertTrue(self.svc.balance(VISITOR)["freeAvailable"])
+        self.svc.approve(self.svc.create_order(VISITOR, 15)["code"])
+        self.svc.reserve_reading(VISITOR)  # paid
+        self.svc.release_reading(VISITOR, "paid")
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], 1)
 
     def test_reject_then_cannot_approve(self):
         order = self.svc.create_order(VISITOR, 30)
@@ -177,8 +221,10 @@ class Http(unittest.TestCase):
         cls.server.shutdown()
         cls.env.stop()
 
+    make = staticmethod(json_service)
+
     def setUp(self):
-        app.SERVICE = fresh_service()
+        app.SERVICE = self.make()
         self.llm = mock.patch.object(app, "llm_generate", return_value=("AI reading text", {}))
         self.llm.start()
 
@@ -284,6 +330,79 @@ class Http(unittest.TestCase):
         with mock.patch.dict(os.environ, {"ADMIN_TOKEN": ""}):
             self.assertEqual(self.req("GET", "/api/admin/orders", headers={"X-Admin-Token": ""})[0], 503)
             self.assertEqual(self.req("GET", "/admin")[0], 401)
+
+
+def go_free(svc, visitor, wins):
+    try:
+        wins.append(svc.reserve_reading(visitor))
+    except billing.PaymentError:
+        pass
+
+
+@unittest.skipUnless(TEST_PG, "set TEST_DATABASE_URL to run against Postgres")
+class PgOrders(Orders):
+    make = staticmethod(pg_service)
+
+    def reopen(self):
+        # A brand-new connection/service, like a restarted server.
+        return billing.PostgresCreditService(TEST_PG)
+
+    def test_races_across_separate_connections(self):
+        services = [billing.PostgresCreditService(TEST_PG) for _ in range(4)]
+        self.svc.reserve_reading(VISITOR)  # free preview
+        order = self.svc.create_order(VISITOR, 45)  # 3 questions
+        threads = [threading.Thread(target=services[i % 4].approve, args=(order["code"],)) for i in range(12)]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], 3)
+        wins = []
+
+        def go(svc):
+            try:
+                wins.append(svc.reserve_reading(VISITOR))
+            except billing.PaymentError:
+                pass
+
+        threads = [threading.Thread(target=go, args=(services[i % 4],)) for i in range(20)]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+        self.assertEqual(wins, ["paid"] * 3)
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], 0)
+        new_visitor = "d" * 32
+        threads = [threading.Thread(target=go_free, args=(services[i % 4], new_visitor, wins)) for i in range(10)]
+        wins.clear()
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+        self.assertEqual(wins, ["free"])  # only one free question, even under races
+        for svc in services:
+            svc._conn.close()
+
+
+@unittest.skipUnless(TEST_PG, "set TEST_DATABASE_URL to run against Postgres")
+class PgHttp(Http):
+    make = staticmethod(pg_service)
+
+
+class DatabaseUrl(unittest.TestCase):
+    def test_parse_and_default_ssl(self):
+        cfg = billing.parse_database_url("postgresql://u:p%40ss@ep-x.aws.neon.tech/neondb")
+        self.assertEqual((cfg["host"], cfg["port"], cfg["user"], cfg["password"], cfg["database"], cfg["sslmode"]),
+                         ("ep-x.aws.neon.tech", 5432, "u", "p@ss", "neondb", "require"))
+
+    def test_bad_urls_do_not_leak(self):
+        for bad in ("mysql://u:secretpw@h/db", "postgresql://u:secretpw@/db", "postgresql://u:secretpw@h:abc/db",
+                    "postgresql://u:secretpw@h/db?sslmode=bogus", "neondb"):
+            with self.assertRaises(billing.DatabaseConfigError) as ctx:
+                billing.parse_database_url(bad)
+            self.assertNotIn("secretpw", str(ctx.exception))
+
+    def test_connection_failure_falls_back_to_json(self):
+        url = "postgresql://u:secretpw@127.0.0.1:1/db?sslmode=disable"
+        with mock.patch.dict(os.environ, {"DATABASE_URL": url}):
+            svc, kind, problem = billing.make_service(tempfile.mkdtemp())
+        self.assertEqual(kind, "json")
+        self.assertIn("Could not connect", problem)
+        self.assertNotIn("secretpw", problem)
 
 
 if __name__ == "__main__":

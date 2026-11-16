@@ -358,3 +358,355 @@ def admin_token_ok(given: str | None) -> bool | None:
     if not expected:
         return None
     return hmac.compare_digest((given or "").encode("utf-8"), expected.encode("utf-8"))
+
+
+# Backwards-compatible name: the JSON implementation.
+JsonCreditService = CreditService
+
+
+# ---------------------------------------------------------------------------
+# Postgres store (used when DATABASE_URL is set)
+# ---------------------------------------------------------------------------
+_VENDOR = Path(__file__).resolve().parent / "vendor"
+
+
+def _import_pg8000():
+    try:
+        import pg8000.dbapi  # type: ignore
+    except ImportError:
+        import sys
+
+        if str(_VENDOR) not in sys.path:
+            sys.path.append(str(_VENDOR))  # pure-Python copy shipped in the repo
+        import pg8000.dbapi  # type: ignore
+    return pg8000.dbapi
+
+
+class DatabaseConfigError(Exception):
+    """Raised with a message that never contains the URL or password."""
+
+
+def parse_database_url(url: str) -> dict[str, Any]:
+    from urllib.parse import parse_qs, unquote, urlsplit
+
+    try:
+        parts = urlsplit(url.strip())
+    except ValueError as exc:
+        raise DatabaseConfigError("DATABASE_URL could not be parsed.") from exc
+    if parts.scheme not in ("postgres", "postgresql"):
+        raise DatabaseConfigError("DATABASE_URL must start with postgres:// or postgresql://.")
+    try:
+        port = parts.port or 5432
+    except ValueError as exc:
+        raise DatabaseConfigError("DATABASE_URL has an invalid port.") from exc
+    if not parts.hostname:
+        raise DatabaseConfigError("DATABASE_URL has no host.")
+    if not parts.username:
+        raise DatabaseConfigError("DATABASE_URL has no user name.")
+    database = unquote(parts.path.lstrip("/")) or "postgres"
+    query = {k: v[-1] for k, v in parse_qs(parts.query).items()}
+    sslmode = query.get("sslmode", "require")
+    if sslmode not in ("disable", "require", "verify-ca", "verify-full", "prefer"):
+        raise DatabaseConfigError("DATABASE_URL has an unsupported sslmode.")
+    return {
+        "host": parts.hostname,
+        "port": port,
+        "user": unquote(parts.username),
+        "password": unquote(parts.password) if parts.password is not None else None,
+        "database": database,
+        "sslmode": sslmode,
+    }
+
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS moon_visitors (
+    id          TEXT PRIMARY KEY,
+    credits     INTEGER NOT NULL DEFAULT 0 CHECK (credits >= 0),
+    free_used   BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS moon_orders (
+    code        TEXT PRIMARY KEY,
+    visitor     TEXT NOT NULL,
+    price       INTEGER NOT NULL,
+    questions   INTEGER NOT NULL,
+    bonus       INTEGER NOT NULL,
+    status      TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    decided_at  TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS moon_orders_status_idx ON moon_orders (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS moon_orders_visitor_idx ON moon_orders (visitor, created_at DESC);
+"""
+
+
+def _iso(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc).isoformat(timespec="seconds")
+    return str(value)
+
+
+class PostgresCreditService:
+    """Same public methods and guarantees as CreditService, backed by Postgres.
+
+    One connection guarded by a lock (the site is a single small process);
+    it reconnects once if the server dropped an idle connection.
+    """
+
+    kind = "postgres"
+    ORDER_COLS = "code, visitor, price, questions, bonus, status, created_at, decided_at"
+
+    def __init__(self, url: str):
+        self.cfg = parse_database_url(url)
+        self.dbapi = _import_pg8000()
+        self._lock = threading.RLock()
+        self._conn = None
+        self._last_used = 0.0
+        with self._tx() as cur:
+            for stmt in [s for s in SCHEMA.split(";") if s.strip()]:
+                cur.execute(stmt)
+
+    # -- connection handling ------------------------------------------------
+    def _connect(self):
+        import ssl as _ssl
+
+        cfg = self.cfg
+        ssl_context = None
+        if cfg["sslmode"] != "disable":
+            ssl_context = _ssl.create_default_context()
+        try:
+            conn = self.dbapi.connect(
+                host=cfg["host"], port=cfg["port"], user=cfg["user"], password=cfg["password"],
+                database=cfg["database"], ssl_context=ssl_context, timeout=15,
+                application_name="ask-the-moon",
+            )
+        except Exception as exc:  # never include the URL; pg8000 messages do not contain it
+            raise DatabaseConfigError(f"Could not connect to Postgres ({type(exc).__name__}: {_safe_msg(exc, cfg)})") from None
+        conn.autocommit = False
+        return conn
+
+    IDLE_PING_SECONDS = 30
+
+    def _ensure_conn(self) -> None:
+        """Reconnect if there is no connection or an idle one went stale.
+
+        Statements are never retried, so a dropped connection mid-write can
+        not double-charge; it only fails that one request.
+        """
+        import time
+
+        if self._conn is not None and time.monotonic() - self._last_used > self.IDLE_PING_SECONDS:
+            try:
+                cur = self._conn.cursor()
+                cur.execute("SELECT 1")
+                cur.fetchall()
+                self._conn.commit()
+            except Exception:
+                try:
+                    self._conn.close()
+                except Exception:
+                    pass
+                self._conn = None
+        if self._conn is None:
+            self._conn = self._connect()
+
+    @contextmanager
+    def _tx(self) -> Iterator[Any]:
+        import time
+
+        with self._lock:
+            self._ensure_conn()
+            conn = self._conn
+            try:
+                cur = conn.cursor()
+                yield cur
+                conn.commit()
+            except BaseException as exc:
+                try:
+                    conn.rollback()
+                except Exception:
+                    self._conn = None
+                if isinstance(exc, (self.dbapi.InterfaceError, OSError)):
+                    self._conn = None
+                raise
+            finally:
+                self._last_used = time.monotonic()
+
+    def _run(self, fn):
+        with self._tx() as cur:
+            return fn(cur)
+
+    def _order(self, row) -> dict[str, Any]:
+        code, visitor, price, questions, bonus, status, created, decided = row
+        return {"code": code, "visitor": visitor, "price": price, "questions": questions, "bonus": bonus,
+                "status": status, "createdAt": _iso(created), "decidedAt": _iso(decided)}
+
+    # -- visitors -------------------------------------------------------------
+    def balance(self, visitor_id: str) -> dict[str, Any]:
+        def fn(cur):
+            cur.execute("SELECT credits, free_used FROM moon_visitors WHERE id = %s", (visitor_id,))
+            row = cur.fetchone()
+            return {"credits": int(row[0]), "freeAvailable": not row[1]} if row else {"credits": 0, "freeAvailable": True}
+        return self._run(fn)
+
+    def reserve_reading(self, visitor_id: str) -> str:
+        def fn(cur):
+            cur.execute(
+                "UPDATE moon_visitors SET credits = credits - 1 WHERE id = %s AND credits > 0 RETURNING credits",
+                (visitor_id,),
+            )
+            if cur.fetchone():
+                return "paid"
+            cur.execute(
+                "INSERT INTO moon_visitors (id, free_used) VALUES (%s, TRUE) "
+                "ON CONFLICT (id) DO UPDATE SET free_used = TRUE WHERE moon_visitors.free_used = FALSE "
+                "RETURNING id",
+                (visitor_id,),
+            )
+            if cur.fetchone():
+                return "free"
+            return None
+        kind = self._run(fn)
+        if kind is None:
+            raise PaymentError("No question credits left.", status=402, code="no_credits")
+        return kind
+
+    def release_reading(self, visitor_id: str, kind: str) -> None:
+        def fn(cur):
+            if kind == "paid":
+                cur.execute("UPDATE moon_visitors SET credits = credits + 1 WHERE id = %s", (visitor_id,))
+            elif kind == "free":
+                cur.execute("UPDATE moon_visitors SET free_used = FALSE WHERE id = %s", (visitor_id,))
+        self._run(fn)
+
+    # -- orders ---------------------------------------------------------------
+    def create_order(self, visitor_id: str, amount: Any) -> dict[str, Any]:
+        pkg = package_for_amount(amount)
+
+        def fn(cur):
+            # Serialize order creation per visitor so the reuse check is race-free.
+            cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", ("moon-order:" + visitor_id,))
+            cur.execute(
+                f"SELECT {self.ORDER_COLS} FROM moon_orders WHERE visitor = %s AND status = 'pending'",
+                (visitor_id,),
+            )
+            mine = [self._order(r) for r in cur.fetchall()]
+            for o in mine:
+                if o["price"] == pkg["price"]:
+                    return o
+            cur.execute("SELECT count(*) FROM moon_orders WHERE status = 'pending'")
+            total = int(cur.fetchone()[0])
+            if len(mine) >= MAX_PENDING_PER_VISITOR or total >= MAX_PENDING_TOTAL:
+                raise PaymentError("Too many pending orders. Please wait for approval.", 429, "too_many")
+            while True:
+                code = "M" + "".join(secrets.choice(ORDER_ALPHABET) for _ in range(5))
+                cur.execute(
+                    "INSERT INTO moon_orders (code, visitor, price, questions, bonus, status) "
+                    "VALUES (%s, %s, %s, %s, %s, 'pending') ON CONFLICT (code) DO NOTHING "
+                    f"RETURNING {self.ORDER_COLS}",
+                    (code, visitor_id, pkg["price"], pkg["questions"], pkg["bonus"]),
+                )
+                row = cur.fetchone()
+                if row:
+                    return self._order(row)
+        return self._run(fn)
+
+    def visitor_orders(self, visitor_id: str, limit: int = 10) -> list[dict[str, Any]]:
+        def fn(cur):
+            cur.execute(
+                f"SELECT {self.ORDER_COLS} FROM moon_orders WHERE visitor = %s ORDER BY created_at DESC LIMIT %s",
+                (visitor_id, limit),
+            )
+            return [self._order(r) for r in cur.fetchall()]
+        return self._run(fn)
+
+    def list_orders(self, status: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
+        def fn(cur):
+            cols = ", ".join("o." + c.strip() for c in self.ORDER_COLS.split(","))
+            sql = (f"SELECT {cols}, COALESCE(v.credits, 0) FROM moon_orders o "
+                   "LEFT JOIN moon_visitors v ON v.id = o.visitor ")
+            params: tuple = ()
+            if status:
+                sql += "WHERE o.status = %s "
+                params = (status,)
+            sql += "ORDER BY o.created_at DESC LIMIT %s"
+            cur.execute(sql, params + (limit,))
+            out = []
+            for r in cur.fetchall():
+                o = self._order(r[:8])
+                o["visitorCredits"] = int(r[8])
+                out.append(o)
+            return out
+        return self._run(fn)
+
+    def approve(self, code: str) -> dict[str, Any]:
+        def fn(cur):
+            cur.execute(f"SELECT {self.ORDER_COLS} FROM moon_orders WHERE code = %s FOR UPDATE", (str(code).upper(),))
+            row = cur.fetchone()
+            if row is None:
+                raise PaymentError("Order not found.", 404, "not_found")
+            order = self._order(row)
+            if order["status"] == "approved":
+                cur.execute("SELECT credits FROM moon_visitors WHERE id = %s", (order["visitor"],))
+                r = cur.fetchone()
+                return {"order": order, "alreadyApproved": True, "credits": int(r[0]) if r else 0}
+            if order["status"] != "pending":
+                raise PaymentError("Only pending orders can be approved.", 409, "not_pending")
+            cur.execute(
+                "INSERT INTO moon_visitors (id, credits) VALUES (%s, %s) "
+                "ON CONFLICT (id) DO UPDATE SET credits = moon_visitors.credits + EXCLUDED.credits "
+                "RETURNING credits",
+                (order["visitor"], int(order["questions"])),
+            )
+            credits_now = int(cur.fetchone()[0])
+            cur.execute(
+                f"UPDATE moon_orders SET status = 'approved', decided_at = now() WHERE code = %s RETURNING {self.ORDER_COLS}",
+                (order["code"],),
+            )
+            return {"order": self._order(cur.fetchone()), "alreadyApproved": False, "credits": credits_now}
+        return self._run(fn)
+
+    def reject(self, code: str) -> dict[str, Any]:
+        def fn(cur):
+            cur.execute(f"SELECT {self.ORDER_COLS} FROM moon_orders WHERE code = %s FOR UPDATE", (str(code).upper(),))
+            row = cur.fetchone()
+            if row is None:
+                raise PaymentError("Order not found.", 404, "not_found")
+            order = self._order(row)
+            if order["status"] == "rejected":
+                return {"order": order}
+            if order["status"] != "pending":
+                raise PaymentError("Only pending orders can be rejected.", 409, "not_pending")
+            cur.execute(
+                f"UPDATE moon_orders SET status = 'rejected', decided_at = now() WHERE code = %s RETURNING {self.ORDER_COLS}",
+                (order["code"],),
+            )
+            return {"order": self._order(cur.fetchone())}
+        return self._run(fn)
+
+
+def _safe_msg(exc: Exception, cfg: dict[str, Any]) -> str:
+    msg = str(exc)
+    for secret in (cfg.get("password"), cfg.get("user"), cfg.get("host")):
+        if secret:
+            msg = msg.replace(secret, "***")
+    return msg[:200]
+
+
+def make_service(data_dir: str) -> tuple[Any, str, str | None]:
+    """Return (service, store name, problem). Uses Postgres when DATABASE_URL is set."""
+    url = os.environ.get("DATABASE_URL", "").strip()
+    if url:
+        try:
+            svc = PostgresCreditService(url)
+            return svc, "postgres", None
+        except DatabaseConfigError as exc:
+            problem = str(exc)
+        except Exception as exc:  # e.g. SQL error while creating tables
+            problem = f"Postgres setup failed ({type(exc).__name__})"
+        return CreditService(JsonStore(data_dir)), "json", problem
+    return CreditService(JsonStore(data_dir)), "json", None
