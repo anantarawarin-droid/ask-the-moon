@@ -195,6 +195,8 @@ class JsonStore:
             data = {}
         data.setdefault("visitors", {})
         data.setdefault("orders", {})
+        data.setdefault("users", {})
+        data.setdefault("sessions", {})
         return data
 
     def _save(self) -> None:
@@ -314,6 +316,7 @@ class CreditService:
             for o in orders:
                 v = data["visitors"].get(o["visitor"]) or {"credits": 0}
                 o["visitorCredits"] = v["credits"]
+            self.usernames_for(data, orders)
         orders.sort(key=lambda o: o["createdAt"], reverse=True)
         return orders[:limit]
 
@@ -346,6 +349,83 @@ class CreditService:
             order["status"] = "rejected"
             order["decidedAt"] = _now()
             return {"order": dict(order)}
+
+
+    # -- accounts ---------------------------------------------------------------
+    def create_user(self, user_id: str, username: str, password_record: str) -> dict[str, Any]:
+        key = username.lower()
+        with self.store.transaction() as data:
+            if any(u["usernameKey"] == key for u in data["users"].values()):
+                raise PaymentError("That username is taken.", 409, "username_taken")
+            user = {"id": user_id, "username": username, "usernameKey": key,
+                    "password": password_record, "createdAt": _now()}
+            data["users"][user_id] = user
+            self._visitor(data, user_id)
+            return {"id": user_id, "username": username}
+
+    def find_user(self, username: str) -> dict[str, Any] | None:
+        key = username.strip().lower()
+        with self.store.read() as data:
+            for u in data["users"].values():
+                if u["usernameKey"] == key:
+                    return dict(u)
+        return None
+
+    def set_password(self, user_id: str, password_record: str) -> None:
+        with self.store.transaction() as data:
+            data["users"][user_id]["password"] = password_record
+            data["users"][user_id]["passwordChangedAt"] = _now()
+
+    def create_session(self, user_id: str, token_hash: str, expires_at: datetime) -> None:
+        with self.store.transaction() as data:
+            now = datetime.now(timezone.utc).isoformat()
+            for k in [k for k, v in data["sessions"].items() if v["expiresAt"] < now]:
+                del data["sessions"][k]
+            data["sessions"][token_hash] = {"userId": user_id, "createdAt": _now(),
+                                            "expiresAt": expires_at.astimezone(timezone.utc).isoformat()}
+
+    def session_user(self, token_hash: str) -> dict[str, Any] | None:
+        with self.store.read() as data:
+            sess = data["sessions"].get(token_hash)
+            if not sess or sess["expiresAt"] <= datetime.now(timezone.utc).isoformat():
+                return None
+            u = data["users"].get(sess["userId"])
+            return {"id": u["id"], "username": u["username"]} if u else None
+
+    def delete_session(self, token_hash: str) -> None:
+        with self.store.transaction() as data:
+            data["sessions"].pop(token_hash, None)
+
+    def delete_user_sessions(self, user_id: str) -> None:
+        with self.store.transaction() as data:
+            for k in [k for k, v in data["sessions"].items() if v["userId"] == user_id]:
+                del data["sessions"][k]
+
+    def merge_visitor(self, visitor_id: str, account_id: str) -> dict[str, Any]:
+        """Move an anonymous visitor's credits, free-question use, and pending orders
+        into the account. Safe to call any number of times."""
+        with self.store.transaction() as data:
+            wallet = self._visitor(data, account_id)
+            moved, orders = 0, 0
+            v = self._visitor(data, visitor_id) if visitor_id and visitor_id != account_id else None
+            if v is not None:
+                moved = int(v["credits"])
+                wallet["credits"] += moved
+                v["credits"] = 0
+                if v["freeUsed"]:
+                    wallet["freeUsed"] = True
+                v["freeUsed"] = True  # the free question now lives with the account
+                v["mergedInto"] = account_id
+            for o in data["orders"].values():
+                if visitor_id and o["visitor"] == visitor_id and o["status"] == "pending":
+                    o["visitor"] = account_id
+                    orders += 1
+            return {"movedCredits": moved, "movedOrders": orders}
+
+    def usernames_for(self, data: dict[str, Any], orders: list[dict[str, Any]]) -> None:
+        for o in orders:
+            u = data["users"].get(o["visitor"])
+            o["username"] = u["username"] if u else None
 
     # -- slips ----------------------------------------------------------------
     def begin_slip_check(self, code: str, visitor_id: str, max_attempts: int) -> dict[str, Any]:
@@ -566,6 +646,22 @@ ALTER TABLE moon_orders ADD COLUMN IF NOT EXISTS slip_summary TEXT;
 ALTER TABLE moon_orders ADD COLUMN IF NOT EXISTS slip_trans_ref TEXT;
 ALTER TABLE moon_orders ADD COLUMN IF NOT EXISTS slip_checked_at TIMESTAMPTZ;
 CREATE UNIQUE INDEX IF NOT EXISTS moon_orders_slip_ref_idx ON moon_orders (slip_trans_ref) WHERE slip_trans_ref IS NOT NULL;
+CREATE TABLE IF NOT EXISTS moon_users (
+    id           TEXT PRIMARY KEY,
+    username     TEXT NOT NULL,
+    username_key TEXT NOT NULL UNIQUE,
+    password     TEXT NOT NULL,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    password_changed_at TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS moon_sessions (
+    token_hash  TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES moon_users (id) ON DELETE CASCADE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at  TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS moon_sessions_user_idx ON moon_sessions (user_id);
+ALTER TABLE moon_visitors ADD COLUMN IF NOT EXISTS merged_into TEXT;
 """
 
 
@@ -776,8 +872,9 @@ class PostgresCreditService:
     def list_orders(self, status: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
         def fn(cur):
             cols = ", ".join("o." + c.strip() for c in self.ORDER_COLS.split(","))
-            sql = (f"SELECT {cols}, COALESCE(v.credits, 0) FROM moon_orders o "
-                   "LEFT JOIN moon_visitors v ON v.id = o.visitor ")
+            sql = (f"SELECT {cols}, COALESCE(v.credits, 0), u.username FROM moon_orders o "
+                   "LEFT JOIN moon_visitors v ON v.id = o.visitor "
+                   "LEFT JOIN moon_users u ON u.id = o.visitor ")
             params: tuple = ()
             if status:
                 sql += "WHERE o.status = %s "
@@ -788,6 +885,7 @@ class PostgresCreditService:
             for r in cur.fetchall():
                 o = self._order(r[: self.NCOLS])
                 o["visitorCredits"] = int(r[self.NCOLS])
+                o["username"] = r[self.NCOLS + 1]
                 out.append(o)
             return out
         return self._run(fn)
@@ -835,6 +933,75 @@ class PostgresCreditService:
                 (order["code"],),
             )
             return {"order": self._order(cur.fetchone())}
+        return self._run(fn)
+
+
+    # -- accounts ---------------------------------------------------------------
+    def create_user(self, user_id: str, username: str, password_record: str) -> dict[str, Any]:
+        def fn(cur):
+            cur.execute(
+                "INSERT INTO moon_users (id, username, username_key, password) VALUES (%s, %s, %s, %s) "
+                "ON CONFLICT (username_key) DO NOTHING RETURNING id",
+                (user_id, username, username.lower(), password_record),
+            )
+            if cur.fetchone() is None:
+                raise PaymentError("That username is taken.", 409, "username_taken")
+            cur.execute("INSERT INTO moon_visitors (id) VALUES (%s) ON CONFLICT (id) DO NOTHING", (user_id,))
+            return {"id": user_id, "username": username}
+        return self._run(fn)
+
+    def find_user(self, username: str) -> dict[str, Any] | None:
+        def fn(cur):
+            cur.execute("SELECT id, username, password FROM moon_users WHERE username_key = %s",
+                        (username.strip().lower(),))
+            r = cur.fetchone()
+            return {"id": r[0], "username": r[1], "password": r[2]} if r else None
+        return self._run(fn)
+
+    def set_password(self, user_id: str, password_record: str) -> None:
+        self._run(lambda cur: cur.execute(
+            "UPDATE moon_users SET password = %s, password_changed_at = now() WHERE id = %s",
+            (password_record, user_id)))
+
+    def create_session(self, user_id: str, token_hash: str, expires_at: datetime) -> None:
+        def fn(cur):
+            cur.execute("DELETE FROM moon_sessions WHERE expires_at < now()")
+            cur.execute("INSERT INTO moon_sessions (token_hash, user_id, expires_at) VALUES (%s, %s, %s)",
+                        (token_hash, user_id, expires_at))
+        self._run(fn)
+
+    def session_user(self, token_hash: str) -> dict[str, Any] | None:
+        def fn(cur):
+            cur.execute(
+                "SELECT u.id, u.username FROM moon_sessions s JOIN moon_users u ON u.id = s.user_id "
+                "WHERE s.token_hash = %s AND s.expires_at > now()", (token_hash,))
+            r = cur.fetchone()
+            return {"id": r[0], "username": r[1]} if r else None
+        return self._run(fn)
+
+    def delete_session(self, token_hash: str) -> None:
+        self._run(lambda cur: cur.execute("DELETE FROM moon_sessions WHERE token_hash = %s", (token_hash,)))
+
+    def delete_user_sessions(self, user_id: str) -> None:
+        self._run(lambda cur: cur.execute("DELETE FROM moon_sessions WHERE user_id = %s", (user_id,)))
+
+    def merge_visitor(self, visitor_id: str, account_id: str) -> dict[str, Any]:
+        def fn(cur):
+            cur.execute("INSERT INTO moon_visitors (id) VALUES (%s) ON CONFLICT (id) DO NOTHING", (account_id,))
+            moved, used = 0, False
+            if visitor_id and visitor_id != account_id:
+                cur.execute("INSERT INTO moon_visitors (id) VALUES (%s) ON CONFLICT (id) DO NOTHING", (visitor_id,))
+                cur.execute("SELECT credits, free_used FROM moon_visitors WHERE id = %s FOR UPDATE", (visitor_id,))
+                r = cur.fetchone()
+                if r is not None:
+                    moved, used = int(r[0]), bool(r[1])
+                    cur.execute("UPDATE moon_visitors SET credits = 0, free_used = TRUE, merged_into = %s WHERE id = %s",
+                                (account_id, visitor_id))
+            cur.execute("UPDATE moon_visitors SET credits = credits + %s, free_used = (free_used OR %s) WHERE id = %s",
+                        (moved, used, account_id))
+            cur.execute("UPDATE moon_orders SET visitor = %s WHERE visitor = %s AND status = 'pending'",
+                        (account_id, visitor_id or ""))
+            return {"movedCredits": moved, "movedOrders": cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0}
         return self._run(fn)
 
     # -- slips ----------------------------------------------------------------

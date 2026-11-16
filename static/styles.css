@@ -843,3 +843,43 @@ body[data-lang="en"] .pricing h2 { font-family: var(--font-display); letter-spac
 .tcard-meaning { font-size: clamp(0.7rem, 2.9vw, 0.82rem); color: var(--lavender); line-height: 1.4; margin-top: 3px; }
 .foot-credit { font-size: 0.72rem; opacity: 0.7; }
 @media (prefers-reduced-motion: reduce) { .tcard { animation: none; opacity: 1; } .tcard-inner { transition: none; } }
+
+/* ---- accounts ---- */
+.account-btn { display: inline-flex; align-items: center; gap: 6px; max-width: 9.5rem; padding: 0.42rem 0.8rem; border-radius: 999px;
+  border: 1px solid rgba(212, 175, 55, 0.45); background: rgba(107, 63, 160, 0.28); color: var(--gold-soft);
+  font: 600 0.82rem var(--font-sans); cursor: pointer; white-space: nowrap; }
+.account-btn span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.account-btn:hover, .account-btn:focus-visible { background: rgba(107, 63, 160, 0.45); outline: none; box-shadow: 0 0 0 2px rgba(243, 226, 168, 0.35); }
+.account-btn.is-in { border-color: rgba(245, 163, 208, 0.55); color: var(--lavender); }
+.account-ico { color: var(--pink); font-size: 0.75rem; }
+@media (max-width: 420px) { .account-btn { max-width: 6.8rem; padding: 0.38rem 0.6rem; font-size: 0.76rem; } }
+.account-note { margin: -0.2rem auto 1rem; max-width: 30rem; padding: 0.55rem 0.9rem; border-radius: 999px; font-size: 0.86rem;
+  color: var(--lavender); background: rgba(201, 182, 255, 0.10); border: 1px dashed rgba(201, 182, 255, 0.4); text-align: center; }
+.account-note[hidden] { display: none; }
+.account-card { position: relative; max-width: 24rem; width: 100%; max-height: 92vh; overflow-y: auto; padding: 1.6rem 1.4rem 1.4rem;
+  background: radial-gradient(120% 70% at 50% 0%, rgba(201, 182, 255, 0.18), transparent 60%),
+              radial-gradient(90% 60% at 50% 100%, rgba(245, 163, 208, 0.12), transparent 70%), var(--card); }
+.acc-avatar { width: 54px; height: 54px; margin: 0 auto 0.4rem; display: grid; place-items: center; border-radius: 50%; font-size: 1.6rem;
+  color: var(--gold-soft); background: radial-gradient(circle at 35% 30%, #5a2a8e, #2a1450); box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.6), 0 0 24px rgba(245, 163, 208, 0.35); }
+.account-card h3 { margin: 0.2rem 0 0.3rem; }
+.acc-note { margin: 0 0 0.9rem; font-size: 0.86rem; color: var(--lavender); }
+.acc-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 0.9rem; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); }
+.acc-tab { padding: 0.5rem; border: 0; border-radius: 999px; background: none; color: var(--muted); font: 600 0.9rem var(--font-sans); cursor: pointer; }
+.acc-tab.is-on { background: linear-gradient(135deg, rgba(212, 175, 55, 0.95), rgba(243, 226, 168, 0.95)); color: #2a1440; }
+.acc-form { display: grid; gap: 0.75rem; text-align: left; }
+.acc-form label { display: grid; gap: 0.3rem; font-size: 0.88rem; color: var(--gold-soft); }
+.acc-form input { width: 100%; padding: 0.7rem 0.85rem; border-radius: 12px; border: 1px solid rgba(201, 182, 255, 0.35);
+  background: rgba(10, 6, 20, 0.55); color: var(--text); font: 1rem var(--font-sans); }
+.acc-form input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2); }
+.acc-form small { color: var(--muted); font-size: 0.76rem; }
+.acc-form .btn { width: 100%; margin-top: 0.2rem; }
+.acc-msg { margin: 0 0 0.8rem; padding: 0.6rem 0.8rem; border-radius: 10px; font-size: 0.88rem; text-align: left; }
+.acc-msg.info { background: rgba(201, 182, 255, 0.12); color: var(--lavender); }
+.acc-msg.error { background: rgba(240, 100, 100, 0.14); color: #ffb3b3; }
+.acc-msg.ok { background: rgba(80, 200, 140, 0.15); color: #9ff0c4; }
+.acc-forgot { margin: 0.9rem 0 0; font-size: 0.78rem; color: var(--muted); }
+.acc-balance { margin: 0 0 1rem; color: var(--lavender); }
+.acc-change { margin: 0 0 1rem; text-align: left; }
+.acc-change summary { cursor: pointer; color: var(--muted); font-size: 0.86rem; margin-bottom: 0.6rem; }
+#acc-logout { width: 100%; }

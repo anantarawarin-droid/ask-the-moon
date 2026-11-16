@@ -1,6 +1,6 @@
 # ถามจันทร์ — Ask the Moon
 
-A bilingual (Thai / English) destiny-reading web app. Visitors enter a name, birth date, optional birth time, a topic, and an optional question. The site computes Western zodiac, Chinese zodiac (with element), and a numerology life path number, then writes a personalized reading.
+A bilingual (Thai / English) tarot web app. Visitors enter a name, a topic, and a question. The server draws three Rider-Waite-Smith cards and the AI gives a direct answer based only on those cards: a clear answer first, then how the cards support it, then 1–2 concrete pieces of advice. (Zodiac, Chinese zodiac, birth date/time and numerology were removed in Nov 2026.)
 
 Visitors get one free question, then buy question credits (PromptPay, approved by the owner on `/admin`). Each AI-written reading uses 1 credit and unlocks the deep reading. Ad banners point advertisers to LINE `ivymoonask`.
 
@@ -90,15 +90,31 @@ are listed in `static/tarot/SOURCES.json`. Images are 300 px wide WebP files (~4
 ```json
 {
   "name": "Nam Phet",
-  "birthDate": "2006-07-07",
-  "birthTime": "14:30",
-  "topic": "life_path",
-  "question": "What is my path this year?",
+  "topic": "career",
+  "question": "งานใหม่ที่สมัครไว้จะได้ไหม",
   "lang": "th"
 }
 ```
 
-`topic` may be `love`, `career`, `money`, or `life_path`. `lang` may be `th` or `en`. `birthTime` and `question` are optional.
+`topic` may be `love`, `career`, `money`, or `life_path`. `lang` may be `th` or `en`. `question` is optional
+(without one, the cards answer about the topic). Old clients may still send `birthDate`/`birthTime`; they are ignored.
+
+## Accounts
+
+Username + password (3–20 letters/numbers/_, case-insensitive unique; password ≥ 8). No email.
+
+* Passwords: PBKDF2-HMAC-SHA256, 240,000 iterations, 16-byte per-user salt, `hmac.compare_digest`.
+* Sessions: random token in the `moon_session` cookie (HttpOnly, Secure, SameSite=Lax, 90 days);
+  only its SHA-256 is stored (`moon_sessions`). Logout deletes it.
+* Sign-up/login merges the device's anonymous balance, free-question use, and pending orders into the
+  account once (idempotent). The account's credits live in a wallet row whose id never reaches the browser.
+* Buying requires an account (`401 login_required`); the free first question works anonymously.
+* Rate limits (in memory): login 20 per IP and 10 per username per 10 minutes; sign-up 5 per IP per hour.
+* Forgotten password: `/admin` → “รีเซ็ตรหัสผ่าน” sets a temporary password to send on LINE
+  (all of that user's sessions end). Users can change their password in the account menu.
+
+API: `POST /api/auth/signup`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`,
+`POST /api/auth/password`, admin `POST /api/admin/reset-password {"username"}`.
 
 ## โครงสร้างไฟล์ / Files
 

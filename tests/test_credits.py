@@ -44,7 +44,7 @@ def pg_service():
     if _PG is None:
         _PG = billing.PostgresCreditService(TEST_PG)
     with _PG._tx() as cur:
-        cur.execute("TRUNCATE moon_visitors, moon_orders")
+        cur.execute("TRUNCATE moon_visitors, moon_orders, moon_sessions, moon_users")
     return _PG
 
 
@@ -227,13 +227,49 @@ class Http(unittest.TestCase):
         app.SERVICE = self.make()
         self.llm = mock.patch.object(app, "llm_generate", return_value=("AI reading text", {}))
         self.llm.start()
+        self.sessions = {}  # visitor id -> session cookie (the visitor signed up)
+        self.fast_hash = mock.patch.object(app.accounts, "PBKDF2_ITERATIONS", 2000)
+        self.fast_hash.start()
+        for lim in (app.accounts.LOGIN_BY_IP, app.accounts.LOGIN_BY_USER, app.accounts.SIGNUP_BY_IP,
+                    app.accounts.SIGNUP_GLOBAL):
+            lim._hits.clear()
 
     def tearDown(self):
         self.llm.stop()
+        self.fast_hash.stop()
 
-    def req(self, method, path, body=None, headers=None):
+    def signup(self, visitor, username=None, password="moon-pass-123"):
+        """Sign this visitor up (merging its balance); later requests carry the cookie."""
+        username = username or ("u_" + visitor[:12])
+        code, data, cookie = self.raw("POST", "/api/auth/signup", {"username": username, "password": password},
+                                      {"X-Visitor-Id": visitor})
+        assert code == 201, (code, data)
+        self.sessions[visitor] = cookie
+        return data
+
+    def raw(self, method, path, body=None, headers=None):
+        """Like req() but never adds cookies and also returns the Set-Cookie value."""
         data = json.dumps(body).encode() if body is not None else None
         r = urllib.request.Request(self.base + path, data=data, method=method, headers=headers or {})
+        if data:
+            r.add_header("Content-Type", "application/json")
+        try:
+            with urllib.request.urlopen(r) as resp:
+                ck = resp.headers.get("Set-Cookie")
+                return resp.status, json.loads(resp.read() or b"{}"), ck
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read() or b"{}"), e.headers.get("Set-Cookie")
+
+    def req(self, method, path, body=None, headers=None):
+        headers = dict(headers or {})
+        vid = headers.get("X-Visitor-Id")
+        if vid and method == "POST" and path == "/api/orders" and vid not in self.sessions \
+                and "Cookie" not in headers:
+            self.signup(vid)  # buying needs an account: sign up first, like the UI asks
+        if vid in self.sessions and "Cookie" not in headers:
+            headers["Cookie"] = self.sessions[vid].split(";")[0]
+        data = json.dumps(body).encode() if body is not None else None
+        r = urllib.request.Request(self.base + path, data=data, method=method, headers=headers)
         if data:
             r.add_header("Content-Type", "application/json")
         try:

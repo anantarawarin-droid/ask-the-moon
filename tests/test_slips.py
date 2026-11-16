@@ -74,8 +74,10 @@ class SlipHttp(tc.Http):
     def upload(self, code, body=PNG, visitor=VISITOR, ctype="image/png"):
         import json as _json
         import urllib.request as ur
-        r = ur.Request(f"{self.base}/api/orders/{code}/slip", data=body, method="POST",
-                       headers={"X-Visitor-Id": visitor, "Content-Type": ctype})
+        headers = {"X-Visitor-Id": visitor, "Content-Type": ctype}
+        if visitor in self.sessions:
+            headers["Cookie"] = self.sessions[visitor].split(";")[0]
+        r = ur.Request(f"{self.base}/api/orders/{code}/slip", data=body, method="POST", headers=headers)
         try:
             with ur.urlopen(r) as resp:
                 return resp.status, _json.loads(resp.read())

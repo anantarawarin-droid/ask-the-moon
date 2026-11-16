@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0614" />
   <title>ถามจันทร์ — Ask the Moon</title>
-  <meta name="description" content="AI destiny readings — zodiac, Chinese zodiac, and numerology. อ่านดวงด้วยดาว นักษัตร และเลขศาสตร์" />
+  <meta name="description" content="Ask the Moon — direct tarot answers from three Rider-Waite-Smith cards. ถามจันทร์ ดูไพ่ทาโรต์ ตอบตรงทุกคำถาม" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Noto+Serif+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -41,6 +41,10 @@
       </span>
     </a>
     <div class="top-actions">
+      <button type="button" class="account-btn" id="account-btn" aria-haspopup="dialog">
+        <span class="account-ico" aria-hidden="true">✦</span>
+        <span id="account-label" data-i18n="accountLogin">เข้าสู่ระบบ</span>
+      </button>
       <a class="balance-chip" href="#pricing" id="balance-chip" title="">
         <span class="balance-moon" aria-hidden="true">☾</span>
         <span class="balance-num" id="balance-num">0</span>
@@ -73,17 +77,7 @@
         <div class="grid-2">
           <label>
             <span data-i18n="nameLabel">ชื่อ</span>
-            <input type="text" name="name" id="name" maxlength="80" required autocomplete="name" data-i18n-placeholder="namePh" placeholder="เช่น น้ำเพชร" />
-          </label>
-          <label>
-            <span data-i18n="dateLabel">วันเกิด</span>
-            <input type="date" name="birthDate" id="birthDate" required min="1900-01-01" />
-          </label>
-        </div>
-        <div class="grid-2">
-          <label>
-            <span><span data-i18n="timeLabel">เวลาเกิด</span> <em data-i18n="optional">(ไม่บังคับ)</em></span>
-            <input type="time" name="birthTime" id="birthTime" />
+            <input type="text" name="name" id="name" maxlength="80" required autocomplete="given-name" data-i18n-placeholder="namePh" placeholder="เช่น น้ำเพชร" />
           </label>
           <fieldset class="topic-field">
             <legend data-i18n="topicLabel">หัวข้อที่อยากรู้</legend>
@@ -166,6 +160,7 @@
       <p class="eyebrow" data-i18n="pricingEyebrow">แพ็กเกจคำถาม · เติมผ่านพร้อมเพย์</p>
       <h2 id="pricing-title" data-i18n="pricingTitle">เติมพลังจันทร์ ถามได้มากขึ้น</h2>
       <p class="pricing-lede" data-i18n="pricingLede">คำถามละ 15 บาท ยิ่งเติมมาก ยิ่งได้คำถามโบนัสฟรี — สูงสุด 150 บาทต่อครั้ง ทุกคำถามที่ใช้เครดิตจะได้บทอ่านลึกครบทุกส่วน</p>
+      <p class="account-note" id="pricing-account-note"><span aria-hidden="true">☾</span> <span data-i18n="accountNote">สมัครบัญชีเพื่อเก็บเครดิตไว้ใช้ได้ทุกอุปกรณ์</span></p>
       <div class="price-grid" id="price-grid" aria-live="polite"></div>
       <ol class="how-to">
         <li><span>1</span><p data-i18n="how1">เลือกแพ็กเกจ แล้วสแกน QR พร้อมเพย์ด้วยแอปธนาคาร</p></li>
@@ -174,6 +169,13 @@
       </ol>
     </section>
   </main>
+
+  <div id="account-modal" class="modal" hidden>
+    <div class="modal-card panel account-card" role="dialog" aria-modal="true" aria-labelledby="account-title">
+      <button type="button" class="modal-x" id="account-close-x" aria-label="Close">×</button>
+      <div id="account-content"></div>
+    </div>
+  </div>
 
   <div id="pay-modal" class="modal" hidden>
     <div class="modal-card panel pay-card" role="dialog" aria-modal="true" aria-labelledby="pay-title">

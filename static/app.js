@@ -4,14 +4,14 @@ const I18N = {
     brand: "ถามจันทร์",
     brandSub: "Ask the Moon",
     footBrand: "ถามจันทร์",
-    eyebrow: "อ่านดวง · ราศี · นักษัตร · เลขศาสตร์",
+    eyebrow: "ไพ่ทาโรต์ · ตอบตรง · ไม่อ้อมค้อม",
     heroTitle: "ถามจันทร์",
-    heroLede: "บอกชื่อและวันเกิด แล้วรับบทอ่านดวงที่ถักจากราศีตะวันตก ปีนักษัตรจีน และเลขเส้นทางชีวิต — เลือกหัวข้อที่อยากรู้ ดาวจะตอบเป็นคำของคุณเอง",
+    heroLede: "พิมพ์คำถามที่อยากรู้ จันทร์จะเปิดไพ่ทาโรต์ 3 ใบ แล้วตอบให้ตรงประเด็น พร้อมเหตุผลจากไพ่และคำแนะนำที่ทำได้จริง",
     adHeading: "พื้นที่แห่งโอกาสสำหรับแบรนด์ของคุณ",
     adLine1: "ร่วมเป็นส่วนหนึ่งของจักรวาลแห่งการพยากรณ์",
     adLine2: "เปิดรับโฆษณา ประชาสัมพันธ์สินค้าและบริการ สำหรับผู้ที่สนใจร่วมลงพื้นที่โฆษณาบนเว็บไซต์",
     adContact: "ติดต่อสอบถามรายละเอียดเพิ่มเติมได้ที่นี่ · LINE: ivymoonask",
-    formTitle: "เปิดดวงของคุณ",
+    formTitle: "ถามไพ่ของคุณ",
     nameLabel: "ชื่อ",
     namePh: "เช่น น้ำเพชร",
     dateLabel: "วันเกิด",
@@ -22,16 +22,16 @@ const I18N = {
     topicCareer: "การงาน",
     topicMoney: "การเงิน",
     topicPath: "เส้นทางชีวิต",
-    qLabel: "คำถามถึงดาว",
-    qPh: "เช่น ปีนี้ฉันควรกล้าเริ่มสิ่งใหม่ไหม?",
-    submit: "เปิดบทอ่านดวง",
-    loading: "กำลังจัดเรียงดวงดาว...",
+    qLabel: "คำถามของคุณ",
+    qPh: "เช่น งานใหม่ที่สมัครไว้จะได้ไหม?",
+    submit: "เปิดไพ่ถามจันทร์",
+    loading: "กำลังสับไพ่และเปิดไพ่ให้คุณ...",
     freeTag: "บทอ่านฟรี",
-    freeTitle: "ดวงที่เปิดให้คุณ",
+    freeTitle: "คำตอบจากไพ่",
     premTag: "พรีเมียม",
     premTitle: "บทอ่านลึก",
     lockTitle: "ปลดล็อกบทอ่านลึก",
-    lockCopy: "เลขนำโชค สีดวง วันมงคล ความเข้ากันได้ ของขวัญซ่อนเร้น และพยากรณ์ 12 เดือน",
+    lockCopy: "ช่วงเวลาที่ไพ่ชี้ จุดแข็ง สิ่งที่ต้องระวัง ขั้นต่อไปที่ควรทำ เลข สี และวันมงคลจากไพ่ของคุณ",
     upgrade: "เติมคำถามเพื่อปลดล็อก",
     lockNote: "บทอ่านลึกเปิดให้อัตโนมัติทุกครั้งที่ใช้เครดิตคำถาม",
     unlockedTag: "ปลดล็อกแล้ว",
@@ -106,43 +106,78 @@ const I18N = {
     },
     orLine: "หรือส่งสลิปทาง LINE แทนได้",
     payStep2Slip: (c) => `อัปโหลดสลิปด้านล่าง ระบบจะตรวจและเติมคำถามให้ทันที (หรือส่งทาง LINE พร้อมรหัส <b>${c}</b>)`,
+    accountLogin: "เข้าสู่ระบบ",
+    accountNote: "สมัครบัญชีเพื่อเก็บเครดิตไว้ใช้ได้ทุกอุปกรณ์",
+    accTitleLogin: "เข้าสู่ระบบ",
+    accTitleSignup: "สมัครบัญชี",
+    accTabLogin: "เข้าสู่ระบบ",
+    accTabSignup: "สมัครใหม่",
+    accUser: "ชื่อผู้ใช้",
+    accUserHint: "3–20 ตัว ใช้ a-z, 0-9 หรือ _",
+    accPass: "รหัสผ่าน",
+    accPassHint: "อย่างน้อย 8 ตัวอักษร",
+    accSubmitLogin: "เข้าสู่ระบบ",
+    accSubmitSignup: "สมัครและเข้าสู่ระบบ",
+    accBusy: "กำลังดำเนินการ…",
+    accNeedLogin: "กรุณาสมัครบัญชีหรือเข้าสู่ระบบก่อนซื้อแพ็กเกจ เครดิตจะได้ไม่หายและใช้ได้ทุกอุปกรณ์ค่ะ",
+    accMerged: (n) => n > 0 ? `ย้ายเครดิต ${n} คำถามเข้าบัญชีแล้ว ✨` : "",
+    accWelcome: (u) => `ยินดีต้อนรับ ${u} ✨`,
+    accHello: (u) => `สวัสดี ${u}`,
+    accBalance: (n) => `เหลือ ${n} คำถาม`,
+    accLogout: "ออกจากระบบ",
+    accLoggedOut: "ออกจากระบบแล้ว",
+    accChangePw: "เปลี่ยนรหัสผ่าน",
+    accCurrentPw: "รหัสผ่านปัจจุบัน",
+    accNewPw: "รหัสผ่านใหม่",
+    accPwChanged: "เปลี่ยนรหัสผ่านแล้ว",
+    accForgot: "ลืมรหัสผ่าน? ทัก LINE: ivymoonask แอดมินจะตั้งรหัสชั่วคราวให้",
+    accErr: {
+      bad_login: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
+      username_taken: "ชื่อผู้ใช้นี้มีคนใช้แล้ว ลองชื่ออื่นนะคะ",
+      bad_username: "ชื่อผู้ใช้ต้องมี 3–20 ตัว ใช้ได้เฉพาะ a-z, 0-9 และ _",
+      weak_password: "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร",
+      bad_password: "รหัสผ่านยาวเกินไป",
+      rate_limited: "ลองหลายครั้งเกินไป กรุณารอสักครู่แล้วลองใหม่",
+      login_required: "กรุณาเข้าสู่ระบบก่อน",
+      network: "เชื่อมต่อไม่ได้ กรุณาลองใหม่",
+    },
     tarotCredit: "ภาพไพ่ทาโรต์: สำรับ Rider-Waite-Smith (ค.ศ. 1909) วาดโดย Pamela Colman Smith · สาธารณสมบัติ จาก Wikimedia Commons",
     tarotReversed: "กลับหัว",
     tarotTap: "แตะไพ่เพื่อดูความหมาย",
-    disclaimer: "บทอ่านดวงนี้จัดให้เพื่อแรงบันดาลใจ ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย การเงิน หรือคำทำนายที่รับประกันผล ทางเลือกยังเป็นของคุณเสมอ",
+    disclaimer: "คำตอบจากไพ่ทาโรต์มีไว้เป็นแนวทาง ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย หรือการเงิน การตัดสินใจสุดท้ายเป็นของคุณ",
     badgeZodiac: "ราศีตะวันตก",
     badgeChinese: "ปีนักษัตร",
     badgePath: "เลขเส้นทางชีวิต",
     badgeHour: "ยามเกิด",
     master: "เลขปรมาจารย์",
-    sourceTemplate: "สร้างจากดวงและแบบบทอ่าน — เพิ่มคีย์ API เพื่อให้นิยายจากโมเดลภาษา",
-    sourceLlm: "เรียบเรียงโดยปัญญาประดิษฐ์ จากดวงของคุณ",
-    resultFor: (name, topic) => `บทอ่านสำหรับ ${name} · ${topic}`,
+    sourceTemplate: "คำตอบจากความหมายของไพ่ (ระบบสำรอง)",
+    sourceLlm: "เรียบเรียงโดยปัญญาประดิษฐ์ จากไพ่ 3 ใบของคุณ",
+    resultFor: (name, topic) => `คำตอบสำหรับ ${name} · ${topic}`,
     needName: "กรุณาใส่ชื่อ",
     needDate: "กรุณาใส่วันเกิด",
     hours: { dawn: "รุ่งสาง", morning: "เช้า", afternoon: "บ่าย", evening: "เย็น", night: "ค่ำคืน" },
     topics: { love: "ความรัก", career: "การงาน", money: "การเงิน", life_path: "เส้นทางชีวิต" },
-    luckNumbers: "เลขนำโชค",
-    luckColors: "สีนำโชค",
+    luckNumbers: "เลขจากไพ่",
+    luckColors: "สีมงคลจากไพ่",
     luckDay: "วันมงคล",
-    gift: "ของขวัญซ่อนเร้น",
-    shadow: "บททดสอบซ่อนเร้น",
-    compat: "ความเข้ากันได้",
-    forecast: "พยากรณ์ 12 เดือน",
+    gift: "จุดแข็งจากไพ่",
+    shadow: "สิ่งที่ต้องระวัง",
+    compat: "ขั้นต่อไปที่ควรทำ",
+    forecast: "ช่วงเวลาที่ไพ่ชี้",
   },
   en: {
     docTitle: "Ask the Moon",
     brand: "Ask the Moon",
     brandSub: "ถามจันทร์",
     footBrand: "Ask the Moon",
-    eyebrow: "Readings · Zodiac · Lunar year · Numerology",
+    eyebrow: "Tarot · Straight answers · No riddles",
     heroTitle: "Ask the Moon",
-    heroLede: "Share your name and birthday for a reading woven from Western zodiac, Chinese lunar year, and your numerology life path. Choose a topic, and the sky answers in your own words.",
+    heroLede: "Type what you want to know. The Moon draws three tarot cards and gives you a straight answer, the reasons in the cards, and advice you can act on.",
     adHeading: "A space of opportunity for your brand",
     adLine1: "Become part of the universe of fortune-telling",
     adLine2: "Now accepting ads to promote your products and services",
     adContact: "Contact us here for more details · LINE: ivymoonask",
-    formTitle: "Open your chart",
+    formTitle: "Ask the cards",
     nameLabel: "Name",
     namePh: "e.g. Nam Phet",
     dateLabel: "Birth date",
@@ -153,16 +188,16 @@ const I18N = {
     topicCareer: "Career",
     topicMoney: "Money",
     topicPath: "Life path",
-    qLabel: "A question for the stars",
-    qPh: "e.g. Should I be brave enough to start something new this year?",
-    submit: "Reveal my reading",
-    loading: "The stars are aligning...",
+    qLabel: "Your question",
+    qPh: "e.g. Will I get the new job I applied for?",
+    submit: "Draw the cards",
+    loading: "Shuffling and drawing your cards...",
     freeTag: "Free reading",
-    freeTitle: "Your open chart",
+    freeTitle: "The cards' answer",
     premTag: "Premium",
     premTitle: "Deep reading",
     lockTitle: "Unlock the deep reading",
-    lockCopy: "Lucky numbers, colors, a fortunate day, compatibility, a hidden gift, and a 12-month forecast.",
+    lockCopy: "Timing, your strength, what to watch out for, your next step, plus numbers, colors and a good day from your cards.",
     upgrade: "Top up to unlock",
     lockNote: "The deep reading unlocks automatically whenever you use a question credit.",
     unlockedTag: "Unlocked",
@@ -237,29 +272,64 @@ const I18N = {
     },
     orLine: "Or send your slip on LINE instead",
     payStep2Slip: (c) => `Upload your slip below and we'll verify it instantly (or send it on LINE with code <b>${c}</b>).`,
+    accountLogin: "Log in",
+    accountNote: "Create an account to keep your credits on every device",
+    accTitleLogin: "Log in",
+    accTitleSignup: "Create an account",
+    accTabLogin: "Log in",
+    accTabSignup: "Sign up",
+    accUser: "Username",
+    accUserHint: "3–20 characters: a-z, 0-9 or _",
+    accPass: "Password",
+    accPassHint: "At least 8 characters",
+    accSubmitLogin: "Log in",
+    accSubmitSignup: "Sign up and log in",
+    accBusy: "Working…",
+    accNeedLogin: "Please sign up or log in before buying, so your credits are safe on any device.",
+    accMerged: (n) => n > 0 ? `Moved ${n} question${n === 1 ? "" : "s"} into your account ✨` : "",
+    accWelcome: (u) => `Welcome, ${u} ✨`,
+    accHello: (u) => `Hi, ${u}`,
+    accBalance: (n) => `${n} question${n === 1 ? "" : "s"} left`,
+    accLogout: "Log out",
+    accLoggedOut: "Logged out",
+    accChangePw: "Change password",
+    accCurrentPw: "Current password",
+    accNewPw: "New password",
+    accPwChanged: "Password changed",
+    accForgot: "Forgot your password? Message LINE: ivymoonask and the admin will set a temporary one.",
+    accErr: {
+      bad_login: "Wrong username or password.",
+      username_taken: "That username is taken. Try another one.",
+      bad_username: "Usernames are 3–20 characters: a-z, 0-9 and _ only.",
+      weak_password: "Passwords need at least 8 characters.",
+      bad_password: "That password is too long.",
+      rate_limited: "Too many attempts. Please wait a moment and try again.",
+      login_required: "Please log in first.",
+      network: "Couldn't connect. Please try again.",
+    },
     tarotCredit: "Tarot art: Rider-Waite-Smith deck (1909) by Pamela Colman Smith · public domain, via Wikimedia Commons",
     tarotReversed: "Reversed",
     tarotTap: "Tap a card to see its meaning",
-    disclaimer: "These readings are for inspiration, not medical, legal, or financial advice, and not a guaranteed prediction. Your choices remain your own.",
+    disclaimer: "Tarot answers are guidance, not medical, legal, or financial advice. The final decision is yours.",
     badgeZodiac: "Western zodiac",
     badgeChinese: "Chinese zodiac",
     badgePath: "Life path number",
     badgeHour: "Hour of birth",
     master: "Master number",
-    sourceTemplate: "Woven from your chart and written templates — add an API key to let a language model write the prose.",
-    sourceLlm: "Composed by AI from your chart",
-    resultFor: (name, topic) => `A reading for ${name} · ${topic}`,
+    sourceTemplate: "Answer from the card meanings (backup mode)",
+    sourceLlm: "Written by AI from your three cards",
+    resultFor: (name, topic) => `An answer for ${name} · ${topic}`,
     needName: "Please enter a name.",
     needDate: "Please enter a birth date.",
     hours: { dawn: "Dawn", morning: "Morning", afternoon: "Afternoon", evening: "Evening", night: "Night" },
     topics: { love: "Love", career: "Career", money: "Money", life_path: "Life path" },
-    luckNumbers: "Lucky numbers",
-    luckColors: "Lucky colors",
+    luckNumbers: "Numbers from your cards",
+    luckColors: "Colors from your cards",
     luckDay: "Fortunate day",
-    gift: "Hidden gift",
-    shadow: "Hidden test",
-    compat: "Compatibility",
-    forecast: "12-month forecast",
+    gift: "Your strength in the cards",
+    shadow: "What to watch out for",
+    compat: "Your next step",
+    forecast: "Timing the cards show",
   },
 };
 
@@ -288,6 +358,11 @@ const state = {
   slipFile: null,
   order: null,
   pollTimer: null,
+  account: null,
+  accountMode: "signup",
+  accountMsg: null,
+  accountBusy: false,
+  afterLogin: null,
 };
 
 function api(path, options = {}) {
@@ -323,6 +398,9 @@ function applyLang() {
   renderPricing();
   if (state.order) renderPayModal();
   if (state.last) renderResult(state.last);
+  renderAccountButton();
+  const accModal = document.getElementById("account-modal");
+  if (accModal && !accModal.hidden) renderAccountModal();
 }
 
 function setLang(lang) {
@@ -435,18 +513,10 @@ function renderTarot(tarot) {
 function renderResult(data) {
   const dict = t();
   const result = document.getElementById("result");
-  const chart = data.chart;
   const topicLabel = dict.topics[data.topic] || data.topic;
   document.getElementById("result-for").textContent = dict.resultFor(data.name, topicLabel);
 
-  const pathHint = chart.lifePath.master ? dict.master : "";
-  const hour = chart.hour ? dict.hours[chart.hour] : "";
-  const badges = [
-    badge(dict.badgeZodiac, `${chart.westernZodiac.glyph} ${chart.westernZodiac.sign}`, chart.westernZodiac.dates),
-    badge(dict.badgeChinese, chart.chineseZodiac.label, String(chart.chineseZodiac.lunarYear)),
-    badge(dict.badgePath, `${chart.lifePath.number} · ${chart.lifePath.title}`, pathHint),
-  ];
-  if (hour) badges.push(badge(dict.badgeHour, hour));
+  const badges = data.question ? [badge(dict.qLabel, data.question)] : [];
   document.getElementById("badges").innerHTML = badges.join("");
   renderTarot(data.tarot);
   document.getElementById("reading-body").textContent = data.reading;
@@ -498,18 +568,11 @@ async function onSubmit(event) {
   error.textContent = "";
 
   const name = document.getElementById("name").value.trim();
-  const birthDate = document.getElementById("birthDate").value;
-  const birthTime = document.getElementById("birthTime").value;
   const question = document.getElementById("question").value.trim();
   const topic = (document.querySelector('input[name="topic"]:checked') || {}).value || "life_path";
 
   if (!name) {
     error.textContent = dict.needName;
-    error.hidden = false;
-    return;
-  }
-  if (!birthDate) {
-    error.textContent = dict.needDate;
     error.hidden = false;
     return;
   }
@@ -528,8 +591,6 @@ async function onSubmit(event) {
       method: "POST",
       body: JSON.stringify({
         name,
-        birthDate,
-        birthTime,
         topic,
         question,
         lang: state.lang,
@@ -566,6 +627,10 @@ function showNoCredits() {
 }
 
 function setBalance(balance) {
+  if ("account" in balance) {
+    state.account = balance.account;
+    renderAccountButton();
+  }
   const before = state.balance.credits;
   state.balance = { credits: Number(balance.credits) || 0, freeAvailable: Boolean(balance.freeAvailable) };
   renderBalance(before !== state.balance.credits);
@@ -866,11 +931,23 @@ async function buy(amount) {
     openPayModal();
     return;
   }
+  if (!state.account) {
+    state.afterLogin = () => buy(amount);
+    openAccountModal("signup", t().accNeedLogin);
+    return;
+  }
   try {
     const { response, data } = await api("/api/orders", {
       method: "POST",
       body: JSON.stringify({ amount }),
     });
+    if (response.status === 401 && data.code === "login_required") {
+      state.account = null;
+      renderAccountButton();
+      state.afterLogin = () => buy(amount);
+      openAccountModal("signup", t().accNeedLogin);
+      return;
+    }
     if (response.status === 503 && data.code === "payment_disabled") {
       state.paymentEnabled = false;
       return buy(amount);
@@ -906,14 +983,194 @@ function setupPricing() {
   });
 }
 
+// ---- accounts ------------------------------------------------------------
+function renderAccountButton() {
+  const label = document.getElementById("account-label");
+  const btn = document.getElementById("account-btn");
+  if (!label) return;
+  if (state.account) {
+    label.textContent = state.account.username;
+    btn.classList.add("is-in");
+  } else {
+    label.textContent = t().accountLogin;
+    btn.classList.remove("is-in");
+  }
+  const note = document.getElementById("pricing-account-note");
+  if (note) note.hidden = Boolean(state.account);
+}
+
+function openAccountModal(mode, message) {
+  if (mode) state.accountMode = mode;
+  state.accountMsg = message ? { kind: "info", text: message } : null;
+  renderAccountModal();
+  document.getElementById("account-modal").hidden = false;
+  const first = document.querySelector("#account-content input");
+  if (first) setTimeout(() => first.focus({ preventScroll: true }), 50);
+}
+
+function closeAccountModal() {
+  document.getElementById("account-modal").hidden = true;
+  state.afterLogin = null;
+  state.accountMsg = null;
+}
+
+function accErrText(code, fallback) {
+  const dict = t();
+  return dict.accErr[code] || fallback || dict.accErr.network;
+}
+
+function renderAccountModal() {
+  const dict = t();
+  const box = document.getElementById("account-content");
+  const msg = state.accountMsg
+    ? `<p class="acc-msg ${escapeHtml(state.accountMsg.kind)}" role="status">${escapeHtml(state.accountMsg.text)}</p>` : "";
+  if (state.account) {
+    box.innerHTML = `
+      <div class="acc-avatar" aria-hidden="true">☾</div>
+      <h3 id="account-title">${escapeHtml(dict.accHello(state.account.username))}</h3>
+      <p class="acc-balance">${escapeHtml(dict.accBalance(state.balance.credits))}</p>
+      ${msg}
+      <details class="acc-change">
+        <summary>${escapeHtml(dict.accChangePw)}</summary>
+        <form id="acc-pw-form" class="acc-form" novalidate>
+          <label><span>${escapeHtml(dict.accCurrentPw)}</span>
+            <input type="password" id="acc-cur" autocomplete="current-password" required /></label>
+          <label><span>${escapeHtml(dict.accNewPw)}</span>
+            <input type="password" id="acc-new" autocomplete="new-password" minlength="8" required />
+            <small>${escapeHtml(dict.accPassHint)}</small></label>
+          <button type="submit" class="btn ghost" ${state.accountBusy ? "disabled" : ""}>${escapeHtml(dict.accChangePw)}</button>
+        </form>
+      </details>
+      <button type="button" class="btn gold" id="acc-logout">${escapeHtml(dict.accLogout)}</button>`;
+    document.getElementById("acc-logout").addEventListener("click", logout);
+    document.getElementById("acc-pw-form").addEventListener("submit", changePassword);
+    return;
+  }
+  const signup = state.accountMode === "signup";
+  box.innerHTML = `
+    <div class="acc-avatar" aria-hidden="true">☾</div>
+    <h3 id="account-title">${escapeHtml(signup ? dict.accTitleSignup : dict.accTitleLogin)}</h3>
+    <p class="acc-note">${escapeHtml(dict.accountNote)}</p>
+    <div class="acc-tabs" role="tablist">
+      <button type="button" role="tab" class="acc-tab ${signup ? "is-on" : ""}" data-mode="signup" aria-selected="${signup}">${escapeHtml(dict.accTabSignup)}</button>
+      <button type="button" role="tab" class="acc-tab ${signup ? "" : "is-on"}" data-mode="login" aria-selected="${!signup}">${escapeHtml(dict.accTabLogin)}</button>
+    </div>
+    ${msg}
+    <form id="acc-form" class="acc-form" novalidate>
+      <label><span>${escapeHtml(dict.accUser)}</span>
+        <input type="text" id="acc-user" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20" required />
+        ${signup ? `<small>${escapeHtml(dict.accUserHint)}</small>` : ""}</label>
+      <label><span>${escapeHtml(dict.accPass)}</span>
+        <input type="password" id="acc-pass" autocomplete="${signup ? "new-password" : "current-password"}" maxlength="128" required />
+        ${signup ? `<small>${escapeHtml(dict.accPassHint)}</small>` : ""}</label>
+      <button type="submit" class="btn gold" ${state.accountBusy ? "disabled" : ""}>${escapeHtml(state.accountBusy ? dict.accBusy : (signup ? dict.accSubmitSignup : dict.accSubmitLogin))}</button>
+    </form>
+    ${signup ? "" : `<p class="acc-forgot">${escapeHtml(dict.accForgot)}</p>`}`;
+  box.querySelectorAll(".acc-tab").forEach((tab) => tab.addEventListener("click", () => {
+    state.accountMode = tab.dataset.mode;
+    const keep = state.accountMsg && state.accountMsg.kind === "info" ? state.accountMsg : null;
+    state.accountMsg = keep;
+    renderAccountModal();
+  }));
+  document.getElementById("acc-form").addEventListener("submit", submitAccount);
+}
+
+async function submitAccount(event) {
+  event.preventDefault();
+  const dict = t();
+  const username = document.getElementById("acc-user").value.trim();
+  const password = document.getElementById("acc-pass").value;
+  const signup = state.accountMode === "signup";
+  if (signup && !/^[A-Za-z0-9_]{3,20}$/.test(username)) {
+    state.accountMsg = { kind: "error", text: dict.accErr.bad_username };
+    renderAccountModal();
+    document.getElementById("acc-user").value = username;
+    return;
+  }
+  if (signup && password.length < 8) {
+    state.accountMsg = { kind: "error", text: dict.accErr.weak_password };
+    renderAccountModal();
+    document.getElementById("acc-user").value = username;
+    return;
+  }
+  state.accountBusy = true;
+  renderAccountModal();
+  try {
+    const { response, data } = await api(signup ? "/api/auth/signup" : "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    });
+    state.accountBusy = false;
+    if (!response.ok || !data.ok) {
+      state.accountMsg = { kind: "error", text: accErrText(data.code, data.error) };
+      renderAccountModal();
+      document.getElementById("acc-user").value = username;
+      return;
+    }
+    setBalance(data);
+    const moved = data.merged ? data.merged.movedCredits : 0;
+    const next = state.afterLogin;
+    state.afterLogin = null;
+    document.getElementById("account-modal").hidden = true;
+    toast([dict.accWelcome(data.account.username), dict.accMerged(moved)].filter(Boolean).join(" · "));
+    checkOrders();
+    if (next) next();
+  } catch (_) {
+    state.accountBusy = false;
+    state.accountMsg = { kind: "error", text: dict.accErr.network };
+    renderAccountModal();
+  }
+}
+
+async function logout() {
+  try {
+    const { data } = await api("/api/auth/logout", { method: "POST", body: "{}" });
+    setBalance(data.ok ? data : { account: null, credits: 0, freeAvailable: false });
+  } catch (_) { /* ignore */ }
+  state.account = null;
+  renderAccountButton();
+  closeAccountModal();
+  toast(t().accLoggedOut);
+}
+
+async function changePassword(event) {
+  event.preventDefault();
+  const dict = t();
+  const current = document.getElementById("acc-cur").value;
+  const next = document.getElementById("acc-new").value;
+  if (next.length < 8) {
+    state.accountMsg = { kind: "error", text: dict.accErr.weak_password };
+    renderAccountModal();
+    return;
+  }
+  const { response, data } = await api("/api/auth/password", {
+    method: "POST",
+    body: JSON.stringify({ current, new: next }),
+  });
+  state.accountMsg = response.ok && data.ok
+    ? { kind: "ok", text: dict.accPwChanged }
+    : { kind: "error", text: accErrText(data.code, data.error) };
+  renderAccountModal();
+}
+
+function setupAccount() {
+  const modal = document.getElementById("account-modal");
+  document.getElementById("account-btn").addEventListener("click", () => openAccountModal(state.account ? null : "login"));
+  document.getElementById("account-close-x").addEventListener("click", closeAccountModal);
+  modal.addEventListener("click", (event) => { if (event.target === modal) closeAccountModal(); });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !modal.hidden) closeAccountModal();
+  });
+  renderAccountButton();
+}
+
 function setup() {
-  const dateInput = document.getElementById("birthDate");
-  dateInput.max = new Date().toISOString().slice(0, 10);
   document.querySelectorAll(".lang-btn").forEach((btn) => {
     btn.addEventListener("click", () => setLang(btn.dataset.lang));
   });
   document.getElementById("reading-form").addEventListener("submit", onSubmit);
   setupPricing();
+  setupAccount();
   applyLang();
   paintStars();
   loadPackages();

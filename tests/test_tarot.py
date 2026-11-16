@@ -17,7 +17,8 @@ import tarot  # noqa: E402
 import test_credits as tc  # noqa: E402
 
 BODY = {"name": "น้ำเพชร", "birthDate": "2006-07-07", "topic": "love", "question": "เขาคิดยังไงกับเรา", "lang": "th"}
-POSITION_WORDS = ["past", "present", "future", "อดีต", "ปัจจุบัน", "อนาคต", "position"]
+POSITION_WORDS = ["past:", "present:", "future:", "past —", "present —", "future —", "อดีต:", "ปัจจุบัน:",
+                  "อนาคต:", "อดีต —", "ปัจจุบัน —", "อนาคต —", "position", "ตำแหน่ง"]
 
 
 class Deck(unittest.TestCase):
@@ -74,12 +75,11 @@ class Reading(unittest.TestCase):
                 self.assertEqual(data["tarot"]["headingTh"], "ให้ไพ่เล่าเรื่องราว")
                 self.assertEqual(data["tarot"]["headingEn"], "Let the cards tell the story")
                 for c in cards:
-                    key = "nameTh" if lang == "th" else "nameEn"
-                    self.assertIn(c[key], data["reading"])
+                    name = c["nameTh"].split(" (")[0] if lang == "th" else c["nameEn"]
+                    self.assertIn(name, data["reading"])
                     self.assertIn(c["meaningTh" if lang == "th" else "meaningEn"], data["reading"])
-                para = tarot.template_paragraph(cards, lang)
                 for w in POSITION_WORDS:
-                    self.assertNotIn(w, para.lower())
+                    self.assertNotIn(w, data["reading"].lower())
 
     def test_prompt_has_cards_as_one_story(self):
         seen = {}
@@ -107,9 +107,62 @@ class Reading(unittest.TestCase):
             self.assertIn(c["meaningTh"], prompt)
         self.assertIn("ONE flowing story", prompt)
         self.assertIn("Thai", prompt)
+        full = json.dumps(seen["payload"], ensure_ascii=False).lower()
+        for banned in ("2006", "07-07", "birth date:", "birth time /", "western zodiac:", "chinese zodiac:",
+                       "life path number", "ราศี", "นักษัตร", "cancer", "dog", "ปีจอ"):
+            self.assertNotIn(banned, full)
+        self.assertIn("First sentence: the clear answer", prompt)
+        self.assertIn(tarot.VERDICT_HINT_EN[tarot.verdict(data["tarot"]["cards"])], prompt)
+        self.assertNotIn("chart", data)
         card_block = tarot.prompt_lines(data["tarot"]["cards"]).lower()
         for w in POSITION_WORDS:
             self.assertNotIn(w, card_block)
+
+
+class DirectAnswers(unittest.TestCase):
+    def card(self, cid, rev=False):
+        c = tarot.BY_ID[cid]
+        return {"id": cid, "nameEn": c["nameEn"], "nameTh": c["nameTh"], "reversed": rev,
+                "meaningEn": c["revEn"] if rev else c["upEn"], "meaningTh": c["revTh"] if rev else c["upTh"],
+                "image": tarot.image_path(cid)}
+
+    def test_verdicts(self):
+        good = [self.card("major-19"), self.card("cups-10"), self.card("wands-06")]
+        bad = [self.card("major-16"), self.card("swords-10"), self.card("cups-05")]
+        mixed = [self.card("major-19"), self.card("major-16"), self.card("cups-03", True)]
+        self.assertEqual(tarot.verdict(good), "yes")
+        self.assertEqual(tarot.verdict(bad), "no")
+        self.assertIn(tarot.verdict(mixed), ("not_yet", "unlikely"))
+
+    def test_fallback_is_direct_and_cards_only(self):
+        bad = [self.card("major-16"), self.card("swords-10"), self.card("cups-05")]
+        text = tarot.fallback_reading("น้ำเพชร", "เขาจะกลับมาหาเราไหม", "ความรัก", "love", bad, "th")
+        first = text.split("\n")[0]
+        self.assertIn("ไม่ค่ะ", first)
+        for banned in ("ราศี", "นักษัตร", "เลขศาสตร์", "วันเกิด", "เวลาเกิด", "ขึ้นอยู่กับตัวคุณ"):
+            self.assertNotIn(banned, text)
+        self.assertIn("คำแนะนำ", text)
+        good = [self.card("major-19"), self.card("cups-10"), self.card("wands-06")]
+        self.assertIn("ใช่ค่ะ", tarot.fallback_reading("A", "งานใหม่ที่สมัครไว้จะได้ไหม", "การงาน", "career", good, "th"))
+        en = tarot.fallback_reading("Nam", "Will he come back?", "love", "love", bad, "en")
+        self.assertIn("no", en.split("\n")[0].lower())
+
+    def test_yes_no_detection(self):
+        self.assertTrue(tarot.is_yes_no("งานใหม่ที่สมัครไว้จะได้ไหม"))
+        self.assertTrue(tarot.is_yes_no("เขาจะกลับมาหาเราไหม?"))
+        self.assertFalse(tarot.is_yes_no("เขาคิดยังไงกับเรา"))
+        self.assertTrue(tarot.is_yes_no("Will I get the job?"))
+
+    def test_premium_from_cards_only(self):
+        prem = tarot.premium_from_cards(tarot.draw(), "th")
+        self.assertEqual(set(prem), {"forecast", "gift", "shadow", "compatibility", "numbers", "colors", "day"})
+        blob = json.dumps(prem, ensure_ascii=False)
+        for banned in ("ราศี", "นักษัตร", "ปี"):
+            self.assertNotIn(banned + "จอ", blob)
+
+    def test_birth_fields_not_required(self):
+        data = app.make_reading({"name": "น้ำเพชร", "topic": "career", "question": "ได้งานไหม", "lang": "th"})
+        self.assertEqual(len(data["tarot"]["cards"]), 3)
 
 
 class TarotHttp(tc.Http):

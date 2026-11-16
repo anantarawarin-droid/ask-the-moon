@@ -7,6 +7,7 @@ Cards are drawn without positions: the three are read together as one story.
 
 from __future__ import annotations
 
+import re
 import secrets
 from typing import Any
 
@@ -269,17 +270,228 @@ def prompt_lines(cards: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def template_paragraph(cards: list[dict[str, Any]], lang: str) -> str:
-    """One flowing story from the cards, for the offline/template reading."""
+# ---------------------------------------------------------------------------
+# Direct answers: how the three cards lean, used by the AI prompt and the fallback.
+# ---------------------------------------------------------------------------
+STRONG_POSITIVE = {"major-19", "major-21", "major-17", "major-10", "major-06", "major-03",
+                   "cups-01", "cups-02", "cups-09", "cups-10", "wands-01", "wands-04", "wands-06",
+                   "pentacles-01", "pentacles-09", "pentacles-10"}
+CHALLENGING = {"major-12", "major-13", "major-15", "major-18", "swords-02", "swords-05", "swords-07",
+               "swords-08", "cups-05", "cups-07", "cups-08", "pentacles-05", "wands-05", "wands-10"}
+STRONG_CHALLENGING = {"major-16", "swords-03", "swords-09", "swords-10"}
+
+
+def card_score(card: dict[str, Any]) -> float:
+    cid, rev = card["id"], card["reversed"]
+    if cid in STRONG_CHALLENGING:
+        return 0.0 if rev else -2.0
+    if cid in CHALLENGING:
+        return 0.5 if rev else -1.0
+    if cid in STRONG_POSITIVE:
+        return -1.0 if rev else 2.0
+    return -1.0 if rev else 1.0
+
+
+VERDICTS = ["no", "unlikely", "not_yet", "likely", "yes"]
+
+
+def verdict(cards: list[dict[str, Any]]) -> str:
+    score = sum(card_score(c) for c in cards)
+    if score >= 3:
+        return "yes"
+    if score >= 1:
+        return "likely"
+    if score > -1:
+        return "not_yet"
+    if score > -3:
+        return "unlikely"
+    return "no"
+
+
+VERDICT_HINT_EN = {
+    "yes": "clearly YES / clearly positive",
+    "likely": "LIKELY YES, with a condition the person must act on",
+    "not_yet": "NOT YET / not now: it isn't ripe, it needs time or a change first",
+    "unlikely": "LIKELY NO / mostly unfavourable",
+    "no": "clearly NO / clearly unfavourable",
+}
+
+_YESNO_TH = ("ไหม", "มั้ย", "หรือไม่", "หรือเปล่า", "รึเปล่า", "ป่าว", "ไม๊", "มัย", "ใช่ไหม", "หรือยัง")
+_YESNO_EN = ("will ", "is ", "are ", "should ", "can ", "could ", "does ", "do ", "did ", "would ", "am ", "has ", "have ")
+
+
+def is_yes_no(question: str) -> bool:
+    q = (question or "").strip().lower().rstrip("?？!. ")
+    return any(q.endswith(e) for e in _YESNO_TH) or q.startswith(_YESNO_EN)
+
+
+ANSWER_TH = {
+    True: {
+        "yes": "คำตอบคือ ใช่ค่ะ ไพ่ทั้งสามใบไปในทางบวกชัดเจน",
+        "likely": "คำตอบคือ มีแนวโน้มสูงว่าใช่ค่ะ แต่ต้องลงมือเองด้วย ไม่ใช่รอเฉย ๆ",
+        "not_yet": "คำตอบคือ ยังไม่ใช่ตอนนี้ค่ะ เรื่องนี้ยังไม่สุก ต้องรออีกระยะหรือเปลี่ยนบางอย่างก่อน",
+        "unlikely": "คำตอบคือ มีแนวโน้มว่าไม่ค่ะ ไพ่ส่วนใหญ่ยังไม่เป็นใจกับเรื่องนี้",
+        "no": "คำตอบตรง ๆ คือ ไม่ค่ะ ไพ่ชี้ชัดว่าเรื่องนี้ไม่เป็นไปตามที่หวัง",
+    },
+    False: {
+        "yes": "ไพ่ตอบชัดว่าเรื่องนี้ไปในทางที่ดีมากค่ะ",
+        "likely": "ไพ่ตอบว่าเรื่องนี้ไปในทางที่ดี แต่ต้องลงมือเองด้วยค่ะ",
+        "not_yet": "ไพ่ตอบว่าเรื่องนี้ยังไม่ถึงเวลาค่ะ ตอนนี้ยังไม่ชัดและยังไม่ควรเร่ง",
+        "unlikely": "ไพ่ตอบตรง ๆ ว่าเรื่องนี้ยังไม่เป็นใจค่ะ มีอุปสรรคมากกว่าแรงหนุน",
+        "no": "ไพ่ตอบชัดว่าเรื่องนี้ไม่ไปในทางที่หวังค่ะ",
+    },
+}
+ANSWER_EN = {
+    True: {
+        "yes": "The answer is yes. All three cards lean clearly positive.",
+        "likely": "The answer is most likely yes, but you have to act on it, not just wait.",
+        "not_yet": "The answer is not yet. This isn't ripe; it needs more time or a change first.",
+        "unlikely": "The answer is most likely no. Most of the cards are against it right now.",
+        "no": "The honest answer is no. The cards clearly show this won't go the way you hope.",
+    },
+    False: {
+        "yes": "The cards say this is heading somewhere very good.",
+        "likely": "The cards say this goes well, as long as you take action yourself.",
+        "not_yet": "The cards say it isn't time yet; nothing is settled, so don't force it.",
+        "unlikely": "The cards say plainly that this isn't favoured; there are more obstacles than support.",
+        "no": "The cards clearly say this won't go the way you hope.",
+    },
+}
+
+# One concrete action per suit (taken from the strongest card's suit).
+ACTION = {
+    "wands": ("ลงมือก่อนภายในสัปดาห์นี้ ติดต่อหรือเริ่มขั้นแรกเอง อย่ารอให้อีกฝ่ายขยับ",
+              "Make the first move this week: reach out or start step one yourself."),
+    "cups": ("พูดความรู้สึกหรือความต้องการของคุณออกไปตรง ๆ หนึ่งครั้ง แล้วดูว่าอีกฝ่ายตอบอย่างไร",
+             "Say what you feel or want plainly, once, and watch how the other side responds."),
+    "swords": ("หาข้อมูลให้ครบแล้วตัดสินใจให้ชัด อย่าปล่อยให้ความคิดวนอยู่ที่เดิม",
+               "Get the facts straight and make a clear decision; don't let it keep circling in your head."),
+    "pentacles": ("วางแผนเป็นขั้นตอนเรื่องเงินและเวลา ทำทีละขั้นแบบสม่ำเสมอ",
+                  "Make a step-by-step plan for money and time, and keep at it steadily."),
+    "major": ("ตั้งใจให้ชัดว่าต้องการอะไรจริง ๆ แล้วตัดสิ่งที่ไม่ใช่ออก",
+              "Get clear on what you truly want and cut what isn't it."),
+}
+
+TIMING = {
+    "wands": ("เร็ว ภายในไม่กี่วันถึง 2 สัปดาห์", "fast, within days to two weeks"),
+    "swords": ("เร็วแต่ต้องตัดสินใจก่อน ภายใน 1–3 สัปดาห์", "quick once a decision is made, 1–3 weeks"),
+    "cups": ("ประมาณ 2–6 สัปดาห์", "around 2–6 weeks"),
+    "pentacles": ("ช้าแต่มั่นคง ประมาณ 1–3 เดือน", "slow but steady, about 1–3 months"),
+    "major": ("เป็นจังหวะชีวิตครั้งใหญ่ ใช้เวลาหลายเดือน", "a bigger life chapter, over several months"),
+}
+DAYS = {"wands": ("วันอังคาร", "Tuesday"), "cups": ("วันจันทร์", "Monday"), "swords": ("วันพุธ", "Wednesday"),
+        "pentacles": ("วันศุกร์", "Friday"), "major": ("วันอาทิตย์", "Sunday")}
+COLORS = {
+    "wands": {"th": "ส้มไฟ", "en": "Flame orange", "hex": "#f08a3c"},
+    "cups": {"th": "ฟ้าน้ำทะเล", "en": "Sea blue", "hex": "#5aa9e6"},
+    "swords": {"th": "เงินหมอก", "en": "Mist silver", "hex": "#c9d1de"},
+    "pentacles": {"th": "เขียวมรกต", "en": "Emerald", "hex": "#3fa36b"},
+    "major": {"th": "ม่วงลาเวนเดอร์", "en": "Lavender", "hex": "#b79cff"},
+}
+
+
+def suit_of(card_id: str) -> str:
+    return card_id.split("-")[0]
+
+
+def card_number(card_id: str) -> int:
+    return int(card_id.split("-")[1])
+
+
+def _short(card: dict[str, Any], lang: str) -> str:
     if lang == "th":
-        names = ", ".join(f"ไพ่{c['nameTh']}{' กลับหัว' if c['reversed'] else ''}" for c in cards)
-        ms = [c["meaningTh"] for c in cards]
-        themes = ms[0] if len(ms) == 1 else " ประสานกับ".join(ms[:-1]) + " และ" + ms[-1]
-        return (f"✦ ไพ่ทาโรต์ที่ปรากฏสำหรับคุณคือ {names}. "
-                f"เมื่ออ่านรวมกันเป็นเรื่องเดียว ไพ่บอกถึง{themes} "
-                f"— ทั้งหมดนี้กำลังพาคุณไปสู่คำตอบที่ใจคุณรู้อยู่แล้ว ขอให้เชื่อในจังหวะของตัวเองและก้าวไปอย่างอ่อนโยน.")
-    names = ", ".join(f"{c['nameEn']}{' reversed' if c['reversed'] else ''}" for c in cards)
-    themes = "; ".join(c["meaningEn"] for c in cards)
-    return (f"✦ The tarot cards that came to you are {names}. "
-            f"Read together as one story, they speak of {themes} "
-            f"— all of it leading you toward an answer your heart already knows. Trust your own timing and step forward gently.")
+        return "ไพ่" + re.sub(r"\s*\(.*\)$", "", card["nameTh"]) + (" กลับหัว" if card["reversed"] else "")
+    return card["nameEn"] + (" reversed" if card["reversed"] else "")
+
+
+def best_and_worst(cards: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
+    ranked = sorted(cards, key=card_score)
+    return ranked[-1], ranked[0]
+
+
+def dominant_suit(cards: list[dict[str, Any]]) -> str:
+    best, _ = best_and_worst(cards)
+    suits = [suit_of(c["id"]) for c in cards]
+    for s in suits:
+        if suits.count(s) >= 2:
+            return s
+    return suit_of(best["id"])
+
+
+def fallback_reading(name: str, question: str, topic_th: str, topic_en: str,
+                     cards: list[dict[str, Any]], lang: str) -> str:
+    """Direct, cards-only answer used when the AI is unavailable."""
+    v = verdict(cards)
+    yn = is_yes_no(question)
+    best, worst = best_and_worst(cards)
+    act_th, act_en = ACTION[suit_of(best["id"])]
+    th = lang == "th"
+    if th:
+        about = f"เรื่อง «{question}»" if question else f"เรื่อง{topic_th}ของคุณตอนนี้"
+        p1 = f"{name}ค่ะ {about} — {ANSWER_TH[yn][v]}"
+        cards_txt = " · ".join(f"{_short(c, 'th')}: {c['meaningTh']}" for c in cards)
+        if v in ("yes", "likely"):
+            link = f"แรงหนุนหลักมาจาก{_short(best, 'th')} ซึ่งชี้ว่าคุณมีโอกาสจริง"
+        elif v == "not_yet":
+            link = f"มีทั้งแรงหนุนและแรงฉุด โดยเฉพาะ{_short(worst, 'th')} ที่ทำให้เรื่องนี้ยังค้างอยู่"
+        else:
+            link = f"ตัวที่ฉุดไว้ชัดที่สุดคือ{_short(worst, 'th')} ซึ่งยังไม่คลี่คลายง่าย ๆ"
+        p2 = f"ไพ่ที่ออก: {cards_txt}. เมื่ออ่านรวมกัน {link}."
+        caution = f"ระวังเรื่อง{worst['meaningTh']}" if card_score(worst) < 0 else "อย่าประมาทแม้ทิศทางจะดี"
+        if v in ("unlikely", "no"):
+            act_th = "ถ้ายังอยากผลักดันเรื่องนี้ " + act_th + " แต่ควรเตรียมทางเลือกอื่นไว้ด้วย"
+        p3 = f"คำแนะนำ: 1) {act_th} 2) {caution}."
+        return "\n\n".join([p1, p2, p3])
+    about = f"about “{question}”" if question else f"about your {topic_en} right now"
+    p1 = f"{name}, {about}: {ANSWER_EN[yn][v]}"
+    cards_txt = " · ".join(f"{_short(c, 'en')}: {c['meaningEn']}" for c in cards)
+    if v in ("yes", "likely"):
+        link = f"the main support comes from {_short(best, 'en')}, which shows a real opening for you"
+    elif v == "not_yet":
+        link = f"there is support and resistance, and {_short(worst, 'en')} is what keeps this unsettled"
+    else:
+        link = f"the clearest block is {_short(worst, 'en')}, and it won't lift easily"
+    p2 = f"The cards: {cards_txt}. Read together, {link}."
+    caution = f"watch out for {worst['meaningEn']}" if card_score(worst) < 0 else "don't get careless even though it looks good"
+    if v in ("unlikely", "no"):
+        act_en = "If you still want to push for it: " + act_en[0].lower() + act_en[1:] + " Keep another option ready too."
+    p3 = f"Advice: 1) {act_en} 2) {caution[0].upper() + caution[1:]}."
+    return "\n\n".join([p1, p2, p3])
+
+
+def premium_from_cards(cards: list[dict[str, Any]], lang: str) -> dict[str, Any]:
+    """The deep (paid) section, built only from the drawn cards."""
+    th = lang == "th"
+    best, worst = best_and_worst(cards)
+    suit = dominant_suit(cards)
+    slow = sum(c["reversed"] for c in cards) >= 2
+    timing_th, timing_en = TIMING[suit]
+    if slow:
+        timing_th += " (ไพ่กลับหัวหลายใบ อาจช้ากว่านั้น)"
+        timing_en += " (several reversed cards: possibly slower)"
+    nums = []
+    for c in cards:
+        n = card_number(c["id"]) or 22
+        if n not in nums:
+            nums.append(n)
+    total = sum(nums)
+    while total > 9 and total not in (11, 22):
+        total = sum(int(d) for d in str(total))
+    if total not in nums:
+        nums.append(total)
+    colors, seen = [], set()
+    for c in cards:
+        s = suit_of(c["id"])
+        if s not in seen:
+            seen.add(s)
+            colors.append(COLORS[s])
+    act_th, act_en = ACTION[suit]
+    return {
+        "forecast": timing_th if th else timing_en,
+        "gift": f"{_short(best, lang)} — {best['meaningTh'] if th else best['meaningEn']}",
+        "shadow": f"{_short(worst, lang)} — {worst['meaningTh'] if th else worst['meaningEn']}",
+        "compatibility": act_th if th else act_en,
+        "numbers": nums,
+        "colors": colors,
+        "day": DAYS[suit][0 if th else 1],
+    }

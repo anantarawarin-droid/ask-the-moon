@@ -31,6 +31,8 @@
     .pill.pending { color: var(--gold-soft); border-color: rgba(212,175,55,.5); }
     .pill.approved { color:#bff3cf; border-color: rgba(95,201,131,.5); }
     .pill.rejected { color:#ffb4b4; border-color: rgba(255,180,180,.4); }
+    button.mini { padding:.15rem .5rem; font-size:.7rem; margin-top:.2rem; }
+    .uname { color: var(--gold-soft); }
     .slip { display:block; margin-top:.3rem; font-size:.72rem; color: var(--muted); max-width: 16rem; }
     .slip b.review { color: var(--gold-soft); }
     .slip b.failed { color:#ffb4b4; }
@@ -81,10 +83,24 @@
     </div>
     <div class="card">
       <table>
-        <thead><tr><th>รหัส</th><th>ยอด</th><th>คำถาม</th><th>เวลา (เวลาไทย)</th><th>สถานะ</th><th></th></tr></thead>
+        <thead><tr><th>รหัส</th><th>ลูกค้า</th><th>ยอด</th><th>คำถาม</th><th>เวลา (เวลาไทย)</th><th>สถานะ</th><th></th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
       <p class="err" id="panel-err" hidden></p>
+    </div>
+    <div class="card" id="reset-card" style="margin-top:1rem">
+      <h3 style="margin:0 0 .4rem">รีเซ็ตรหัสผ่านลูกค้า · Reset a customer's password</h3>
+      <p class="sub" style="margin:0 0 .6rem">ใส่ชื่อผู้ใช้ แตะ 2 ครั้ง แล้วส่งรหัสชั่วคราวให้ลูกค้าทาง LINE · ลูกค้าเปลี่ยนรหัสเองได้ในเมนูบัญชี</p>
+      <form id="reset-form" class="row">
+        <input type="text" id="reset-user" placeholder="username" autocomplete="off" autocapitalize="none" style="flex:1;min-width:180px" />
+        <button class="gold" type="submit" id="reset-btn">รีเซ็ตรหัสผ่าน</button>
+      </form>
+      <div id="reset-out" hidden style="margin-top:.7rem">
+        <p style="margin:0 0 .3rem">รหัสชั่วคราวของ <b id="reset-name"></b>:</p>
+        <div class="row"><code id="reset-pw" style="font-size:1.2rem;letter-spacing:.06em;padding:.3rem .6rem;border:1px solid var(--line);border-radius:8px"></code>
+        <button class="ghost" type="button" id="reset-copy">คัดลอก</button></div>
+        <p class="sub" style="margin:.4rem 0 0">ส่งให้ลูกค้าทาง LINE แล้วแนะนำให้เปลี่ยนรหัสหลังเข้าสู่ระบบ (รหัสนี้จะไม่แสดงอีก)</p>
+      </div>
     </div>
   </section>
 </main>
@@ -96,10 +112,12 @@
   const esc = (v) => String(v).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const fmt = (iso) => iso ? new Date(iso).toLocaleString("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "medium", timeStyle: "short" }) : "";
 
-  async function call(path, method = "GET") {
+  async function call(path, method = "GET", body = null) {
     let res;
+    const headers = { "X-Admin-Token": localStorage.getItem(KEY) || "" };
+    if (body) headers["Content-Type"] = "application/json";
     try {
-      res = await fetch(path, { method, cache: "no-store", headers: { "X-Admin-Token": localStorage.getItem(KEY) || "" } });
+      res = await fetch(path, { method, cache: "no-store", headers, body: body ? JSON.stringify(body) : undefined });
     } catch (_) {
       throw new Error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง (network error)");
     }
@@ -143,6 +161,7 @@
     const rows = data.orders.map((o) => `
       <tr>
         <td class="code">${esc(o.code)}</td>
+        <td>${o.username ? `<b class="uname">${esc(o.username)}</b><br><button class="ghost mini" data-reset="${esc(o.username)}">รีเซ็ตรหัส</button>` : `<small style="color:var(--muted)">ไม่มีบัญชี</small>`}</td>
         <td>฿${esc(o.price)}</td>
         <td>${esc(o.questions)}${o.bonus ? ` <small>(โบนัส ${esc(o.bonus)})</small>` : ""}</td>
         <td>${esc(fmt(o.createdAt))}</td>
@@ -153,7 +172,7 @@
           : `<small style="color:var(--muted)">${esc(fmt(o.decidedAt))}</small>`}</td>
       </tr>`).join("");
     disarm();
-    $("rows").innerHTML = rows || `<tr><td colspan="6" class="empty">ไม่มีคำสั่งซื้อ</td></tr>`;
+    $("rows").innerHTML = rows || `<tr><td colspan="7" class="empty">ไม่มีคำสั่งซื้อ</td></tr>`;
   }
 
   $("login-form").addEventListener("submit", (e) => {
@@ -211,6 +230,45 @@
       b.disabled = false;
       b.textContent = act === "approve" ? "อนุมัติ" : "ปฏิเสธ";
     }
+  });
+  // Password reset (two taps, like approve/reject).
+  let resetArmed = null;
+  $("rows").addEventListener("click", (e) => {
+    const r = e.target.closest("button[data-reset]");
+    if (!r) return;
+    $("reset-user").value = r.dataset.reset;
+    $("reset-card").scrollIntoView({ behavior: "smooth", block: "center" });
+    notice(`แตะ “รีเซ็ตรหัสผ่าน” 2 ครั้งเพื่อตั้งรหัสชั่วคราวให้ ${r.dataset.reset}`, "info", 5000);
+  });
+  $("reset-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = $("reset-user").value.trim();
+    const btn = $("reset-btn");
+    if (!name) { notice("ใส่ชื่อผู้ใช้ก่อน", "bad"); return; }
+    if (resetArmed !== name) {
+      resetArmed = name;
+      btn.textContent = "แตะอีกครั้งเพื่อยืนยัน";
+      btn.classList.add("armed");
+      notice(`แตะอีกครั้งเพื่อรีเซ็ตรหัสผ่านของ ${name} (ลูกค้าจะถูกออกจากระบบทุกเครื่อง)`, "info", 5000);
+      setTimeout(() => { resetArmed = null; btn.textContent = "รีเซ็ตรหัสผ่าน"; btn.classList.remove("armed"); }, 5000);
+      return;
+    }
+    resetArmed = null;
+    btn.textContent = "กำลังรีเซ็ต…"; btn.disabled = true; btn.classList.remove("armed");
+    try {
+      const res = await call("/api/admin/reset-password", "POST", { username: name });
+      $("reset-name").textContent = res.username;
+      $("reset-pw").textContent = res.tempPassword;
+      $("reset-out").hidden = false;
+      notice(`ตั้งรหัสชั่วคราวให้ ${res.username} แล้ว`, "ok");
+    } catch (err) {
+      if (err.message !== "unauthorized" && err.message !== "disabled") notice(`รีเซ็ตไม่สำเร็จ: ${err.message}`, "bad", 9000);
+    } finally {
+      btn.textContent = "รีเซ็ตรหัสผ่าน"; btn.disabled = false;
+    }
+  });
+  $("reset-copy").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText($("reset-pw").textContent); notice("คัดลอกแล้ว", "ok", 2000); } catch (_) {}
   });
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
     document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x === b));
