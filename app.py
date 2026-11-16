@@ -735,7 +735,27 @@ def premium_teaser(chart: dict[str, Any], luck: dict[str, Any], lang: str) -> di
     }
 
 
-def llm_reading(chart: dict[str, Any], topic: str, question: str, lang: str) -> str | None:
+LLM_TIMEOUT = 20
+
+
+def _log_llm_failure(exc: Exception) -> None:
+    # Never log request headers, bodies, or the API key.
+    if isinstance(exc, urllib.error.HTTPError):
+        try:
+            exc.read()
+        except Exception:
+            pass
+        print(f"LLM request failed (HTTP {exc.code}); using template generator.", file=sys.stderr)
+    elif isinstance(exc, TimeoutError) or isinstance(getattr(exc, "reason", None), TimeoutError):
+        print("LLM request timed out; using template generator.", file=sys.stderr)
+    else:
+        print(f"LLM request failed ({type(exc).__name__}); using template generator.", file=sys.stderr)
+
+
+def llm_generate(
+    chart: dict[str, Any], topic: str, question: str, lang: str
+) -> tuple[str, dict[str, str]] | None:
+    """Call an OpenAI-compatible LLM. Returns (reading, premium fields) or None."""
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         return None
@@ -748,24 +768,33 @@ def llm_reading(chart: dict[str, Any], topic: str, question: str, lang: str) -> 
     qline = question.strip() if question else "(no specific question)"
     hour = chart.get("hour") or "not provided"
     prompt = (
-        f"Write a warm, lyrical, specific destiny reading in {language} for {chart['name']}.\n"
-        f"Birth date: {chart['birth_fmt_en']}. Birth time / hour type: {hour}.\n"
-        f"Western zodiac: {z['en']} ({z['th']}), {z['element_en']}, ruled by {z['ruler_en']}.\n"
+        f"Write a warm, mystical, personalized destiny reading in {language} for {chart['name']}.\n"
+        f"Birth date: {chart['birth_fmt_en']} ({chart['birth_fmt_th']}). "
+        f"Birth time / hour type: {hour}.\n"
+        f"Western zodiac: {z['en']} ({z['th']}), {z['element_en']} element, ruled by {z['ruler_en']}. "
+        f"By nature they are {z['trait_en']}.\n"
         f"Chinese zodiac: {c['label_en']} / {c['label_th']}.\n"
-        f"Life path number: {chart['path']} — {lp['title_en']} / {lp['title_th']}.\n"
-        f"Topic: {TOPICS[topic]['en']}. Question: {qline}\n\n"
-        "4 to 6 short paragraphs. No medical, legal, or guaranteed predictions. "
-        "No scare tactics. Speak as a wise, kind astrologer. "
-        "Do not mention that you are an AI. Do not use markdown headings or bullet lists. "
-        "End with a gentle blessing."
+        f"Numerology life path number: {chart['path']} — {lp['title_en']} / {lp['title_th']}. {lp['en']}\n"
+        f"Topic of this reading: {TOPICS[topic]['en']} ({TOPICS[topic]['th']}).\n"
+        f"The visitor's question: {qline}\n\n"
+        "Weave the zodiac, Chinese zodiac, life path number, topic, and question naturally into the prose. "
+        "Write 4 to 6 short paragraphs of reasonable length, separated by blank lines. "
+        "No medical, legal, or financial advice, and no guaranteed predictions. No scare tactics. "
+        "Speak as a wise, kind astrologer. Do not mention that you are an AI. "
+        "Do not use markdown, headings, bullet lists, or JSON. "
+        f"Write the entire reading in {language}. End with a gentle blessing."
     )
     payload = {
         "model": model,
-        "temperature": 0.8,
+        "temperature": 0.85,
+        "max_tokens": 2048,
         "messages": [
             {
                 "role": "system",
-                "content": "You are a gifted, ethical astrologer writing personalized destiny readings.",
+                "content": (
+                    "You are a gifted, ethical astrologer writing personalized destiny readings. "
+                    "Reply with the reading only, as plain text."
+                ),
             },
             {"role": "user", "content": prompt},
         ],
@@ -780,14 +809,20 @@ def llm_reading(chart: dict[str, Any], topic: str, question: str, lang: str) -> 
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=45) as resp:
+        with urllib.request.urlopen(req, timeout=LLM_TIMEOUT) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-        text = data["choices"][0]["message"]["content"].strip()
-        return text or None
-    except Exception:
-        # Fall back to templates; never leak the key in logs.
-        print("LLM request failed; using template generator.", file=sys.stderr)
+        text = (data["choices"][0]["message"]["content"] or "").strip()
+        if not text:
+            return None
+        # If a model still returns a JSON wrapper, prefer the reading field.
+        if text.startswith("{") or text.startswith("```"):
+            print("LLM response was not plain text; using template generator.", file=sys.stderr)
+            return None
+        return text, {}
+    except Exception as exc:
+        _log_llm_failure(exc)
         return None
+
 
 
 def parse_birth(date_str: str) -> date:
@@ -890,10 +925,15 @@ def make_reading(body: dict[str, Any]) -> dict[str, Any]:
     chart = build_chart(name, birth, birth_time)
     luck = lucky_set(birth, chart["path"], chart["chinese"]["key"], chart["chinese"]["element"])
     source = "template"
-    text = llm_reading(chart, topic, question, lang)
-    if text:
+    text = None
+    premium = premium_teaser(chart, luck, lang)
+    generated = llm_generate(chart, topic, question, lang)
+    if generated:
+        text, premium_ai = generated
         source = "llm"
-    else:
+        for key, value in premium_ai.items():
+            premium[key] = value
+    if not text:
         text = template_reading(chart, topic, question, lang)
 
     return {
@@ -904,7 +944,7 @@ def make_reading(body: dict[str, Any]) -> dict[str, Any]:
         "lang": lang,
         "chart": public_chart(chart, lang),
         "reading": text,
-        "premium": premium_teaser(chart, luck, lang),
+        "premium": premium,
     }
 
 

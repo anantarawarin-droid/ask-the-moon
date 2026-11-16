@@ -22,10 +22,10 @@ Optional environment variables:
 | `PORT` | Server port (default `5050`) |
 | `HOST` | Bind address (default `0.0.0.0`, required on Render) |
 | `OPENAI_API_KEY` | If set, `/api/reading` asks an OpenAI-compatible model to write the prose |
-| `OPENAI_BASE_URL` | Optional, default `https://api.openai.com/v1` |
-| `OPENAI_MODEL` | Optional, default `gpt-4o-mini` |
+| `OPENAI_BASE_URL` | Optional, default `https://api.openai.com/v1`. For Gemini use `https://generativelanguage.googleapis.com/v1beta/openai/` |
+| `OPENAI_MODEL` | Optional, default `gpt-4o-mini`. For Gemini a current Flash model such as `gemini-3.5-flash-lite` |
 
-If no API key is set, the site uses a built-in template generator that still weaves in the person's signs and numbers, so the demo works immediately. Do not invent or paste a key you do not have.
+If no API key is set, or the model request fails or times out (about 20 seconds), the site uses a built-in template generator that still weaves in the person's signs and numbers. Do not invent or paste a key you do not have, and never commit one to the repo.
 
 ## API
 
