@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 SLIPOK_URL = "https://api.slipok.com/api/line/apikey/"
+# SlipOK sits behind Cloudflare, which rejects the default "Python-urllib" agent (403 / error 1010).
+USER_AGENT = "AskTheMoon/1.0 (+https://ask-the-moon.onrender.com)"
 TIMEOUT_SECONDS = 20
 MAX_BYTES = 4 * 1024 * 1024
 MAX_ATTEMPTS_PER_ORDER = 5
@@ -104,7 +106,8 @@ def slipok_request(image: bytes, mime: str, amount: int) -> tuple[int, dict[str,
         SLIPOK_URL + urllib.request.quote(branch, safe=""),
         data=body,
         method="POST",
-        headers={"x-authorization": key, "Content-Type": ctype, "Accept": "application/json"},
+        headers={"x-authorization": key, "Content-Type": ctype, "Accept": "application/json",
+                 "User-Agent": USER_AGENT},
     )
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS) as resp:

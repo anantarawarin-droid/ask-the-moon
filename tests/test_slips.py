@@ -300,6 +300,8 @@ class SlipOKRequest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(seen["url"].endswith("/api/line/apikey/12345"))
         self.assertEqual(seen["headers"].get("X-authorization"), "test-slipok-key")
+        self.assertNotIn("Python-urllib", seen["headers"].get("User-agent", ""))  # Cloudflare blocks it
+        self.assertTrue(seen["headers"].get("User-agent"))
         body = seen["body"]
         self.assertIn(b'name="amount"\r\n\r\n45\r\n', body)
         self.assertIn(b'name="log"\r\n\r\ntrue\r\n', body)
