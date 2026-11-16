@@ -386,15 +386,50 @@ class DatabaseConfigError(Exception):
     """Raised with a message that never contains the URL or password."""
 
 
+def normalize_database_url(raw: str) -> str:
+    """Forgive common copy-paste wrappers, e.g. Neon's  psql 'postgresql://...'  snippet."""
+    url = (raw or "").strip()
+    for _ in range(3):
+        before = url
+        if url.upper().startswith("DATABASE_URL="):
+            url = url[len("DATABASE_URL="):].strip()
+        if url.lower().startswith("psql "):
+            url = url[5:].strip()
+        if len(url) >= 2 and url[0] == url[-1] and url[0] in "'\"":
+            url = url[1:-1].strip()
+        if url == before:
+            break
+    return url
+
+
+def describe_bad_database_url(raw: str) -> str:
+    """Explain why a value is not a postgres URL without echoing it."""
+    v = (raw or "").strip()
+    low = v.lower()
+    if not v:
+        return "DATABASE_URL is empty."
+    if low.startswith("jdbc:"):
+        return "DATABASE_URL looks like a JDBC URL (starts with jdbc:); use the postgresql:// form."
+    if low.startswith(("host=", "dbname=", "user=")):
+        return "DATABASE_URL looks like a key=value connection string, not a postgresql:// URL."
+    if "postgresql://" in low or "postgres://" in low:
+        return "DATABASE_URL has extra text before postgresql:// (e.g. a command or label); paste only the URL."
+    if "://" in v:
+        return "DATABASE_URL uses a different scheme; it must start with postgresql:// or postgres://."
+    return f"DATABASE_URL is not a URL (no postgresql:// prefix; value is {len(v)} characters long)."
+
+
 def parse_database_url(url: str) -> dict[str, Any]:
     from urllib.parse import parse_qs, unquote, urlsplit
 
+    raw = url
+    url = normalize_database_url(url)
     try:
-        parts = urlsplit(url.strip())
+        parts = urlsplit(url)
     except ValueError as exc:
         raise DatabaseConfigError("DATABASE_URL could not be parsed.") from exc
     if parts.scheme not in ("postgres", "postgresql"):
-        raise DatabaseConfigError("DATABASE_URL must start with postgres:// or postgresql://.")
+        raise DatabaseConfigError(describe_bad_database_url(raw))
     try:
         port = parts.port or 5432
     except ValueError as exc:
@@ -406,6 +441,8 @@ def parse_database_url(url: str) -> dict[str, Any]:
     database = unquote(parts.path.lstrip("/")) or "postgres"
     query = {k: v[-1] for k, v in parse_qs(parts.query).items()}
     sslmode = query.get("sslmode", "require")
+    if sslmode == "prefer":
+        sslmode = "require"
     if sslmode not in ("disable", "require", "verify-ca", "verify-full", "prefer"):
         raise DatabaseConfigError("DATABASE_URL has an unsupported sslmode.")
     return {

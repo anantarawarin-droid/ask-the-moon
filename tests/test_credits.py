@@ -389,9 +389,15 @@ class DatabaseUrl(unittest.TestCase):
         self.assertEqual((cfg["host"], cfg["port"], cfg["user"], cfg["password"], cfg["database"], cfg["sslmode"]),
                          ("ep-x.aws.neon.tech", 5432, "u", "p@ss", "neondb", "require"))
 
+    def test_copy_paste_wrappers_are_forgiven(self):
+        good = "postgresql://u:pw@ep-x.neon.tech/neondb?sslmode=require&channel_binding=require"
+        for wrapped in (f"psql '{good}'", f'"{good}"', f"DATABASE_URL={good}", f"  {good}\n", f"psql \"{good}\""):
+            self.assertEqual(billing.parse_database_url(wrapped)["host"], "ep-x.neon.tech", wrapped)
+
     def test_bad_urls_do_not_leak(self):
         for bad in ("mysql://u:secretpw@h/db", "postgresql://u:secretpw@/db", "postgresql://u:secretpw@h:abc/db",
-                    "postgresql://u:secretpw@h/db?sslmode=bogus", "neondb"):
+                    "postgresql://u:secretpw@h/db?sslmode=bogus", "neondb", "jdbc:postgresql://h/db?password=secretpw",
+                    "host=h password=secretpw", "label postgresql://u:secretpw@h/db"):
             with self.assertRaises(billing.DatabaseConfigError) as ctx:
                 billing.parse_database_url(bad)
             self.assertNotIn("secretpw", str(ctx.exception))
