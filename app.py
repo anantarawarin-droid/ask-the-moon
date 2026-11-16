@@ -24,6 +24,7 @@ from typing import Any
 
 import credits as billing
 import slips
+import tarot
 
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
@@ -621,7 +622,8 @@ def pick(rng: random.Random, items: list[str]) -> str:
     return rng.choice(items)
 
 
-def template_reading(chart: dict[str, Any], topic: str, question: str, lang: str) -> str:
+def template_reading(chart: dict[str, Any], topic: str, question: str, lang: str,
+                     cards: list[dict[str, Any]] | None = None) -> str:
     rng = random.Random(chart["seed"])
     z = chart["zodiac"]
     c = chart["chinese"]
@@ -669,7 +671,7 @@ def template_reading(chart: dict[str, Any], topic: str, question: str, lang: str
                 f"อย่ารอสัญญาณที่สมบูรณ์แบบ เริ่มจากก้าวเล็กที่สั่นใจแล้วดูว่าประตูบานไหนเปิดเอง."
             )
         close = pick(rng, CLOSINGS["th"])
-        parts = [opening, chinese, path_para]
+        parts = [opening] + ([tarot.template_paragraph(cards, "th")] if cards else []) + [chinese, path_para]
         if hour_line:
             parts.append(hour_line)
         parts.append(guide)
@@ -697,7 +699,7 @@ def template_reading(chart: dict[str, Any], topic: str, question: str, lang: str
             f"Do not wait for a perfect sign. Take the small step that already hums, and watch which door opens by itself."
         )
     close = pick(rng, CLOSINGS["en"])
-    parts = [opening, chinese, path_para]
+    parts = [opening] + ([tarot.template_paragraph(cards, "en")] if cards else []) + [chinese, path_para]
     if hour_line:
         parts.append(hour_line)
     parts.append(guide)
@@ -742,7 +744,7 @@ def premium_teaser(chart: dict[str, Any], luck: dict[str, Any], lang: str) -> di
     }
 
 
-LLM_TIMEOUT = 20
+LLM_TIMEOUT = 30
 
 
 def _log_llm_failure(exc: Exception) -> None:
@@ -760,7 +762,8 @@ def _log_llm_failure(exc: Exception) -> None:
 
 
 def llm_generate(
-    chart: dict[str, Any], topic: str, question: str, lang: str
+    chart: dict[str, Any], topic: str, question: str, lang: str,
+    cards: list[dict[str, Any]] | None = None,
 ) -> tuple[str, dict[str, str]] | None:
     """Call an OpenAI-compatible LLM. Returns (reading, premium fields) or None."""
     api_key = os.environ.get("OPENAI_API_KEY")
@@ -784,7 +787,15 @@ def llm_generate(
         f"Numerology life path number: {chart['path']} — {lp['title_en']} / {lp['title_th']}. {lp['en']}\n"
         f"Topic of this reading: {TOPICS[topic]['en']} ({TOPICS[topic]['th']}).\n"
         f"The visitor's question: {qline}\n\n"
-        "Weave the zodiac, Chinese zodiac, life path number, topic, and question naturally into the prose. "
+        + (
+            "Three tarot cards (Rider-Waite-Smith) were drawn for this reading:\n"
+            f"{tarot.prompt_lines(cards)}\n"
+            "Read the three cards together as ONE flowing story that answers the visitor's question. "
+            "Do not read them one by one, and do not assign them positions such as past, present, or future. "
+            "Name each card once in the language of the reading (in Thai, e.g. ไพ่ดวงดาว) and respect whether it is upright or reversed.\n\n"
+            if cards else ""
+        )
+        + "Weave the tarot story, zodiac, Chinese zodiac, life path number, topic, and question naturally into the prose. "
         "Write 4 to 6 short paragraphs of reasonable length, separated by blank lines. "
         "No medical, legal, or financial advice, and no guaranteed predictions. No scare tactics. "
         "Speak as a wise, kind astrologer. Do not mention that you are an AI. "
@@ -794,7 +805,7 @@ def llm_generate(
     payload = {
         "model": model,
         "temperature": 0.85,
-        "max_tokens": 2048,
+        "max_tokens": 3072,
         "messages": [
             {
                 "role": "system",
@@ -940,14 +951,15 @@ def generate_reading(params: dict[str, Any]) -> dict[str, Any]:
     source = "template"
     text = None
     premium = premium_teaser(chart, luck, lang)
-    generated = llm_generate(chart, topic, question, lang)
+    cards = tarot.draw()
+    generated = llm_generate(chart, topic, question, lang, cards=cards)
     if generated:
         text, premium_ai = generated
         source = "llm"
         for key, value in premium_ai.items():
             premium[key] = value
     if not text:
-        text = template_reading(chart, topic, question, lang)
+        text = template_reading(chart, topic, question, lang, cards)
 
     return {
         "ok": True,
@@ -958,6 +970,7 @@ def generate_reading(params: dict[str, Any]) -> dict[str, Any]:
         "chart": public_chart(chart, lang),
         "reading": text,
         "premium": premium,
+        "tarot": {"headingTh": tarot.HEADING_TH, "headingEn": tarot.HEADING_EN, "cards": cards},
     }
 
 
@@ -1062,6 +1075,8 @@ def packages_payload() -> dict[str, Any]:
 
 
 class Handler(SimpleHTTPRequestHandler):
+    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".webp": "image/webp"}
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(STATIC), **kwargs)
 

@@ -106,6 +106,9 @@ const I18N = {
     },
     orLine: "หรือส่งสลิปทาง LINE แทนได้",
     payStep2Slip: (c) => `อัปโหลดสลิปด้านล่าง ระบบจะตรวจและเติมคำถามให้ทันที (หรือส่งทาง LINE พร้อมรหัส <b>${c}</b>)`,
+    tarotCredit: "ภาพไพ่ทาโรต์: สำรับ Rider-Waite-Smith (ค.ศ. 1909) วาดโดย Pamela Colman Smith · สาธารณสมบัติ จาก Wikimedia Commons",
+    tarotReversed: "กลับหัว",
+    tarotTap: "แตะไพ่เพื่อดูความหมาย",
     disclaimer: "บทอ่านดวงนี้จัดให้เพื่อแรงบันดาลใจ ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย การเงิน หรือคำทำนายที่รับประกันผล ทางเลือกยังเป็นของคุณเสมอ",
     badgeZodiac: "ราศีตะวันตก",
     badgeChinese: "ปีนักษัตร",
@@ -234,6 +237,9 @@ const I18N = {
     },
     orLine: "Or send your slip on LINE instead",
     payStep2Slip: (c) => `Upload your slip below and we'll verify it instantly (or send it on LINE with code <b>${c}</b>).`,
+    tarotCredit: "Tarot art: Rider-Waite-Smith deck (1909) by Pamela Colman Smith · public domain, via Wikimedia Commons",
+    tarotReversed: "Reversed",
+    tarotTap: "Tap a card to see its meaning",
     disclaimer: "These readings are for inspiration, not medical, legal, or financial advice, and not a guaranteed prediction. Your choices remain your own.",
     badgeZodiac: "Western zodiac",
     badgeChinese: "Chinese zodiac",
@@ -378,6 +384,54 @@ function badge(label, value, hint) {
   return `<li class="badge"><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b>${hintHtml}</li>`;
 }
 
+let tarotRevealed = "";
+
+function renderTarot(tarot) {
+  const box = document.getElementById("tarot");
+  const row = document.getElementById("tarot-row");
+  const cards = (tarot && tarot.cards) || [];
+  if (!cards.length) {
+    box.hidden = true;
+    row.innerHTML = "";
+    return;
+  }
+  const th = state.lang === "th";
+  const dict = t();
+  const key = cards.map((c) => c.id + (c.reversed ? "r" : "u")).join(",");
+  const already = key === tarotRevealed; // language switch: keep cards face up, no replay
+  document.getElementById("tarot-title").textContent = th ? tarot.headingTh : tarot.headingEn;
+  row.innerHTML = cards
+    .map((c, i) => {
+      const name = th ? c.nameTh.replace(/\s*\(.*\)$/, "") : c.nameEn;
+      const sub = th ? c.nameEn : c.nameTh.replace(/\s*\(.*\)$/, "");
+      const meaning = th ? c.meaningTh : c.meaningEn;
+      return `
+      <figure class="tcard${c.reversed ? " is-reversed" : ""}${already ? " is-flipped no-anim" : ""}" style="--i:${i}">
+        <button type="button" class="tcard-inner" aria-label="${escapeHtml(name)}" title="${escapeHtml(meaning)}">
+          <span class="tcard-face tcard-back" aria-hidden="true"><span class="tcard-moon">☾</span></span>
+          <span class="tcard-face tcard-front"><img src="${escapeHtml(c.image)}" alt="${escapeHtml(c.nameEn)}" decoding="async" /></span>
+        </button>
+        <figcaption>
+          <b class="tcard-name">${escapeHtml(th ? c.nameTh.replace(/\s*\(.*\)$/, "") : c.nameEn)}</b>
+          <small class="tcard-sub">${escapeHtml(sub)}</small>
+          ${c.reversed ? `<span class="tcard-rev">${escapeHtml(dict.tarotReversed)}</span>` : ""}
+          <span class="tcard-meaning">${escapeHtml(meaning)}</span>
+        </figcaption>
+      </figure>`;
+    })
+    .join("");
+  box.hidden = false;
+  if (already) return;
+  // Preload the art, then flip each card in turn.
+  const figs = [...row.querySelectorAll(".tcard")];
+  const loads = [...row.querySelectorAll("img")].map(
+    (img) => new Promise((resolve) => { if (img.complete) resolve(); else { img.onload = resolve; img.onerror = resolve; } }),
+  );
+  const start = () => figs.forEach((fig, i) => setTimeout(() => fig.classList.add("is-flipped"), 500 + i * 650));
+  Promise.race([Promise.all(loads), new Promise((r) => setTimeout(r, 2500))]).then(start);
+  tarotRevealed = key;
+}
+
 function renderResult(data) {
   const dict = t();
   const result = document.getElementById("result");
@@ -394,6 +448,7 @@ function renderResult(data) {
   ];
   if (hour) badges.push(badge(dict.badgeHour, hour));
   document.getElementById("badges").innerHTML = badges.join("");
+  renderTarot(data.tarot);
   document.getElementById("reading-body").textContent = data.reading;
   const charge = data.charge || {};
   let note = data.source === "llm" ? dict.sourceLlm : dict.sourceTemplate;

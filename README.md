@@ -71,6 +71,18 @@ SlipOK (`amount` = order price, `log=true`, 20 s timeout, one retry on timeout/n
 * Images are never stored; only a small summary (ref, amount, date, names, banks).
 * Limits: 5 uploads per order, 8 per visitor per 10 minutes.
 
+## Tarot (ให้ไพ่เล่าเรื่องราว)
+
+Every reading (free or paid) draws 3 distinct cards from the full 78-card deck with
+`secrets.SystemRandom`, each upright or reversed. There are no positions: the AI is asked to read
+the three together as one story that answers the question, and the template fallback does the same.
+The draw is returned as `tarot.cards` (id, Thai/English name, reversed, meaning, image).
+Meanings (Thai + English, upright + reversed) live in `tarot.py`.
+
+**Card art credit:** Rider-Waite-Smith tarot deck (1909), illustrated by Pamela Colman Smith,
+public domain, from Wikimedia Commons. Each file's Commons page and license ("Public domain")
+are listed in `static/tarot/SOURCES.json`. Images are 300 px wide WebP files (~45 KB each).
+
 ## API
 
 `POST /api/reading`
