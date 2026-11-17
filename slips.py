@@ -188,15 +188,15 @@ def _amount_matches(value: Any, price: int) -> bool:
 
 MSG = {
     "success": ("ตรวจสลิปผ่านแล้ว! เติมคำถามให้เรียบร้อย ✨", "Slip verified! Your questions have been added ✨"),
-    "amount": ("ยอดในสลิปไม่ตรงกับคำสั่งซื้อ กรุณาโอนให้ตรงยอด หรือส่งสลิปที่ถูกต้อง",
+    "amount": ("ยอดในสลิปไม่ตรงกับคำสั่งซื้อ กรุณาโอนให้ตรงยอด หรืออัปโหลดสลิปที่ถูกต้อง",
                "The slip amount doesn't match this order. Please pay the exact amount or upload the right slip."),
     "receiver": ("บัญชีผู้รับในสลิปไม่ใช่บัญชีของถามจันทร์ กรุณาตรวจสอบการโอนอีกครั้ง",
                  "This slip was paid to a different account. Please check your transfer."),
     "duplicate": ("สลิปนี้เคยใช้ไปแล้ว ไม่สามารถใช้ซ้ำได้", "This slip has already been used and can't be used again."),
     "not_slip": ("อ่านสลิปไม่ได้ กรุณาอัปโหลดรูปสลิปที่เห็น QR ชัดเจน (ไม่ครอป)",
                  "We couldn't read a payment slip. Please upload the full slip image with its QR code visible."),
-    "review": ("ได้รับสลิปแล้ว ระบบยังยืนยันอัตโนมัติไม่ได้ แอดมินจะตรวจและเติมคำถามให้เร็วที่สุด (หรือทักทาง LINE: ivymoonask)",
-               "We got your slip but couldn't verify it automatically. The admin will check it and add your questions soon (or message LINE: ivymoonask)."),
+    "review": ("กำลังตรวจสอบเพิ่มเติม เครดิตจะเข้าอัตโนมัติเมื่อผ่าน",
+               "We're checking this further. Credits are added automatically once it passes."),
     "delay": ("ธนาคารนี้ต้องรอสักครู่ก่อนตรวจสลิปได้ ลองอัปโหลดอีกครั้งในอีกไม่กี่นาที หรือรอแอดมินตรวจให้",
               "This bank needs a few minutes before slips can be checked. Try again in a few minutes, or wait for the admin to check it."),
 }

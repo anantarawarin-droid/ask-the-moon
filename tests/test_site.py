@@ -112,3 +112,33 @@ class Contacts(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PayStepsWording(unittest.TestCase):
+    """Slips are verified on the site; LINE is only a 'problem? contact us' fallback."""
+
+    def test_steps_say_upload_not_line(self):
+        index = (ROOT / "static" / "index.html").read_text()
+        js = (ROOT / "static" / "app.js").read_text()
+        for text in ("เลือกแพ็กเกจ แล้วสแกน QR พร้อมเพย์ด้วยแอปธนาคาร", "อัปโหลดสลิปบนหน้านี้ ระบบตรวจสอบให้อัตโนมัติ",
+                     "เครดิตเข้าบัญชีของคุณทันทีหลังตรวจผ่าน"):
+            self.assertIn(text, index)
+            self.assertIn(text, js)
+        self.assertIn("Upload your slip on this page and it's verified automatically.", js)
+
+    def test_no_send_slip_via_line_anywhere(self):
+        files = [ROOT / "static" / n for n in ("index.html", "app.js", "admin.html")] + [ROOT / "slips.py", ROOT / "app.py"]
+        bad = re.compile(r"ส่งสลิป|send (the |your )?slip|slip on LINE|LINE slip", re.I)
+        for f in files:
+            self.assertEqual(bad.findall(f.read_text()), [], f.name)
+
+    def test_pay_modal_two_steps_no_line_instructions(self):
+        js = (ROOT / "static" / "app.js").read_text()
+        body = js[js.index("function renderPayModal"):js.index("function slipSectionHtml")]
+        self.assertEqual(re.findall(r"<li>", body[body.index('<ol class="pay-steps">'):body.index("</ol>")]).__len__(), 2)
+        self.assertNotIn("copy-code", js)
+        self.assertNotIn("payStep3", js)
+        self.assertNotIn("line-btn\" href=\"https://line.me/ti/p/~ivymoonask\" target=\"_blank\" rel=\"noopener\">${escapeHtml(dict.payLine)}", body)
+        for text in ("สแกน QR ด้วยแอปธนาคาร แล้วโอน", "อัปโหลดสลิปด้านล่าง ระบบตรวจและเติมคำถามให้ทันที",
+                     "กำลังตรวจสอบเพิ่มเติม เครดิตจะเข้าอัตโนมัติเมื่อผ่าน", 'payLine: "มีปัญหา? ติดต่อ LINE"'):
+            self.assertIn(text, js)

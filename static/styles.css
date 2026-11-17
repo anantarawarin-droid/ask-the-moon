@@ -963,3 +963,9 @@ body[data-lang="en"] .pricing h2 { font-family: var(--font-display); letter-spac
 .legal-sep { border: 0; border-top: 1px solid rgba(212, 175, 55, 0.3); margin: 2.4rem 0 1.4rem; }
 .foot-legal a, .acc-legal a { color: var(--gold-soft); }
 .acc-legal { font-size: 0.75rem; color: var(--muted); text-align: center; margin: 0.5rem 0 0; }
+
+/* pay modal: small LINE fallback only */
+.pay-help { margin: 0.9rem 0 0; text-align: center; font-size: 0.78rem; color: var(--muted); }
+.pay-help a { color: var(--gold-soft); }
+.pay-ref { opacity: 0.6; }
+.pay-summary > div:only-child { grid-column: 1 / -1; flex: 1; }

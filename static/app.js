@@ -79,8 +79,8 @@ const I18N = {
     pricingTitle: "เติมพลังจันทร์ ถามได้มากขึ้น",
     pricingLede: "คำถามละ 15 บาท ยิ่งเติมมาก ยิ่งได้คำถามโบนัสฟรี — สูงสุด 150 บาทต่อครั้ง ทุกคำถามที่ใช้เครดิตจะได้บทอ่านลึกครบทุกส่วน",
     how1: "เลือกแพ็กเกจ แล้วสแกน QR พร้อมเพย์ด้วยแอปธนาคาร",
-    how2: "ส่งสลิปพร้อมรหัสคำสั่งซื้อทาง LINE: ivymoonask",
-    how3: "เมื่อตรวจสอบแล้ว คำถามจะเข้าบัญชีของคุณทันที",
+    how2: "อัปโหลดสลิปบนหน้านี้ ระบบตรวจสอบให้อัตโนมัติ",
+    how3: "เครดิตเข้าบัญชีของคุณทันทีหลังตรวจผ่าน",
     baht: "บาท",
     questionsUnit: () => "ข้อ",
     totalLabel: "รวมทั้งหมด",
@@ -94,16 +94,13 @@ const I18N = {
     bestTag: "BEST VALUE · คุ้มที่สุด",
     bestBadge: (pkg) => `จ่าย ${pkg.price} บาท ได้ ${pkg.questions} ข้อ (โบนัส ${pkg.bonus} ข้อ) เฉลี่ยข้อละ ${pkg.perQuestion.replace(/\.00$/, "")} บาท`,
     payTitle: "ชำระผ่านพร้อมเพย์",
-    payOrder: "รหัสคำสั่งซื้อ",
+    payRef: "อ้างอิง",
     payAmount: "ยอดชำระ",
     payGet: (q, b) => b ? `รับรวม ${q} ข้อ (${q - b} + โบนัส ${b})` : `รับ ${q} ข้อ`,
-    payStep1: (a) => `สแกน QR นี้ด้วยแอปธนาคาร แล้วโอน <b>฿${a}</b> ให้ตรงยอด`,
-    payStep2: (c) => `ส่งสลิปพร้อมรหัส <b>${c}</b> ทาง LINE: ivymoonask`,
-    payStep3: "เมื่อแอดมินตรวจสอบแล้ว คำถามจะเข้าบัญชีของคุณทันที (หน้านี้จะอัปเดตเอง)",
-    payLine: "ส่งสลิปทาง LINE",
-    copyCode: "คัดลอกรหัส",
-    copied: "คัดลอกแล้ว",
-    payWaiting: "รอการตรวจสอบสลิป…",
+    payStep1: (a) => `สแกน QR ด้วยแอปธนาคาร แล้วโอน <b>฿${a}</b> ให้ตรงยอด`,
+    payLine: "มีปัญหา? ติดต่อ LINE",
+    payWaiting: "รอสลิปของคุณ…",
+    payReview: "กำลังตรวจสอบเพิ่มเติม เครดิตจะเข้าอัตโนมัติเมื่อผ่าน",
     payApproved: (q) => `เติมสำเร็จ! ได้รับ ${q} คำถามแล้ว ✨`,
     balanceNow: (n) => `ยอดคงเหลือ ${n} คำถาม`,
     payRejected: "คำสั่งซื้อนี้ถูกปฏิเสธ หากโอนแล้ว ติดต่อ LINE: ivymoonask",
@@ -122,15 +119,14 @@ const I18N = {
     slipNoFile: "กรุณาเลือกรูปสลิปก่อน",
     slipErr: {
       rate_limited: "อัปโหลดถี่เกินไป กรุณารอสักครู่แล้วลองใหม่",
-      too_many_slips: "อัปโหลดสลิปครบจำนวนครั้งแล้ว กรุณาส่งสลิปทาง LINE: ivymoonask",
+      too_many_slips: "อัปโหลดสลิปครบจำนวนครั้งแล้ว มีปัญหา? ติดต่อ LINE: ivymoonask",
       not_pending: "คำสั่งซื้อนี้ปิดแล้ว กรุณาสร้างคำสั่งซื้อใหม่",
       not_found: "ไม่พบคำสั่งซื้อนี้ กรุณาสร้างคำสั่งซื้อใหม่",
       bad_file_type: "ไฟล์นี้ไม่ใช่รูป JPG, PNG หรือ WEBP",
       file_too_large: "รูปใหญ่เกิน 4MB",
-      network: "เชื่อมต่อไม่ได้ กรุณาลองใหม่ หรือส่งสลิปทาง LINE",
+      network: "เชื่อมต่อไม่ได้ กรุณาลองอัปโหลดใหม่อีกครั้ง",
     },
-    orLine: "หรือส่งสลิปทาง LINE แทนได้",
-    payStep2Slip: (c) => `อัปโหลดสลิปด้านล่าง ระบบจะตรวจและเติมคำถามให้ทันที (หรือส่งทาง LINE พร้อมรหัส <b>${c}</b>)`,
+    payStep2Slip: () => "อัปโหลดสลิปด้านล่าง ระบบตรวจและเติมคำถามให้ทันที",
     accountLogin: "เข้าสู่ระบบ",
     accountNote: "สมัครบัญชีเพื่อเก็บเครดิตไว้ใช้ได้ทุกอุปกรณ์",
     accTitleLogin: "เข้าสู่ระบบ",
@@ -272,8 +268,8 @@ const I18N = {
     pricingTitle: "Charge the moon, ask more",
     pricingLede: "15 THB per question, with free bonus questions on bigger packs — up to 150 THB per top-up. Every credited question comes with the full deep reading.",
     how1: "Pick a package and scan the PromptPay QR with your banking app.",
-    how2: "Send the slip with your order code on LINE: ivymoonask",
-    how3: "Once it's checked, the questions land in your balance right away.",
+    how2: "Upload your slip on this page and it's verified automatically.",
+    how3: "Credits are added to your account right after the slip passes.",
     baht: "THB",
     questionsUnit: (n) => (n === 1 ? "question" : "questions"),
     totalLabel: "Total",
@@ -287,16 +283,13 @@ const I18N = {
     bestTag: "BEST VALUE",
     bestBadge: (pkg) => `Pay ${pkg.price} THB, get ${pkg.questions} questions (${pkg.bonus} bonus), avg ${pkg.perQuestion.replace(/\.00$/, "")} THB each`,
     payTitle: "Pay with PromptPay",
-    payOrder: "Order code",
+    payRef: "ref",
     payAmount: "Amount",
     payGet: (q, b) => b ? `${q} questions total (${q - b} + ${b} bonus)` : `${q} questions`,
     payStep1: (a) => `Scan this QR in your banking app and pay exactly <b>฿${a}</b>.`,
-    payStep2: (c) => `Send the slip with code <b>${c}</b> on LINE: ivymoonask`,
-    payStep3: "Once the admin checks it, the questions are added right away (this page updates itself).",
-    payLine: "Send slip on LINE",
-    copyCode: "Copy code",
-    copied: "Copied",
-    payWaiting: "Waiting for slip check…",
+    payLine: "Problem? Contact LINE",
+    payWaiting: "Waiting for your slip…",
+    payReview: "We're checking this further. Credits are added automatically once it passes.",
     payApproved: (q) => `Top-up done! ${q} questions added ✨`,
     balanceNow: (n) => `Balance: ${n} question${n === 1 ? "" : "s"}`,
     payRejected: "This order was declined. If you already paid, contact LINE: ivymoonask",
@@ -315,15 +308,14 @@ const I18N = {
     slipNoFile: "Please choose your slip image first.",
     slipErr: {
       rate_limited: "Too many uploads. Please wait a moment and try again.",
-      too_many_slips: "Upload limit reached for this order. Please send the slip on LINE: ivymoonask",
+      too_many_slips: "Upload limit reached for this order. Problem? Contact LINE: ivymoonask",
       not_pending: "This order is closed. Please create a new one.",
       not_found: "Order not found. Please create a new one.",
       bad_file_type: "That file isn't a JPG, PNG, or WEBP image.",
       file_too_large: "The image is over 4MB.",
-      network: "Couldn't connect. Try again, or send the slip on LINE.",
+      network: "Couldn't connect. Please try uploading again.",
     },
-    orLine: "Or send your slip on LINE instead",
-    payStep2Slip: (c) => `Upload your slip below and we'll verify it instantly (or send it on LINE with code <b>${c}</b>).`,
+    payStep2Slip: () => "Upload your slip below. It's checked and your questions are added right away.",
     accountLogin: "Log in",
     accountNote: "Create an account to keep your credits on every device",
     accTitleLogin: "Log in",
@@ -909,7 +901,8 @@ function renderPayModal() {
     return;
   }
   const order = o.order;
-  let statusHtml = `<p class="pay-status waiting"><span class="pulse"></span>${escapeHtml(dict.payWaiting)}</p>`;
+  const inReview = order.slipStatus === "review" || (state.slipResult && state.slipResult.kind === "review");
+  let statusHtml = `<p class="pay-status waiting"><span class="pulse"></span>${escapeHtml(inReview ? dict.payReview : dict.payWaiting)}</p>`;
   if (order.status === "approved") {
     const r = state.slipResult;
     const head = r && r.kind === "success" ? (state.lang === "th" ? r.th : r.en) : dict.payApproved(order.questions);
@@ -919,7 +912,6 @@ function renderPayModal() {
   box.innerHTML = `
     <h3 id="pay-title">${escapeHtml(dict.payTitle)}</h3>
     <div class="pay-summary">
-      <div><small>${escapeHtml(dict.payOrder)}</small><b class="code">${escapeHtml(order.code)}</b></div>
       <div><small>${escapeHtml(dict.payAmount)}</small><b>฿${order.price}</b></div>
     </div>
     <p class="pay-get">${escapeHtml(dict.payGet(order.questions, order.bonus))}</p>
@@ -930,27 +922,18 @@ function renderPayModal() {
     </div>
     <ol class="pay-steps">
       <li>${dict.payStep1(order.price)}</li>
-      <li>${state.slipEnabled && order.status === "pending" ? dict.payStep2Slip(escapeHtml(order.code)) : dict.payStep2(escapeHtml(order.code))}</li>
-      <li>${escapeHtml(dict.payStep3)}</li>
+      <li>${escapeHtml(dict.payStep2Slip())}</li>
     </ol>
     ${state.slipEnabled && order.status === "pending" ? slipSectionHtml(dict) : ""}
     ${statusHtml}
-    ${state.slipEnabled && order.status === "pending" ? `<p class="or-line">${escapeHtml(dict.orLine)}</p>` : ""}
-    <div class="pay-actions">
-      <button type="button" class="btn ghost" id="copy-code">${escapeHtml(dict.copyCode)}</button>
-      <a class="btn gold line-btn" href="https://line.me/ti/p/~ivymoonask" target="_blank" rel="noopener">${escapeHtml(dict.payLine)}</a>
-    </div>`;
+    <p class="pay-help"><a href="https://line.me/ti/p/~ivymoonask" target="_blank" rel="noopener">${escapeHtml(dict.payLine)}</a> <span class="pay-ref">· ${escapeHtml(dict.payRef)} ${escapeHtml(order.code)}</span></p>`;
   if (state.slipEnabled && order.status === "pending") setupSlipUpload();
-  document.getElementById("copy-code").addEventListener("click", async (event) => {
-    try { await navigator.clipboard.writeText(order.code); } catch (_) { /* ignore */ }
-    event.currentTarget.textContent = dict.copied;
-  });
 }
 
 function slipSectionHtml(dict) {
   const r = state.slipResult;
   let msg = "";
-  if (r) {
+  if (r && r.kind !== "review") { // review is shown as the neutral status line below
     const text = state.lang === "th" ? r.th : r.en;
     msg = `<p class="slip-msg ${escapeHtml(r.kind)}" role="status">${escapeHtml(text)}</p>`;
   }
