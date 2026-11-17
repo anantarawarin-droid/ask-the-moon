@@ -911,3 +911,31 @@ body[data-lang="en"] .pricing h2 { font-family: var(--font-display); letter-spac
   border: 1px solid rgba(243, 226, 168, 0.35); border-radius: 999px; padding: 0.05rem 0.5rem; }
 .prof-text p { margin: 0.35rem 0 0; font-size: 0.86rem; line-height: 1.55; color: #ece4ff; }
 .profile-note { margin: 0.8rem 0 0; font-size: 0.74rem; color: var(--lavender, #d9c8f5); opacity: 0.75; }
+
+/* Pricing: one consistent count per card */
+.price-card .qty small { display: block; font-size: 0.7rem; letter-spacing: 0.06em; color: var(--muted); }
+.best-line { margin: 0; max-width: 22rem; text-align: center; font-size: 0.9rem; font-weight: 600; line-height: 1.5; color: var(--gold-soft); }
+.save-pill.inline { position: static; display: inline-block; }
+
+/* Ad box now sits at the bottom of the page */
+.ad-bottom { margin-top: 2.4rem; margin-bottom: 0.6rem; opacity: 0.92; }
+
+/* Logged-out: sign-up card before the form, form locked */
+.login-gate { margin: 0.2rem 0 1.1rem; padding: 1rem 1.1rem; border-radius: 16px; text-align: center;
+  background: linear-gradient(150deg, rgba(212, 175, 55, 0.16), rgba(107, 63, 160, 0.28));
+  border: 1px solid rgba(243, 226, 168, 0.5); }
+.login-gate[hidden] { display: none; }
+.gate-title { margin: 0; font-size: 1.12rem; font-weight: 700; color: var(--gold-soft); }
+.gate-copy { margin: 0.4rem 0 0.8rem; font-size: 0.88rem; line-height: 1.6; color: var(--lilac); }
+.gate-actions { display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap; }
+.gate-actions .btn { min-width: 8.5rem; }
+.form-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.form-fields.is-locked { opacity: 0.45; filter: saturate(0.6); pointer-events: none; }
+
+/* Forgot password */
+.acc-forgot summary { cursor: pointer; color: var(--gold-soft); font-size: 0.85rem; text-decoration: underline; text-underline-offset: 3px; }
+.acc-forgot p { margin: 0.5rem 0 0.4rem; font-size: 0.82rem; line-height: 1.6; color: var(--lilac); text-align: left; }
+.contact-list { list-style: none; margin: 0.3rem 0 0; padding: 0; display: grid; gap: 0.35rem; }
+.contact-list a { display: block; padding: 0.45rem 0.7rem; border-radius: 10px; text-decoration: none; font-size: 0.86rem;
+  color: var(--text); background: rgba(107, 63, 160, 0.3); border: 1px solid rgba(217, 200, 255, 0.25); }
+.contact-list a b { color: var(--gold-soft); margin-right: 0.3rem; }

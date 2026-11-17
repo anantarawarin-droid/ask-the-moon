@@ -1,0 +1,114 @@
+"""Pricing display consistency, page positioning/layout, and admin contact options."""
+
+import os
+import re
+import sys
+import unittest
+from decimal import Decimal
+from pathlib import Path
+from unittest import mock
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+import app  # noqa: E402
+import credits as billing  # noqa: E402
+
+TABLE = {15: 1, 30: 2, 45: 3, 60: 4, 75: 5, 90: 7, 105: 8, 120: 10, 135: 12, 150: 15}
+SPLIT = {90: (6, 1), 105: (7, 1), 120: (8, 2), 135: (9, 3), 150: (10, 5)}
+HTML = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
+JS = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
+POSITIONING = "ดูดวงไพ่ทาโรต์ 3 ใบ ตอบตรง ๆ + โปรไฟล์ดวงจากวันเกิด (ปีนักษัตร เลขวันเกิด ราศี)"
+
+
+class PricingConsistency(unittest.TestCase):
+    def test_every_number_fits_the_total(self):
+        pkgs = {p["price"]: p for p in billing.PACKAGES}
+        self.assertEqual({k: p["questions"] for k, p in pkgs.items()}, TABLE)
+        for price, p in pkgs.items():
+            # bonus is INSIDE the total, never added on top
+            self.assertEqual(p["baseQuestions"] + p["bonus"], p["questions"], price)
+            self.assertEqual((p["baseQuestions"], p["bonus"]), SPLIT.get(price, (TABLE[price], 0)), price)
+            self.assertEqual(Decimal(p["perQuestion"]), (Decimal(price) / p["questions"]).quantize(Decimal("0.01"), rounding="ROUND_HALF_UP"))
+        self.assertEqual(pkgs[150]["perQuestion"], "10.00")
+        self.assertTrue(pkgs[150]["bestValue"])
+
+    def test_credits_granted_equal_total(self):
+        for price, total in TABLE.items():
+            svc = billing.CreditService(billing.JsonStore(Path(self.tmp) / f"{price}.json"))
+            order = svc.create_order("v" * 32, price)
+            self.assertEqual(order["questions"], total)
+            svc.approve(order["code"])
+            self.assertEqual(svc.balance("v" * 32)["credits"], total, price)
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+
+    def test_page_copy_has_no_conflicting_numbers(self):
+        # No "value ฿225"/strike-through prices, no "X questions + Y free" headline.
+        for gone in ("worthPay", "dict.worth(", "<s>", "bonusFree", "bestGet", "฿225", "225"):
+            self.assertNotIn(gone, JS, gone)
+        self.assertIn("`จ่าย ${pkg.price} บาท ได้ ${pkg.questions} ข้อ (โบนัส ${pkg.bonus} ข้อ) เฉลี่ยข้อละ", JS)
+        self.assertIn("`${b} + โบนัส ${x} = รวม ${q} ข้อ`", JS)
+        # Rendered badge text for the ฿150 package
+        p = next(x for x in billing.PACKAGES if x["price"] == 150)
+        badge = f"จ่าย {p['price']} บาท ได้ {p['questions']} ข้อ (โบนัส {p['bonus']} ข้อ) เฉลี่ยข้อละ {p['perQuestion'].replace('.00', '')} บาท"
+        self.assertEqual(badge, "จ่าย 150 บาท ได้ 15 ข้อ (โบนัส 5 ข้อ) เฉลี่ยข้อละ 10 บาท")
+
+
+class PageLayout(unittest.TestCase):
+    def test_tarot_first_positioning_everywhere(self):
+        title = re.search(r"<title>(.*?)</title>", HTML).group(1)
+        self.assertIn("ไพ่ทาโรต์", title)
+        desc = re.search(r'<meta name="description" content="([^"]+)"', HTML).group(1)
+        self.assertIn(POSITIONING, desc)
+        self.assertIn(POSITIONING, re.search(r'<meta property="og:description" content="([^"]+)"', HTML).group(1))
+        self.assertIn("ไพ่ทาโรต์", re.search(r'<meta property="og:title" content="([^"]+)"', HTML).group(1))
+        lede = re.search(r'data-i18n="heroLede">(.*?)</p>', HTML).group(1)
+        self.assertTrue(lede.startswith(POSITIONING))
+        self.assertIn(POSITIONING, JS)
+        self.assertNotIn("อ่านดวง · ราศี · นักษัตร · เลขศาสตร์", HTML)
+
+    def test_ad_after_form_and_gate_before_form(self):
+        form = HTML.index('id="reading-form"')
+        self.assertEqual(HTML.count('class="ad-slot'), 1)
+        self.assertGreater(HTML.index('class="ad-slot'), HTML.index('id="pricing"'))
+        self.assertGreater(HTML.index('class="ad-slot'), form)
+        gate, fields = HTML.index('id="login-gate"'), HTML.index('id="form-fields"')
+        self.assertTrue(form < gate < fields)
+        self.assertIn('id="form-fields" disabled', HTML)  # locked until we know you're logged in
+        self.assertIn(">สมัครฟรี รับคำถามแรกฟรี 1 ข้อ<", HTML)
+
+
+class Contacts(unittest.TestCase):
+    def env(self, **kw):
+        clean = {k: v for k, v in os.environ.items() if not k.startswith("CONTACT_")}
+        clean.update(kw)
+        return mock.patch.dict(os.environ, clean, clear=True)
+
+    def test_default_is_existing_line_only(self):
+        with self.env():
+            self.assertEqual(app.contacts_payload(),
+                             [{"kind": "line", "label": "LINE", "value": "ivymoonask",
+                               "url": "https://line.me/ti/p/~ivymoonask"}])
+
+    def test_only_configured_channels_show(self):
+        with self.env(CONTACT_TIKTOK="@moon.tok", CONTACT_EMAIL="help@example.com", CONTACT_IG="bad value!"):
+            got = {c["kind"]: c for c in app.contacts_payload()}
+        self.assertEqual(set(got), {"line", "tiktok", "email"})
+        self.assertEqual(got["tiktok"]["url"], "https://www.tiktok.com/@moon.tok")
+        self.assertEqual(got["email"]["url"], "mailto:help@example.com")
+        with self.env(CONTACT_LINE=""):
+            self.assertEqual(app.contacts_payload(), [])
+        with self.env(CONTACT_LINE="javascript:alert(1)"):
+            self.assertEqual(app.contacts_payload(), [])
+
+    def test_forgot_password_ui(self):
+        self.assertIn('forgotLink: "ลืมรหัสผ่าน?"', JS)
+        self.assertIn("ชื่อผู้ใช้", re.search(r'forgotHow: "([^"]+)"', JS).group(1))
+        self.assertIn("contacts", JS)
+
+
+if __name__ == "__main__":
+    unittest.main()

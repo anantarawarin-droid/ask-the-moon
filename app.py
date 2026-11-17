@@ -274,6 +274,37 @@ def verify_slip(code: str, visitor_id: str, image: bytes) -> tuple[int, dict[str
     }
 
 
+# Admin contact channels (password resets, payment help). LINE defaults to the
+# existing ivymoonask account; others appear only when their env var is set.
+DEFAULT_LINE = "ivymoonask"
+CONTACT_SPECS = (
+    # kind, env var, label, value pattern, url template
+    ("line", "CONTACT_LINE", "LINE", r"[A-Za-z0-9._-]{2,40}", "https://line.me/ti/p/~{v}"),
+    ("tiktok", "CONTACT_TIKTOK", "TikTok", r"[A-Za-z0-9._]{2,40}", "https://www.tiktok.com/@{v}"),
+    ("instagram", "CONTACT_IG", "Instagram", r"[A-Za-z0-9._]{1,40}", "https://www.instagram.com/{v}"),
+    ("facebook", "CONTACT_FACEBOOK", "Facebook", r"[A-Za-z0-9.]{3,60}", "https://www.facebook.com/{v}"),
+    ("email", "CONTACT_EMAIL", "Email", r"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,180}\.[A-Za-z]{2,24}", "mailto:{v}"),
+)
+
+
+def contacts_payload() -> list[dict[str, str]]:
+    out = []
+    for kind, env, label, pattern, url in CONTACT_SPECS:
+        raw = os.environ.get(env)
+        if raw is None and kind == "line":
+            raw = DEFAULT_LINE
+        value = (raw or "").strip()
+        if kind != "email":
+            value = value.lstrip("@")
+        if not value or not re.fullmatch(pattern, value):
+            if value:
+                print(f"Ignoring {env}: unexpected format.", file=sys.stderr)
+            continue
+        display = value if kind in ("email", "line", "facebook") else "@" + value
+        out.append({"kind": kind, "label": label, "value": display, "url": url.format(v=value)})
+    return out
+
+
 def packages_payload() -> dict[str, Any]:
     return {
         "ok": True,
@@ -284,7 +315,8 @@ def packages_payload() -> dict[str, Any]:
         "paymentEnabled": billing.promptpay_id_from_env() is not None,
         "slipEnabled": billing.promptpay_id_from_env() is not None and slips.enabled(),
         "slipMaxBytes": slips.MAX_BYTES,
-        "line": "ivymoonask",
+        "line": DEFAULT_LINE,
+        "contacts": contacts_payload(),
     }
 
 
@@ -407,6 +439,9 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if route == "/api/packages":
             self._send(200, packages_payload())
+            return
+        if route == "/api/contacts":
+            self._send(200, {"ok": True, "contacts": contacts_payload()})
             return
         if route == "/api/health":
             self._send(200, {"ok": True, "store": STORE_KIND, "databaseConfigured": bool(os.environ.get("DATABASE_URL")),

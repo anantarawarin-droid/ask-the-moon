@@ -144,3 +144,10 @@ Readings are for inspiration only, not medical, legal, or financial advice, and 
 ## Deploy notes
 
 The app reads `PORT` from the environment (default `5050`) and binds to `0.0.0.0` so it can run on a host like Render. Do not commit API keys. To let an LLM write the readings, set `OPENAI_API_KEY` in the host's environment, not in the repo.
+
+## Contact channels (password resets, payment help)
+
+The login modal's “ลืมรหัสผ่าน?” section lists the admin's contact channels from env vars; only the ones set are shown.
+`CONTACT_LINE` defaults to `ivymoonask` (set it to an empty value to hide LINE). Optional: `CONTACT_TIKTOK`,
+`CONTACT_IG`, `CONTACT_FACEBOOK`, `CONTACT_EMAIL` (handles without `@` are fine; badly formatted values are ignored).
+They are also returned by `GET /api/contacts` and in `/api/packages`.

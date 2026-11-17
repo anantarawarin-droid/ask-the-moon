@@ -1,13 +1,21 @@
 const I18N = {
   th: {
-    docTitle: "ถามจันทร์",
+    docTitle: "ถามจันทร์ — ดูดวงไพ่ทาโรต์ 3 ใบ ตอบตรง ๆ | Ask the Moon",
     brand: "ถามจันทร์",
     brandSub: "Ask the Moon",
     footBrand: "ถามจันทร์",
-    eyebrow: "ไพ่ทาโรต์ · ตอบตรง · ไม่อ้อมค้อม",
+    eyebrow: "ไพ่ทาโรต์ 3 ใบ · ตอบตรง ๆ · โปรไฟล์ดวงจากวันเกิด",
     heroTitle: "ถามจันทร์",
-    heroLede: "พิมพ์คำถามที่อยากรู้ จันทร์จะเปิดไพ่ทาโรต์ 3 ใบ แล้วตอบให้ตรงประเด็น พร้อมเหตุผลจากไพ่และคำแนะนำที่ทำได้จริง — ใส่วันเกิดเพื่อดูปีนักษัตร เลขวันเกิด และราศีของคุณด้วย",
-    heroOffer: "✨ สมัครฟรี รับคำถามแรกฟรี 1 ข้อ",
+    heroLede: "ดูดวงไพ่ทาโรต์ 3 ใบ ตอบตรง ๆ + โปรไฟล์ดวงจากวันเกิด (ปีนักษัตร เลขวันเกิด ราศี) — พิมพ์คำถามที่อยากรู้ จันทร์จะเปิดไพ่ให้ 3 ใบ บอกคำตอบก่อน แล้วตามด้วยเหตุผลจากไพ่และคำแนะนำที่ทำได้จริง",
+    heroOffer: "สมัครฟรี รับคำถามแรกฟรี 1 ข้อ",
+    gateTitle: "สมัครฟรี รับคำถามแรกฟรี 1 ข้อ",
+    gateCopy: "ถามไพ่ได้หลังสมัครหรือเข้าสู่ระบบ ใช้แค่ชื่อผู้ใช้กับรหัสผ่าน ไม่ต้องใช้อีเมล ไม่ถึง 1 นาที แล้วกรอกคำถามได้เลย",
+    gateSignup: "สมัครฟรี",
+    gateLogin: "เข้าสู่ระบบ",
+    accReady: "พร้อมแล้ว! กรอกชื่อ วันเกิด และคำถามได้เลยค่ะ",
+    forgotLink: "ลืมรหัสผ่าน?",
+    forgotHow: "ไม่ต้องกังวลค่ะ ทักแอดมินทางช่องทางด้านล่าง พร้อมแจ้ง “ชื่อผู้ใช้” ของคุณ แอดมินจะตั้งรหัสผ่านชั่วคราวให้ เข้าสู่ระบบแล้วเปลี่ยนรหัสใหม่ได้ที่เมนูบัญชี เครดิตของคุณยังอยู่ครบ",
+    forgotNone: "ติดต่อแอดมินพร้อมแจ้งชื่อผู้ใช้ของคุณ",
     heroOfferIn: (n) => n > 0 ? `✨ คุณมีคำถามเหลือ ${n} ข้อ` : "✨ คุณมีคำถามฟรี 1 ข้อ ถามได้เลย",
     creditLogin: "สมัครฟรี รับคำถามแรกฟรี 1 ข้อ · เข้าสู่ระบบก่อนถามไพ่นะคะ",
     accNeedLoginAsk: "สมัครฟรี รับคำถามแรกฟรี 1 ข้อ ✨ กรุณาสมัครหรือเข้าสู่ระบบก่อนถามไพ่ค่ะ",
@@ -65,25 +73,21 @@ const I18N = {
     how2: "ส่งสลิปพร้อมรหัสคำสั่งซื้อทาง LINE: ivymoonask",
     how3: "เมื่อตรวจสอบแล้ว คำถามจะเข้าบัญชีของคุณทันที",
     baht: "บาท",
-    questionsUnit: () => "คำถาม",
-    bonusFree: (n) => `+ โบนัสฟรี ${n} คำถาม`,
-    noBonus: "ไม่มีโบนัส",
-    perQ: (v) => `เฉลี่ย ฿${v} / คำถาม`,
-    worth: (w) => `มูลค่า ฿${w}`,
-    worthPay: (w, pr) => `มูลค่า <s>฿${w}</s> จ่ายเพียง <b>฿${pr}</b>`,
-    split: (b, x) => `${b} คำถาม + ${x} ฟรี`,
-    save: (pct) => `ประหยัด ${pct}%`,
+    questionsUnit: () => "ข้อ",
+    totalLabel: "รวมทั้งหมด",
+    split: (b, x, q) => `${b} + โบนัส ${x} = รวม ${q} ข้อ`,
+    noBonus: (q) => `${q} ข้อ · ไม่มีโบนัส`,
+    perQ: (v) => `เฉลี่ย ฿${v.replace(/\.00$/, "")} / ข้อ`,
+    save: (pct) => `ถูกลง ${pct}%`,
+    saveVs: (pct) => `ถูกลง ${pct}% จากราคาปกติข้อละ ฿15`,
     buy: "เลือกแพ็กเกจนี้",
     buyBest: "รับดีลที่คุ้มที่สุด",
-    bestBadge: "BEST VALUE · คุ้มที่สุด",
-    bestPay: "จ่าย 150 บาท",
-    bestGet: "รับ 15 คำถาม",
-    bestBonus: "ฟรีโบนัส 5 คำถาม",
-    bestPer: "เพียงคำถามละ 10 บาท",
+    bestTag: "BEST VALUE · คุ้มที่สุด",
+    bestBadge: (pkg) => `จ่าย ${pkg.price} บาท ได้ ${pkg.questions} ข้อ (โบนัส ${pkg.bonus} ข้อ) เฉลี่ยข้อละ ${pkg.perQuestion.replace(/\.00$/, "")} บาท`,
     payTitle: "ชำระผ่านพร้อมเพย์",
     payOrder: "รหัสคำสั่งซื้อ",
     payAmount: "ยอดชำระ",
-    payGet: (q, b) => b ? `รับ ${q} คำถาม (รวมโบนัส ${b})` : `รับ ${q} คำถาม`,
+    payGet: (q, b) => b ? `รับรวม ${q} ข้อ (${q - b} + โบนัส ${b})` : `รับ ${q} ข้อ`,
     payStep1: (a) => `สแกน QR นี้ด้วยแอปธนาคาร แล้วโอน <b>฿${a}</b> ให้ตรงยอด`,
     payStep2: (c) => `ส่งสลิปพร้อมรหัส <b>${c}</b> ทาง LINE: ivymoonask`,
     payStep3: "เมื่อแอดมินตรวจสอบแล้ว คำถามจะเข้าบัญชีของคุณทันที (หน้านี้จะอัปเดตเอง)",
@@ -178,14 +182,22 @@ const I18N = {
     forecast: "ช่วงเวลาที่ไพ่ชี้",
   },
   en: {
-    docTitle: "Ask the Moon",
+    docTitle: "Ask the Moon — 3-card tarot, straight answers | ถามจันทร์",
     brand: "Ask the Moon",
     brandSub: "ถามจันทร์",
     footBrand: "Ask the Moon",
-    eyebrow: "Tarot · Straight answers · No riddles",
+    eyebrow: "3-card tarot · Straight answers · Birth profile",
     heroTitle: "Ask the Moon",
     heroLede: "Type what you want to know. The Moon draws three tarot cards and gives you a straight answer, the reasons in the cards, and advice you can act on. Add your birthday to see your Chinese zodiac, birth number, and star sign too.",
-    heroOffer: "✨ Sign up free — your first question is on us",
+    heroOffer: "Sign up free — get your first question free",
+    gateTitle: "Sign up free — get your first question free",
+    gateCopy: "You can ask after signing up or logging in. Just a username and password, no email, under a minute — then type your question.",
+    gateSignup: "Sign up free",
+    gateLogin: "Log in",
+    accReady: "You're in! Fill in your name, birthday and question.",
+    forgotLink: "Forgot password?",
+    forgotHow: "No worries. Message the admin on one of the channels below with your username. The admin will set a temporary password; log in and change it from the account menu. Your credits stay safe.",
+    forgotNone: "Contact the admin with your username.",
     heroOfferIn: (n) => n > 0 ? `✨ You have ${n} questions left` : "✨ You have 1 free question — ask away",
     creditLogin: "Sign up free and get your first question free · please log in to ask.",
     accNeedLoginAsk: "Sign up free and get 1 free question ✨ Please sign up or log in to ask the cards.",
@@ -244,24 +256,20 @@ const I18N = {
     how3: "Once it's checked, the questions land in your balance right away.",
     baht: "THB",
     questionsUnit: (n) => (n === 1 ? "question" : "questions"),
-    bonusFree: (n) => `+ ${n} FREE bonus`,
-    noBonus: "No bonus",
-    perQ: (v) => `Avg ฿${v} / question`,
-    worth: (w) => `Worth ฿${w}`,
-    worthPay: (w, pr) => `Worth <s>฿${w}</s>, pay only <b>฿${pr}</b>`,
-    split: (b, x) => `${b} questions + ${x} free`,
-    save: (pct) => `Save ${pct}%`,
+    totalLabel: "Total",
+    split: (b, x, q) => `${b} + ${x} bonus = ${q} total`,
+    noBonus: (q) => `${q} ${q === 1 ? "question" : "questions"} · no bonus`,
+    perQ: (v) => `Avg ฿${v.replace(/\.00$/, "")} / question`,
+    save: (pct) => `${pct}% off`,
+    saveVs: (pct) => `${pct}% off the regular ฿15 per question`,
     buy: "Choose this pack",
     buyBest: "Get the best deal",
-    bestBadge: "BEST VALUE",
-    bestPay: "Pay 150 THB",
-    bestGet: "Receive 15 questions",
-    bestBonus: "Get 5 FREE bonus questions",
-    bestPer: "Only 10 THB per question",
+    bestTag: "BEST VALUE",
+    bestBadge: (pkg) => `Pay ${pkg.price} THB, get ${pkg.questions} questions (${pkg.bonus} bonus), avg ${pkg.perQuestion.replace(/\.00$/, "")} THB each`,
     payTitle: "Pay with PromptPay",
     payOrder: "Order code",
     payAmount: "Amount",
-    payGet: (q, b) => b ? `${q} questions (incl. ${b} bonus)` : `${q} questions`,
+    payGet: (q, b) => b ? `${q} questions total (${q - b} + ${b} bonus)` : `${q} questions`,
     payStep1: (a) => `Scan this QR in your banking app and pay exactly <b>฿${a}</b>.`,
     payStep2: (c) => `Send the slip with code <b>${c}</b> on LINE: ivymoonask`,
     payStep3: "Once the admin checks it, the questions are added right away (this page updates itself).",
@@ -782,6 +790,7 @@ async function loadPackages() {
       state.paymentEnabled = Boolean(data.paymentEnabled);
       state.slipEnabled = Boolean(data.slipEnabled);
       if (data.slipMaxBytes) state.slipMaxBytes = data.slipMaxBytes;
+      state.contacts = Array.isArray(data.contacts) ? data.contacts : [];
       renderPricing();
     }
   } catch (_) { /* leave the grid empty */ }
@@ -798,27 +807,26 @@ function renderPricing() {
   const grid = document.getElementById("price-grid");
   if (!grid || !state.packages.length) return;
   const dict = t();
+  // Every number on a card comes from the same package record:
+  // headline = total questions (bonus included); breakdown = base + bonus = total; per question = price / total.
   grid.innerHTML = state.packages.map((pkg, i) => {
     const tier = tierOf(pkg);
+    const qty = `<p class="qty"><small>${escapeHtml(dict.totalLabel)}</small> <b>${pkg.questions}</b> ${escapeHtml(dict.questionsUnit(pkg.questions))}</p>`;
+    const split = `<p class="bonus ${pkg.bonus ? "" : "none"}">${escapeHtml(dict.split(pkg.baseQuestions, pkg.bonus, pkg.questions))}</p>`;
+    const per = `<span class="per">${escapeHtml(dict.perQ(pkg.perQuestion))}</span>`;
     if (pkg.bestValue) {
       return `
       <article class="price-card ${tier}" style="--i:${i}">
-        <div class="best-badge">${escapeHtml(dict.bestBadge)}</div>
+        <div class="best-badge">${escapeHtml(dict.bestTag)}</div>
         <div class="best-body">
           <div class="best-main">
             <p class="price"><span class="cur">฿</span>${pkg.price}</p>
-            <p class="qty"><b>${pkg.questions}</b> ${escapeHtml(dict.questionsUnit(pkg.questions))}</p>
-            <p class="bonus">${escapeHtml(dict.bonusFree(pkg.bonus))}</p>
+            ${qty}
+            ${split}
           </div>
-          <ul class="best-list">
-            <li>✦ ${escapeHtml(dict.bestPay)}</li>
-            <li>✦ ${escapeHtml(dict.bestGet)}</li>
-            <li>✦ ${escapeHtml(dict.bestBonus)}</li>
-            <li class="hi">✦ ${escapeHtml(dict.bestPer)}</li>
-          </ul>
+          <p class="best-line">✦ ${escapeHtml(dict.bestBadge(pkg))}</p>
         </div>
-        <p class="meta"><span class="per">${escapeHtml(dict.perQ(pkg.perQuestion))}</span>
-          <span class="worth"><s>${escapeHtml(dict.worth(pkg.worth))}</s> · ${escapeHtml(dict.save(pkg.savingsPercent))}</span></p>
+        <p class="meta">${pkg.savingsPercent > 0 ? `<span class="save-pill inline">${escapeHtml(dict.saveVs(pkg.savingsPercent))}</span>` : per}</p>
         <button type="button" class="btn gold buy" data-amount="${pkg.price}">${escapeHtml(dict.buyBest)}</button>
       </article>`;
     }
@@ -828,11 +836,9 @@ function renderPricing() {
       <article class="price-card ${tier}${pkg.bonus ? " has-save" : ""}" style="--i:${i}">
         ${save}
         <p class="price"><span class="cur">฿</span>${pkg.price}</p>
-        <p class="qty"><b>${pkg.questions}</b> ${escapeHtml(dict.questionsUnit(pkg.questions))}</p>
-        <p class="bonus ${pkg.bonus ? "" : "none"}">${escapeHtml(pkg.bonus ? dict.bonusFree(pkg.bonus) : dict.noBonus)}</p>
-        <p class="meta"><span class="per">${escapeHtml(dict.perQ(pkg.perQuestion))}</span>
-          ${pkg.bonus ? `<span class="split">✦ ${escapeHtml(dict.split(pkg.baseQuestions, pkg.bonus))}</span>
-          <span class="worth-line">${dict.worthPay(pkg.worth, pkg.price)}</span>` : ""}</p>
+        ${qty}
+        ${split}
+        <p class="meta">${per}</p>
         <button type="button" class="btn ${pkg.bonus ? "gold" : "soft"} buy" data-amount="${pkg.price}">${escapeHtml(dict.buy)}</button>
       </article>`;
   }).join("");
@@ -1108,6 +1114,7 @@ function renderAccountButton() {
   }
   const note = document.getElementById("pricing-account-note");
   if (note) note.hidden = Boolean(state.account);
+  renderGate();
 }
 
 function openAccountModal(mode, message) {
@@ -1128,6 +1135,28 @@ function closeAccountModal() {
 function accErrText(code, fallback) {
   const dict = t();
   return dict.accErr[code] || fallback || dict.accErr.network;
+}
+
+function forgotHtml(dict) {
+  const list = (state.contacts || []).map((c) =>
+    `<li><a href="${escapeHtml(c.url)}" target="_blank" rel="noopener"><b>${escapeHtml(c.label)}</b> ${escapeHtml(c.value)}</a></li>`).join("");
+  return `
+    <details class="acc-forgot">
+      <summary>${escapeHtml(dict.forgotLink)}</summary>
+      <p>${escapeHtml(dict.forgotHow)}</p>
+      ${list ? `<ul class="contact-list">${list}</ul>` : `<p>${escapeHtml(dict.forgotNone)}</p>`}
+    </details>`;
+}
+
+function renderGate() {
+  // Logged out: show the sign-up card first and lock the form, so nobody fills it in for nothing.
+  const gate = document.getElementById("login-gate");
+  const fields = document.getElementById("form-fields");
+  if (!gate || !fields) return;
+  const out = !state.account;
+  gate.hidden = !out;
+  fields.disabled = out;
+  fields.classList.toggle("is-locked", out);
 }
 
 function renderAccountModal() {
@@ -1176,7 +1205,7 @@ function renderAccountModal() {
         ${signup ? `<small>${escapeHtml(dict.accPassHint)}</small>` : ""}</label>
       <button type="submit" class="btn gold" ${state.accountBusy ? "disabled" : ""}>${escapeHtml(state.accountBusy ? dict.accBusy : (signup ? dict.accSubmitSignup : dict.accSubmitLogin))}</button>
     </form>
-    ${signup ? "" : `<p class="acc-forgot">${escapeHtml(dict.accForgot)}</p>`}`;
+    ${signup ? "" : forgotHtml(dict)}`;
   box.querySelectorAll(".acc-tab").forEach((tab) => tab.addEventListener("click", () => {
     state.accountMode = tab.dataset.mode;
     const keep = state.accountMsg && state.accountMsg.kind === "info" ? state.accountMsg : null;
@@ -1282,9 +1311,25 @@ function setupAccount() {
 function setup() {
   const dateInput = document.getElementById("birthDate");
   dateInput.max = new Date().toISOString().slice(0, 10);
+  const afterGate = () => {
+    document.getElementById("oracle").scrollIntoView({ behavior: "smooth", block: "start" });
+    const name = document.getElementById("name");
+    setTimeout(() => (name.value ? document.getElementById("question") : name).focus({ preventScroll: true }), 400);
+  };
+  document.getElementById("gate-signup").addEventListener("click", () => {
+    openAccountModal("signup", null);
+    state.afterLogin = afterGate;
+  });
+  document.getElementById("gate-login").addEventListener("click", () => {
+    openAccountModal("login", null);
+    state.afterLogin = afterGate;
+  });
   document.getElementById("hero-signup").addEventListener("click", () => {
     if (state.account) document.getElementById("oracle").scrollIntoView({ behavior: "smooth", block: "start" });
-    else openAccountModal("signup", t().accNeedLoginAsk);
+    else {
+      openAccountModal("signup", t().accNeedLoginAsk);
+      state.afterLogin = afterGate;
+    }
   });
   document.querySelectorAll(".lang-btn").forEach((btn) => {
     btn.addEventListener("click", () => setLang(btn.dataset.lang));
