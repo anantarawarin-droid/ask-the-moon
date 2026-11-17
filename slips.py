@@ -14,6 +14,7 @@ import secrets
 import sys
 import threading
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -74,7 +75,13 @@ def describe_branch(raw: str) -> str:
         kinds.append("spaces")
     if any(not (c.isalnum() or c.isspace()) for c in text):
         kinds.append("symbols")
-    return f"{len(text)} chars ({', '.join(kinds) or 'empty'})"
+    odd = []
+    for i, c in enumerate(text):
+        if not c.isalnum():
+            where = "start" if i == 0 else "end" if i == len(text) - 1 else "middle"
+            odd.append(f"{unicodedata.name(c, f'U+{ord(c):04X}')} at {where}")
+    extra = f"; non-alphanumeric: {', '.join(odd[:4])}" if odd else ""
+    return f"{len(text)} chars ({', '.join(kinds) or 'empty'}){extra}"
 
 
 def describe_key(raw: str) -> str:
