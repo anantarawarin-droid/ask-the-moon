@@ -763,8 +763,9 @@ class PostgresCreditService:
         self.cfg = parse_database_url(url)
         self.dbapi = _import_pg8000()
         self._lock = threading.RLock()
-        self._conn = None
-        self._last_used = 0.0
+        self._pool_cv = threading.Condition()
+        self._idle: list = []
+        self._open = 0
         with self._tx() as cur:
             for stmt in [s for s in SCHEMA.split(";") if s.strip()]:
                 cur.execute(stmt)
@@ -800,51 +801,93 @@ class PostgresCreditService:
         return conn
 
     IDLE_PING_SECONDS = 30
+    POOL_MAX = 8
 
     def _ensure_conn(self) -> None:
-        """Reconnect if there is no connection or an idle one went stale.
+        """Kept for compatibility: make sure at least one pooled connection works."""
+        conn = self._checkout()
+        self._checkin(conn, ok=True)
 
-        Statements are never retried, so a dropped connection mid-write can
-        not double-charge; it only fails that one request.
+    def _checkout(self):
+        """Take an idle pooled connection (pinging it if stale) or open a new one.
+
+        Each request gets its own connection, so one slow query no longer
+        blocks every other customer behind a single shared connection.
         """
         import time
 
-        if self._conn is not None and time.monotonic() - self._last_used > self.IDLE_PING_SECONDS:
+        while True:
+            with self._pool_cv:
+                while not self._idle and self._open >= self.POOL_MAX:
+                    if not self._pool_cv.wait(timeout=20):
+                        raise DatabaseConfigError("Database is busy, please try again.")
+                if self._idle:
+                    conn, last = self._idle.pop()
+                else:
+                    self._open += 1
+                    conn, last = None, 0.0
+            if conn is None:
+                try:
+                    return self._connect()
+                except BaseException:
+                    with self._pool_cv:
+                        self._open -= 1
+                        self._pool_cv.notify()
+                    raise
+            if time.monotonic() - last <= self.IDLE_PING_SECONDS:
+                return conn
             try:
-                cur = self._conn.cursor()
+                cur = conn.cursor()
                 cur.execute("SELECT 1")
                 cur.fetchall()
-                self._conn.commit()
+                conn.commit()
+                return conn
             except Exception:
-                try:
-                    self._conn.close()
-                except Exception:
-                    pass
-                self._conn = None
-        if self._conn is None:
-            self._conn = self._connect()
+                self._discard(conn)
+
+    def close(self) -> None:
+        with self._pool_cv:
+            idle, self._idle = self._idle, []
+        for conn, _ in idle:
+            self._discard(conn)
+
+    def _discard(self, conn) -> None:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        with self._pool_cv:
+            self._open -= 1
+            self._pool_cv.notify()
+
+    def _checkin(self, conn, ok: bool) -> None:
+        import time
+
+        if not ok:
+            self._discard(conn)
+            return
+        with self._pool_cv:
+            self._idle.append((conn, time.monotonic()))
+            self._pool_cv.notify()
 
     @contextmanager
     def _tx(self) -> Iterator[Any]:
-        import time
-
-        with self._lock:
-            self._ensure_conn()
-            conn = self._conn
+        conn = self._checkout()
+        ok = True
+        try:
+            cur = conn.cursor()
+            yield cur
+            conn.commit()
+        except BaseException as exc:
             try:
-                cur = conn.cursor()
-                yield cur
-                conn.commit()
-            except BaseException as exc:
-                try:
-                    conn.rollback()
-                except Exception:
-                    self._conn = None
-                if isinstance(exc, (self.dbapi.InterfaceError, OSError)):
-                    self._conn = None
-                raise
-            finally:
-                self._last_used = time.monotonic()
+                conn.rollback()
+            except Exception:
+                ok = False
+            if isinstance(exc, (self.dbapi.InterfaceError, OSError)):
+                ok = False
+            raise
+        finally:
+            self._checkin(conn, ok)
 
     def _run(self, fn):
         with self._tx() as cur:

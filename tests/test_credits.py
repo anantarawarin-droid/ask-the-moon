@@ -553,7 +553,7 @@ class PgOrders(Orders):
         [t.join() for t in threads]
         self.assertEqual(wins, ["free"])  # only one free question, even under races
         for svc in services:
-            svc._conn.close()
+            svc.close()
 
 
 @unittest.skipUnless(TEST_PG, "set TEST_DATABASE_URL to run against Postgres")
