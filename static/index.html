@@ -116,6 +116,12 @@
           <span><span data-i18n="qLabel">คำถามถึงดาว</span> <em data-i18n="optional">(ไม่บังคับ)</em></span>
           <textarea name="question" id="question" rows="3" maxlength="280" data-i18n-placeholder="qPh" placeholder="เช่น ปีนี้ฉันควรกล้าเริ่มสิ่งใหม่ไหม?"></textarea>
         </label>
+        <label class="details-field">
+          <span><span data-i18n="detailsLabel">เล่าเพิ่มเติม</span> <em data-i18n="optional">(ไม่บังคับ)</em></span>
+          <small class="field-hint" id="details-hint" data-i18n="detailsHint">บอกสถานการณ์ตอนนี้ให้จันทร์เข้าใจ เช่น เขาเป็นใครกับคุณ เกิดอะไรขึ้น เพื่อให้คำตอบตรงกับเรื่องของคุณมากขึ้น</small>
+          <textarea name="details" id="details" rows="3" maxlength="500" aria-describedby="details-hint" data-i18n-placeholder="detailsPh" placeholder="เช่น คุยกับเขามา 3 เดือน ช่วงนี้เขาตอบช้าลง"></textarea>
+          <small class="char-count" id="details-count" aria-live="polite">0/500</small>
+        </label>
         <div class="credit-strip" id="credit-strip">
           <p class="credit-text" id="credit-text"></p>
           <a class="credit-link" href="#pricing" data-i18n="topUp">เติมคำถาม</a>

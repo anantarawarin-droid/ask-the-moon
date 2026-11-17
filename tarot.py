@@ -282,28 +282,44 @@ STRONG_CHALLENGING = {"major-16", "swords-03", "swords-09", "swords-10"}
 
 
 def card_score(card: dict[str, Any]) -> float:
-    cid, rev = card["id"], card["reversed"]
+    """How one card leans: + favourable, - unfavourable.
+
+    Every card's reversed score is the exact mirror of its upright score
+    (a reversed hard card is relief, a reversed bright card is a setback), so
+    with a fair 50/50 orientation the verdicts are symmetric by construction:
+    P(yes) == P(no) and P(likely) == P(unlikely). Major Arcana weigh a little more.
+    """
+    cid = card["id"]
     if cid in STRONG_CHALLENGING:
-        return 0.0 if rev else -2.0
-    if cid in CHALLENGING:
-        return 0.5 if rev else -1.0
-    if cid in STRONG_POSITIVE:
-        return -1.0 if rev else 2.0
-    return -1.0 if rev else 1.0
+        base = -2.0
+    elif cid in CHALLENGING:
+        base = -1.0
+    elif cid in STRONG_POSITIVE:
+        base = 2.0
+    elif cid.startswith("major-"):
+        base = 1.5
+    else:
+        base = 1.0
+    return -base if card["reversed"] else base
 
 
 VERDICTS = ["no", "unlikely", "not_yet", "likely", "yes"]
+YES_AT = 3.0     # score >= 3        -> yes      (mirror: <= -3 -> no)
+LIKELY_AT = 1.0  # 1 <= score < 3    -> likely   (mirror: -3 < score <= -1 -> unlikely)
 
 
 def verdict(cards: list[dict[str, Any]]) -> str:
-    score = sum(card_score(c) for c in cards)
-    if score >= 3:
+    return verdict_for_score(sum(card_score(c) for c in cards))
+
+
+def verdict_for_score(score: float) -> str:
+    if score >= YES_AT:
         return "yes"
-    if score >= 1:
+    if score >= LIKELY_AT:
         return "likely"
-    if score > -1:
+    if score > -LIKELY_AT:
         return "not_yet"
-    if score > -3:
+    if score > -YES_AT:
         return "unlikely"
     return "no"
 

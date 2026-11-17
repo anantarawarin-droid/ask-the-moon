@@ -51,6 +51,9 @@ const I18N = {
     topicMoney: "การเงิน",
     topicPath: "เส้นทางชีวิต",
     qLabel: "คำถามของคุณ",
+    detailsLabel: "เล่าเพิ่มเติม",
+    detailsHint: "บอกสถานการณ์ตอนนี้ให้จันทร์เข้าใจ เช่น เขาเป็นใครกับคุณ เกิดอะไรขึ้น เพื่อให้คำตอบตรงกับเรื่องของคุณมากขึ้น",
+    detailsPh: "เช่น คุยกับเขามา 3 เดือน ช่วงนี้เขาตอบช้าลง",
     qPh: "เช่น งานใหม่ที่สมัครไว้จะได้ไหม?",
     submit: "เปิดไพ่ถามจันทร์",
     loading: "กำลังสับไพ่และเปิดไพ่ให้คุณ...",
@@ -239,6 +242,9 @@ const I18N = {
     topicMoney: "Money",
     topicPath: "Life path",
     qLabel: "Your question",
+    detailsLabel: "Tell us more",
+    detailsHint: "Describe what's going on so the moon understands, e.g. who they are to you and what happened, so the answer fits your situation better.",
+    detailsPh: "e.g. We've been talking for 3 months and lately they reply more slowly.",
     qPh: "e.g. Will I get the new job I applied for?",
     submit: "Draw the cards",
     loading: "Shuffling and drawing your cards...",
@@ -652,6 +658,7 @@ async function onSubmit(event) {
 
   const name = document.getElementById("name").value.trim();
   const question = document.getElementById("question").value.trim();
+  const details = document.getElementById("details").value.trim().slice(0, 500);
   const topic = (document.querySelector('input[name="topic"]:checked') || {}).value || "life_path";
 
   const birthDate = document.getElementById("birthDate").value;
@@ -693,6 +700,7 @@ async function onSubmit(event) {
         birthTime,
         topic,
         question,
+        details,
         lang: state.lang,
       }),
     });
@@ -1456,6 +1464,11 @@ function setup() {
     btn.addEventListener("click", () => setLang(btn.dataset.lang));
   });
   document.getElementById("reading-form").addEventListener("submit", onSubmit);
+  const detailsBox = document.getElementById("details");
+  const detailsCount = document.getElementById("details-count");
+  const syncCount = () => { detailsCount.textContent = `${detailsBox.value.length}/500`; };
+  detailsBox.addEventListener("input", syncCount);
+  syncCount();
   setupPricing();
   setupAccount();
   loadAuthConfig();

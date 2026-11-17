@@ -969,3 +969,7 @@ body[data-lang="en"] .pricing h2 { font-family: var(--font-display); letter-spac
 .pay-help a { color: var(--gold-soft); }
 .pay-ref { opacity: 0.6; }
 .pay-summary > div:only-child { grid-column: 1 / -1; flex: 1; }
+
+/* optional "tell us more" box */
+.field-hint { display: block; margin: 0.15rem 0 0.45rem; color: var(--muted); font-size: 0.8rem; line-height: 1.5; }
+.char-count { display: block; text-align: right; color: var(--muted); font-size: 0.72rem; margin-top: 0.25rem; opacity: 0.8; }
