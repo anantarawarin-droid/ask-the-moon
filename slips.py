@@ -86,14 +86,16 @@ LIMITER = VisitorLimiter()
 # ---------------------------------------------------------------------------
 # SlipOK call
 # ---------------------------------------------------------------------------
-def _multipart(fields: dict[str, str], file_bytes: bytes, filename: str, mime: str) -> tuple[bytes, str]:
+def _multipart(fields: dict[str, str], file_bytes: bytes | None, filename: str, mime: str) -> tuple[bytes, str]:
     boundary = "----moon" + secrets.token_hex(12)
     out = bytearray()
     for name, value in fields.items():
         out += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n").encode()
-    out += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"files\"; filename=\"{filename}\"\r\n"
-            f"Content-Type: {mime}\r\n\r\n").encode()
-    out += file_bytes + b"\r\n" + f"--{boundary}--\r\n".encode()
+    if file_bytes is not None:
+        out += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"files\"; filename=\"{filename}\"\r\n"
+                f"Content-Type: {mime}\r\n\r\n").encode()
+        out += file_bytes + b"\r\n"
+    out += f"--{boundary}--\r\n".encode()
     return bytes(out), f"multipart/form-data; boundary={boundary}"
 
 
@@ -106,20 +108,32 @@ def clean_qr(raw: Any) -> str | None:
     return text if _QR_OK.match(text) else None
 
 
-def slipok_request(image: bytes, mime: str, amount: int, qr: str | None = None) -> tuple[int, dict[str, Any]]:
+def slipok_request(image: bytes, mime: str, amount: int | None = None, qr: str | None = None,
+                   log: bool = True, qr_form: bool = False) -> tuple[int, dict[str, Any]]:
     """One HTTP call to SlipOK. Returns (status, json). Raises on network errors/timeouts.
 
-    With ``qr`` the QR text is sent as ``data`` (SlipOK's own field for it) instead of the image.
+    With ``qr`` the QR text is sent as ``data`` (SlipOK's own field for it) instead of the image,
+    as JSON or (``qr_form``) as a form field. ``amount`` is only sent when given: we compare the
+    amount ourselves, and SlipOK's examples leave it out.
     """
     cfg = config()
     if cfg is None:
         raise RuntimeError("SlipOK is not configured")
     branch, key = cfg
-    if qr:
-        body = json.dumps({"data": qr, "amount": amount, "log": True}).encode()
+    fields: dict[str, Any] = {}
+    if amount is not None:
+        fields["amount"] = amount
+    if log:
+        fields["log"] = True
+    if qr and not qr_form:
+        body = json.dumps({"data": qr, **fields}).encode()
         ctype = "application/json"
     else:
-        body, ctype = _multipart({"amount": str(amount), "log": "true"}, image, EXTENSIONS[mime], mime)
+        form = {k: ("true" if v is True else str(v)) for k, v in fields.items()}
+        if qr:
+            body, ctype = _multipart({"data": qr, **form}, None, "", "")
+        else:
+            body, ctype = _multipart(form, image, EXTENSIONS[mime], mime)
     req = urllib.request.Request(
         SLIPOK_URL + urllib.request.quote(branch, safe=""),
         data=body,
@@ -159,30 +173,72 @@ def _code(payload: dict[str, Any]) -> int | None:
         return None
 
 
-def check_slip(image: bytes, mime: str, amount: int, qr: str | None = None) -> dict[str, Any]:
-    """Send the image to SlipOK; if SlipOK can't read it but the browser already
-    read the slip's QR code, ask again with that QR text. Never raises.
+# SlipOK answers 1000 ("put in correct data") when it rejects the request itself.
+REQUEST_REJECTED = 1000
 
-    Returns {"status", "payload", "retried", "error", "via"}.
+
+def _log_attempt(label: str, result: dict[str, Any]) -> None:
+    """Diagnostics only: HTTP status and SlipOK code/message. Never the key, branch, or slip data."""
+    p = result.get("payload") or {}
+    print(f"SlipOK try {label}: HTTP {result.get('status')} code {p.get('code')} "
+          f"msg {str(p.get('message') or '')[:80]!r}" + (f" error {result['error']}" if result.get("error") else ""),
+          flush=True)
+
+
+def check_slip(image: bytes, mime: str, amount: int, qr: str | None = None) -> dict[str, Any]:
+    """Ask SlipOK about the slip. Never raises.
+
+    1. the image (SlipOK reads the QR itself);
+    2. if SlipOK can't read it and the browser already read the slip's QR: that QR text (JSON),
+    3. ... then the QR text as a form field;
+    4. if SlipOK still rejects the request itself (1000): the image without ``log``. A pass there
+       skips SlipOK's receiver/duplicate checks, so it only goes to the admin for review.
+    The amount is checked locally (``classify``), so it is not sent.
+
+    Returns {"status", "payload", "retried", "error", "via", ...}.
     """
-    result = _check_once(image, mime, amount, None)
-    result["via"] = "image"
-    first = _code(result.get("payload") or {})
-    if qr and result.get("status") is not None and first in (1000, 1006, 1007):
-        again = _check_once(image, mime, amount, qr)
-        if again.get("status") is not None:
-            again["via"] = "qr"
-            again["firstCode"] = first
-            return again
+    plan: list[tuple[str, dict[str, Any]]] = [("image", {})]
+    result: dict[str, Any] = {}
+    first: int | None = None
+    tried: list[str] = []
+    while plan:
+        via, kw = plan.pop(0)
+        result = _check_once(image, mime, None, **kw)
+        result["via"] = via
+        tried.append(via)
+        _log_attempt(via, result)
+        if result.get("status") is None:
+            break
+        code = _code(result.get("payload") or {})
+        if first is None:
+            first = code
+        if via == "image" and code in (1000, 1006, 1007) and qr:
+            plan = [("qr", {"qr": qr}), ("qr-form", {"qr": qr, "qr_form": True})]
+            if code == REQUEST_REJECTED:
+                plan.append(("image-nolog", {"log": False}))
+            continue
+        if via == "image" and code == REQUEST_REJECTED:
+            plan = [("image-nolog", {"log": False})]
+            continue
+        if via == "qr" and code == REQUEST_REJECTED:
+            continue  # try the next way
+        if via == "qr-form" and code == REQUEST_REJECTED:
+            continue
+        break
+    if len(tried) > 1:
+        result["firstCode"] = first
+        result["tried"] = tried
+    if result.get("via") == "image-nolog":
+        result["nolog"] = True
     return result
 
 
-def _check_once(image: bytes, mime: str, amount: int, qr: str | None) -> dict[str, Any]:
+def _check_once(image: bytes, mime: str, amount: int | None, qr: str | None = None, **kw: Any) -> dict[str, Any]:
     """One SlipOK check with one retry on timeouts, network errors, and 5xx."""
     result: dict[str, Any] = {"status": None, "payload": {}, "retried": False, "error": None}
     for attempt in (1, 2):
         try:
-            status, payload = slipok_request(image, mime, amount, qr)
+            status, payload = slipok_request(image, mime, amount, qr, **kw)
             result.update(status=status, payload=payload, error=None)
             if status >= 500 and attempt == 1:
                 result["retried"] = True
@@ -275,6 +331,9 @@ def classify(check: dict[str, Any], price: int, prior_review: bool = False) -> O
         if not _amount_matches(data.get("amount"), price):
             return Outcome("failed", "amount_local", f"slip amount {data.get('amount')} ≠ order {price}",
                            *MSG["amount"], summary=summary, trans_ref=ref)
+        if check.get("nolog"):
+            return Outcome("review", "nolog", "SlipOK read the slip (amount OK) but rejected the shop check (log); "
+                           "confirm the money arrived", *MSG["review"], summary=summary, trans_ref=None)
         return Outcome("success", "ok", "verified by SlipOK", *MSG["success"], summary=summary, trans_ref=ref)
 
     code = payload.get("code")

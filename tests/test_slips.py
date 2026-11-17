@@ -59,8 +59,13 @@ class SlipHttp(tc.Http):
         """Each response is (status, payload) or an exception to raise."""
         seq = list(responses)
 
-        def fake(image, mime, amount, qr=None):
-            self.calls.append((mime, amount) if qr is None else (mime, amount, qr))
+        def fake(image, mime, amount=None, qr=None, log=True, qr_form=False):
+            call = (mime, amount) if qr is None else (mime, amount, qr)
+            if qr_form:
+                call += ("form",)
+            if not log:
+                call += ("nolog",)
+            self.calls.append(call)
             r = seq.pop(0) if len(seq) > 1 else seq[0]
             if isinstance(r, BaseException):
                 raise r
@@ -115,7 +120,7 @@ class SlipHttp(tc.Http):
         self.assertEqual(data["result"], "success")
         self.assertEqual(data["order"]["status"], "approved")
         self.assertEqual(data["balance"]["credits"], 7)
-        self.assertEqual(self.calls, [("image/jpeg", 90)])
+        self.assertEqual(self.calls, [("image/jpeg", None)])  # amount is checked locally, not sent
         o = self.admin_order(code)
         self.assertEqual(o["slipStatus"], "verified")
         self.assertEqual(o["slipTransRef"], "REF-OK")
@@ -295,19 +300,50 @@ class SlipHttp(tc.Http):
         with self.mock_slipok((400, err_payload(1000)), (200, ok_payload("REF-QR"))):
             status, data = self.upload(code, qr=qr)
         self.assertEqual(data["result"], "success")
-        self.assertEqual(self.calls, [("image/png", 15), ("image/png", 15, qr)])
+        self.assertEqual(self.calls, [("image/png", None), ("image/png", None, qr)])
         # No QR from the browser: no second call.
         self.calls.clear()
         other = self.order(30)
-        with self.mock_slipok((400, err_payload(1000)), (200, ok_payload("REF-QR2", 30))):
+        with self.mock_slipok((400, err_payload(1000)), (400, err_payload(1000))):
             _, data = self.upload(other)
-        self.assertEqual((data["result"], len(self.calls)), ("failed", 1))
+        # Only the "without log" fallback; nothing to retry with.
+        self.assertEqual((data["result"], self.calls), ("failed", [("image/png", None), ("image/png", None, "nolog")]))
         # A readable image is never re-checked with the QR text.
         self.calls.clear()
         third = self.order(45)
         with self.mock_slipok((400, err_payload(1013, {"amount": 30}))):
             _, data = self.upload(third, qr=qr)
         self.assertEqual(len(self.calls), 1)
+
+    def test_request_rejected_everywhere_tries_each_way_then_asks_again(self):
+        """Live 17 Nov: SlipOK answered HTTP 422 code 1000 to the image and to the QR text."""
+        qr = "0041000600000101030040220013071152533APM077365102TH91048134"
+        code = self.order()
+        rej = (422, {"code": 1000, "message": "กรุณาใส่ข้อมูลให้ถูกต้อง"})
+        with self.mock_slipok(rej):
+            _, data = self.upload(code, qr=qr)
+        self.assertEqual(self.calls, [("image/png", None), ("image/png", None, qr),
+                                      ("image/png", None, qr, "form"), ("image/png", None, "nolog")])
+        self.assertEqual((data["result"], data["code"]), ("failed", "1000"))
+        self.assertEqual(self.admin_order(code)["slipAttempts"], 0)
+
+    def test_qr_form_fallback_can_approve(self):
+        qr = "0041000600000101030040220013071152533APM077365102TH91048134"
+        code = self.order()
+        rej = (422, {"code": 1000, "message": "กรุณาใส่ข้อมูลให้ถูกต้อง"})
+        with self.mock_slipok(rej, rej, (200, ok_payload("REF-FORM"))):
+            _, data = self.upload(code, qr=qr)
+        self.assertEqual(data["result"], "success")
+        self.assertEqual(self.admin_order(code)["status"], "approved")
+
+    def test_pass_without_log_goes_to_review_not_auto_approve(self):
+        code = self.order()
+        with self.mock_slipok((422, err_payload(1000)), (200, ok_payload("REF-NOLOG"))):
+            _, data = self.upload(code)
+        self.assertEqual(data["result"], "review")
+        order = self.admin_order(code)
+        self.assertEqual((order["status"], order["slipStatus"]), ("pending", "review"))
+        self.assertIn("log", order["slipNote"])
 
     def test_bad_qr_header_ignored(self):
         self.assertIsNone(slips.clean_qr("short"))
@@ -351,14 +387,14 @@ class SlipOKRequest(unittest.TestCase):
             return Resp()
 
         with mock.patch.dict(os.environ, SLIP_ENV), mock.patch.object(slips.urllib.request, "urlopen", fake_urlopen):
-            status, payload = slips.slipok_request(PNG, "image/png", 45)
+            status, payload = slips.slipok_request(PNG, "image/png")
         self.assertEqual(status, 200)
         self.assertTrue(seen["url"].endswith("/api/line/apikey/12345"))
         self.assertEqual(seen["headers"].get("X-authorization"), "test-slipok-key")
         self.assertNotIn("Python-urllib", seen["headers"].get("User-agent", ""))  # Cloudflare blocks it
         self.assertTrue(seen["headers"].get("User-agent"))
         body = seen["body"]
-        self.assertIn(b'name="amount"\r\n\r\n45\r\n', body)
+        self.assertNotIn(b'name="amount"', body)  # checked locally
         self.assertIn(b'name="log"\r\n\r\ntrue\r\n', body)
         self.assertIn(b'name="files"; filename="slip.png"', body)
         self.assertIn(PNG, body)
@@ -368,6 +404,16 @@ class SlipOKRequest(unittest.TestCase):
             slips.slipok_request(PNG, "image/png", 45, qr="00410006ABC")
         self.assertEqual(json.loads(seen["body"]), {"data": "00410006ABC", "amount": 45, "log": True})
         self.assertEqual(seen["headers"].get("Content-type"), "application/json")
+        with mock.patch.dict(os.environ, SLIP_ENV), mock.patch.object(slips.urllib.request, "urlopen", fake_urlopen):
+            slips.slipok_request(PNG, "image/png", None, qr="00410006ABC", qr_form=True)
+        self.assertIn(b'name="data"\r\n\r\n00410006ABC\r\n', seen["body"])
+        self.assertIn(b'name="log"\r\n\r\ntrue\r\n', seen["body"])
+        self.assertNotIn(b'name="files"', seen["body"])
+        self.assertTrue(seen["headers"].get("Content-type").startswith("multipart/form-data"))
+        with mock.patch.dict(os.environ, SLIP_ENV), mock.patch.object(slips.urllib.request, "urlopen", fake_urlopen):
+            slips.slipok_request(PNG, "image/png", None, log=False)
+        self.assertNotIn(b'name="log"', seen["body"])
+        self.assertIn(b'name="files"', seen["body"])
 
     def test_sniff(self):
         self.assertEqual(slips.sniff_image(JPG), "image/jpeg")
