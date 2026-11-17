@@ -32,11 +32,72 @@ MAX_UPLOADS_PER_VISITOR_WINDOW = 8
 EXTENSIONS = {"image/jpeg": "slip.jpg", "image/png": "slip.png", "image/webp": "slip.webp"}
 
 
+_INVISIBLE = dict.fromkeys(map(ord, "\u200b\u200c\u200d\u2060\ufeff\u00a0"), None)
+
+
+def _clean(raw: str) -> str:
+    """Trim whitespace, invisible characters, and wrapping quotes/brackets that come with copy-paste."""
+    text = (raw or "").translate(_INVISIBLE).strip()
+    while len(text) >= 2 and text[0] + text[-1] in ('""', "''", "``", "<>", "[]", "{}", "()"):
+        text = text[1:-1].strip()
+    return text
+
+
+def normalize_branch(raw: str) -> str:
+    """SlipOK's branch ID is a number (the URL's ``id`` must be an integer; anything else gets
+    HTTP 422 code 1000 "กรุณาใส่ข้อมูลให้ถูกต้อง" before the slip is even looked at).
+    Accept copy-paste variants such as " 12345 ", "'12345'", "12 345", "Branch ID: 12345",
+    or a pasted API URL ending in /12345, as long as there is exactly one number in them."""
+    text = _clean(raw)
+    if text.isdigit() and text.isascii():
+        return text
+    compact = re.sub(r"[\s,_-]", "", text)
+    if compact.isdigit() and compact.isascii():
+        return compact
+    runs = re.findall(r"[0-9]+", text)
+    if len(runs) == 1:
+        return runs[0]
+    if "/" in text and runs and re.search(r"/([0-9]+)/?$", text):
+        return re.search(r"/([0-9]+)/?$", text).group(1)
+    return text
+
+
+def describe_branch(raw: str) -> str:
+    """Shape of the SLIPOK_BRANCH_ID value for logs, without the value itself."""
+    text = raw or ""
+    kinds = []
+    if any(c.isdigit() for c in text):
+        kinds.append("digits")
+    if any(c.isalpha() for c in text):
+        kinds.append("letters")
+    if any(c.isspace() for c in text):
+        kinds.append("spaces")
+    if any(not (c.isalnum() or c.isspace()) for c in text):
+        kinds.append("symbols")
+    return f"{len(text)} chars ({', '.join(kinds) or 'empty'})"
+
+
+def config_problem() -> str | None:
+    """A short, secret-free note when the SlipOK settings can't work, else None."""
+    raw = os.environ.get("SLIPOK_BRANCH_ID", "")
+    if not raw.strip() or not os.environ.get("SLIPOK_API_KEY", "").strip():
+        return None
+    branch = normalize_branch(raw)
+    if not branch.isdigit():
+        return (f"SLIPOK_BRANCH_ID is not a number ({describe_branch(raw)}); SlipOK answers HTTP 422 code 1000 "
+                "to every slip. Put only the numeric branch ID from SlipOK (LINE @slipok > API) there.")
+    return None
+
+
 def config() -> tuple[str, str] | None:
-    branch = os.environ.get("SLIPOK_BRANCH_ID", "").strip()
-    key = os.environ.get("SLIPOK_API_KEY", "").strip()
+    raw_branch = os.environ.get("SLIPOK_BRANCH_ID", "")
+    raw_key = os.environ.get("SLIPOK_API_KEY", "")
+    branch, key = normalize_branch(raw_branch), _clean(raw_key)
     if not branch or not key:
         return None
+    # The two values swapped by mistake: the key is the number, the branch isn't.
+    if not branch.isdigit() and normalize_branch(raw_key).isdigit() and normalize_branch(raw_key) == _clean(raw_key):
+        branch, key = _clean(raw_key), _clean(raw_branch)
     return branch, key
 
 
@@ -177,11 +238,25 @@ def _code(payload: dict[str, Any]) -> int | None:
 REQUEST_REJECTED = 1000
 
 
+def _rejected_fields(payload: dict[str, Any]) -> str:
+    """Which request fields SlipOK's validator refused, e.g. "id in params" (names only, never values)."""
+    errors = payload.get("errors")
+    if not isinstance(errors, list):
+        return ""
+    parts = []
+    for err in errors[:5]:
+        if isinstance(err, dict):
+            parts.append(f"{str(err.get('param') or '?')[:20]} in {str(err.get('location') or '?')[:20]}")
+    return ", ".join(parts)
+
+
 def _log_attempt(label: str, result: dict[str, Any]) -> None:
     """Diagnostics only: HTTP status and SlipOK code/message. Never the key, branch, or slip data."""
     p = result.get("payload") or {}
+    bad = _rejected_fields(p)
     print(f"SlipOK try {label}: HTTP {result.get('status')} code {p.get('code')} "
-          f"msg {str(p.get('message') or '')[:80]!r}" + (f" error {result['error']}" if result.get("error") else ""),
+          f"msg {str(p.get('message') or '')[:80]!r}" + (f" rejected {bad}" if bad else "")
+          + (f" error {result['error']}" if result.get("error") else ""),
           flush=True)
 
 
@@ -196,6 +271,8 @@ def check_slip(image: bytes, mime: str, amount: int, qr: str | None = None) -> d
     result["via"] = "image"
     _log_attempt("image", result)
     first = _code(result.get("payload") or {})
+    if "id in params" in _rejected_fields(result.get("payload") or {}):
+        return result  # the branch ID in the URL is wrong; asking with the QR text fails the same
     if qr and result.get("status") is not None and first in (1000, 1006, 1007):
         again = _check_once(image, mime, None, qr)
         _log_attempt("qr", again)
@@ -326,14 +403,21 @@ def classify(check: dict[str, Any], price: int, prior_review: bool = False) -> O
                            *MSG["review"], summary=summary, trans_ref=None)
         return Outcome("failed", "1012", "SlipOK 1012 repeated slip", *MSG["duplicate"], summary=summary)
     if code_i == REQUEST_REJECTED and status == 422:
-        # Seen live on 17 Nov for every slip (image and QR text alike, answered in under a second):
-        # SlipOK refuses the request itself, so it says nothing about the slip. Don't make the
-        # customer re-upload; the admin checks the money and SlipOK's account setup.
+        # SlipOK's request validator refused the call before looking at the slip. Reproduced against
+        # api.slipok.com: this exact answer (with errors=[{param: "id", location: "params"}]) comes
+        # back whenever the branch ID in the URL is not a whole number, i.e. SLIPOK_BRANCH_ID is wrong.
+        # Not the customer's fault: don't make them re-upload; the admin checks the money.
         msg = str(payload.get("message") or "")[:80]
-        print(f"SlipOK setup problem: HTTP 422 code 1000 ({msg})", file=sys.stderr, flush=True)
-        return Outcome("review", "1000-422", f"SlipOK setup problem: HTTP 422 code 1000 ({msg}) on every try; "
-                       "check the money in the bank app, and the SlipOK account (shop info, bank account on the "
-                       "API branch, package)", *MSG["manual"], summary=summary)
+        bad = _rejected_fields(payload)
+        if not bad or "id in params" in bad:
+            why = ("SLIPOK_BRANCH_ID on Render is not SlipOK's numeric branch ID"
+                   + (f" ({config_problem()})" if config_problem() else ""))
+        else:
+            why = f"SlipOK refused field(s): {bad}"
+        print(f"SlipOK setup problem: HTTP 422 code 1000 ({msg}); {why}", file=sys.stderr, flush=True)
+        return Outcome("review", "1000-422", f"SlipOK setup problem: HTTP 422 code 1000 ({msg}); {why}. "
+                       "Check the money in the bank app and approve by hand until it's fixed",
+                       *MSG["manual"], summary=summary)
     if code_i in UNREADABLE_CODES:
         msg = str(payload.get("message") or "")[:80]
         return Outcome("failed", str(code_i), f"SlipOK {code_i} no readable slip/QR in the picture ({msg}); "

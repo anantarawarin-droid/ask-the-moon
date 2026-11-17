@@ -749,6 +749,11 @@ def main() -> None:
     pay = "PromptPay on" if billing.promptpay_id_from_env() else "PromptPay off (set PROMPTPAY_ID)"
     admin = "admin on" if os.environ.get("ADMIN_TOKEN") else "admin off (set ADMIN_TOKEN)"
     admin += "; slip auto-check on" if slips.enabled() else "; slip auto-check off"
+    if slips.config_problem():
+        print(f"SlipOK setup problem: {slips.config_problem()}", flush=True)
+    elif slips.enabled():
+        print(f"SlipOK branch ID looks valid ({slips.describe_branch(os.environ.get('SLIPOK_BRANCH_ID', ''))}"
+              f"{', used ' + str(len(slips.config()[0])) + ' digits' if slips.config() else ''})", flush=True)
     print(f"ถามจันทร์ / Ask the Moon is listening on http://{HOST}:{PORT}  —  readings: {mode}; {pay}; {admin}", flush=True)
     if STORE_KIND == "postgres":
         tls = "off" if SERVICE.cfg["sslmode"] == "disable" else "on"

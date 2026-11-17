@@ -333,6 +333,52 @@ class SlipHttp(tc.Http):
             _, data = self.upload(code, qr=qr)
         self.assertEqual(data["result"], "success")
 
+    def test_422_for_bad_branch_id_stops_after_one_call_and_names_the_setting(self):
+        """SlipOK's real answer when the URL's branch id isn't a number (reproduced 17 Nov)."""
+        qr = "0041000600000101030040220013071152533APM077365102TH91048134"
+        code = self.order()
+        rej = (422, {"code": 1000, "message": "กรุณาใส่ข้อมูลให้ถูกต้อง", "statusCode": 422,
+                     "errors": [{"value": "x", "msg": "กรุณาใส่ข้อมูลให้ถูกต้อง", "param": "id", "location": "params"}]})
+        with self.mock_slipok(rej):
+            _, data = self.upload(code, qr=qr)
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual((data["result"], data["code"]), ("review", "1000-422"))
+        self.assertIn("SLIPOK_BRANCH_ID", self.admin_order(code)["slipNote"])
+
+    def test_branch_id_copy_paste_variants(self):
+        for raw in ("12345", " 12345\n", "'12345'", '"12345"', "12 345", "Branch ID: 12345", "\ufeff12345\u200b",
+                    "https://api.slipok.com/api/line/apikey/12345", "<12345>"):
+            self.assertEqual(slips.normalize_branch(raw), "12345", raw)
+        self.assertFalse(slips.normalize_branch("abc").isdigit())
+        with mock.patch.dict(os.environ, {"SLIPOK_BRANCH_ID": " 'Branch: 12345' ", "SLIPOK_API_KEY": " k "}):
+            self.assertEqual(slips.config(), ("12345", "k"))
+            self.assertIsNone(slips.config_problem())
+        # Swapped by mistake: the numeric value is used as the branch.
+        with mock.patch.dict(os.environ, {"SLIPOK_BRANCH_ID": "SLIPOKABCDEF", "SLIPOK_API_KEY": "12345"}):
+            self.assertEqual(slips.config(), ("12345", "SLIPOKABCDEF"))
+        with mock.patch.dict(os.environ, {"SLIPOK_BRANCH_ID": "SLIPOKABCDEF", "SLIPOK_API_KEY": "SLIPOKXYZ"}):
+            note = slips.config_problem()
+            self.assertIn("not a number", note)
+            self.assertNotIn("SLIPOKABCDEF", note)
+            self.assertNotIn("SLIPOKXYZ", note)
+
+    def test_request_url_uses_clean_numeric_branch(self):
+        seen = {}
+
+        class Resp:
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self): return b'{"success": true}'
+
+        def fake(req, timeout=None):
+            seen["url"] = req.full_url
+            return Resp()
+        with mock.patch.dict(os.environ, {"SLIPOK_BRANCH_ID": "12345\r\n", "SLIPOK_API_KEY": "k"}), \
+                mock.patch.object(slips.urllib.request, "urlopen", fake):
+            slips.slipok_request(PNG, "image/png")
+        self.assertEqual(seen["url"], "https://api.slipok.com/api/line/apikey/12345")
+
     def test_bad_qr_header_ignored(self):
         self.assertIsNone(slips.clean_qr("short"))
         self.assertIsNone(slips.clean_qr("ข้อความไทยที่ยาวพอสมควรแต่ไม่ใช่ ascii"))
