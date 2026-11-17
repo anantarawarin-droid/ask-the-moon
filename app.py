@@ -29,6 +29,7 @@ import google_auth
 
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
+LEGAL_PAGES = {"/privacy": "privacy.html", "/terms": "terms.html"}
 PORT = int(os.environ.get("PORT", "5050"))
 HOST = os.environ.get("HOST", "0.0.0.0")
 DATA_DIR = os.environ.get("DATA_DIR") or str(ROOT / "data")
@@ -406,6 +407,16 @@ class Handler(SimpleHTTPRequestHandler):
             raise ValueError("Invalid JSON body.")
         return body
 
+    def _serve_page(self, name: str) -> None:
+        page = (STATIC / name).read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(page)))
+        self.send_header("Cache-Control", "public, max-age=600")
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(page)
+
     def _serve_admin_page(self) -> None:
         page = (STATIC / "admin.html").read_bytes()
         ok = billing.admin_token_ok(self.headers.get("X-Admin-Token"))
@@ -437,6 +448,9 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if route == "/admin.html":
             self._send(404, {"ok": False, "error": "Not found."})
+            return
+        if route in LEGAL_PAGES:
+            self._serve_page(LEGAL_PAGES[route])
             return
         if route == "/api/packages":
             self._send(200, packages_payload())

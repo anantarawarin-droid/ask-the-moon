@@ -16,7 +16,8 @@ const I18N = {
     gTitle: "เข้าสู่ระบบด้วย Google",
     gNote: "ใช้บัญชี Google (Gmail) เท่านั้น ไม่ต้องตั้งรหัสผ่าน เครดิตเก็บไว้ในบัญชี ใช้ได้ทุกอุปกรณ์",
     gFree: "บัญชีใหม่รับคำถามแรกฟรี 1 ข้อ",
-    gPrivacy: "เราเก็บเฉพาะอีเมลของคุณเพื่อผูกเครดิตกับบัญชี ไม่โพสต์หรือส่งอะไรในนามคุณ",
+    legalPre: "การเข้าสู่ระบบถือว่ายอมรับ", privacyLink: "นโยบายความเป็นส่วนตัว", legalAnd: "และ", termsLink: "ข้อกำหนดการใช้งาน",
+    gPrivacy: "เราใช้อีเมลของคุณเพื่อผูกเครดิตกับบัญชี ไม่โพสต์หรือส่งอะไรในนามคุณ",
     gLoading: "กำลังโหลดปุ่ม Google…",
     gBlocked: "โหลดปุ่ม Google ไม่ได้ ลองปิดตัวบล็อกโฆษณา/โหมดส่วนตัว แล้วรีเฟรชหน้าอีกครั้ง",
     gateCopyG: "ถามไพ่ได้หลังเข้าสู่ระบบด้วย Google (Gmail) เท่านั้น ไม่ต้องตั้งรหัสผ่าน ไม่ถึง 1 นาที แล้วกรอกคำถามได้เลย",
@@ -208,7 +209,8 @@ const I18N = {
     gTitle: "Sign in with Google",
     gNote: "Google (Gmail) accounts only. No password to remember; your credits are saved to your account on every device.",
     gFree: "New accounts get 1 free question",
-    gPrivacy: "We only keep your email to link your credits. We never post or send anything as you.",
+    legalPre: "By signing in you agree to the", privacyLink: "Privacy Policy", legalAnd: "and", termsLink: "Terms of Service",
+    gPrivacy: "We use your email to link your credits to your account. We never post or send anything as you.",
     gLoading: "Loading the Google button…",
     gBlocked: "The Google button didn't load. Try turning off ad blockers / private mode, then reload.",
     gateCopyG: "You can ask after signing in with Google (Gmail). No password, under a minute — then type your question.",
@@ -1311,7 +1313,8 @@ function renderAccountModal() {
       ${msg}
       <p class="acc-free">✨ ${escapeHtml(dict.gFree)}</p>
       <div class="g-btn" id="g-btn"><p class="acc-note">${escapeHtml(dict.gLoading)}</p></div>
-      <p class="acc-privacy">${escapeHtml(dict.gPrivacy)}</p>`;
+      <p class="acc-privacy">${escapeHtml(dict.gPrivacy)}</p>
+      <p class="acc-legal">${escapeHtml(dict.legalPre)} <a href="/privacy" target="_blank" rel="noopener">${escapeHtml(dict.privacyLink)}</a> ${escapeHtml(dict.legalAnd)} <a href="/terms" target="_blank" rel="noopener">${escapeHtml(dict.termsLink)}</a></p>`;
     mountGoogleButton();
     return;
   }

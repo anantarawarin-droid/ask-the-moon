@@ -946,3 +946,20 @@ body[data-lang="en"] .pricing h2 { font-family: var(--font-display); letter-spac
 .acc-free { margin: 0.6rem 0 0; font-weight: 600; color: var(--gold-soft); }
 .acc-privacy { margin: 0.6rem 0 0; font-size: 0.74rem; line-height: 1.55; color: var(--muted); }
 .acc-email { margin: 0.1rem 0 0.3rem; font-size: 0.85rem; color: var(--lilac); word-break: break-all; }
+
+/* ---- legal pages (/privacy, /terms) ---- */
+.legal-page { padding: 1.5rem 4vw 3rem; }
+.legal { max-width: 46rem; margin: 0 auto; padding: 1.6rem 1.4rem 2rem; line-height: 1.75; color: var(--text, #efe7ff); }
+.legal h1 { font-family: var(--font-serif, serif); color: var(--gold-soft); font-size: 1.7rem; margin: 0.4rem 0 0.2rem; }
+.legal h2 { color: var(--gold); font-size: 1.08rem; margin: 1.6rem 0 0.4rem; }
+.legal ul { padding-left: 1.2rem; margin: 0.3rem 0; }
+.legal li { margin: 0.3rem 0; }
+.legal a { color: var(--gold-soft); }
+.legal code { font-size: 0.9em; color: var(--gold-soft); }
+.legal-meta { color: var(--muted); font-size: 0.82rem; margin: 0 0 0.8rem; }
+.legal-nav { font-size: 0.88rem; margin: 0 0 0.6rem; }
+.legal-nav a { text-decoration: none; }
+.legal-links { margin-top: 2rem; text-align: center; color: var(--muted); }
+.legal-sep { border: 0; border-top: 1px solid rgba(212, 175, 55, 0.3); margin: 2.4rem 0 1.4rem; }
+.foot-legal a, .acc-legal a { color: var(--gold-soft); }
+.acc-legal { font-size: 0.75rem; color: var(--muted); text-align: center; margin: 0.5rem 0 0; }
