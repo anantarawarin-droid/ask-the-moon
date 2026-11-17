@@ -60,7 +60,7 @@ class AccountHttp(tc.Http):
     def test_signup_login_logout(self):
         code, data, ck = self.auth("/api/auth/signup", "NamPhet", "moonlight-88", V1)
         self.assertEqual(code, 201)
-        self.assertEqual(data["account"], {"username": "NamPhet"})
+        self.assertEqual(data["account"], {"username": "NamPhet", "google": False})
         self.assertIn("HttpOnly", ck)
         cookie = ck.split(";")[0]
         self.assertEqual(self.me(cookie)["account"]["username"], "NamPhet")

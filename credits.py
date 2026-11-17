@@ -43,6 +43,8 @@ PACKAGE_TABLE: tuple[tuple[int, int], ...] = (
     (150, 15),
 )
 BEST_VALUE_PRICE = 150
+# Google accounts live in moon_users with username_key "google:<sub>" (':' can't appear in a username).
+GOOGLE_KEY_PREFIX = "google:"
 
 
 def _money(value: Decimal) -> str:
@@ -429,10 +431,36 @@ class CreditService:
                     orders += 1
             return {"movedCredits": moved, "movedOrders": orders}
 
+    def upsert_google_user(self, sub: str, email: str, new_id: str) -> dict[str, Any]:
+        """Find the account for this Google `sub` (creating it on first login); keep the email fresh."""
+        key = GOOGLE_KEY_PREFIX + sub
+        with self.store.transaction() as data:
+            for u in data["users"].values():
+                if u["usernameKey"] == key:
+                    if u.get("email") != email:
+                        u["email"] = u["username"] = email
+                    return {"id": u["id"], "username": email, "created": False}
+            data["users"][new_id] = {"id": new_id, "username": email, "usernameKey": key, "email": email,
+                                     "password": "!google", "createdAt": _now()}
+            self._visitor(data, new_id)
+            return {"id": new_id, "username": email, "created": True}
+
+    def list_users(self) -> list[dict[str, Any]]:
+        with self.store.read() as data:
+            out = []
+            for u in data["users"].values():
+                v = data["visitors"].get(u["id"], {})
+                out.append({"username": u["username"], "email": u.get("email"),
+                            "kind": "google" if u["usernameKey"].startswith(GOOGLE_KEY_PREFIX) else "password",
+                            "credits": int(v.get("credits", 0)), "freeUsed": bool(v.get("freeUsed", False)),
+                            "createdAt": u.get("createdAt")})
+        return sorted(out, key=lambda x: x["createdAt"] or "", reverse=True)
+
     def usernames_for(self, data: dict[str, Any], orders: list[dict[str, Any]]) -> None:
         for o in orders:
             u = data["users"].get(o["visitor"])
             o["username"] = u["username"] if u else None
+            o["email"] = u.get("email") if u else None
 
     # -- slips ----------------------------------------------------------------
     def begin_slip_check(self, code: str, visitor_id: str, max_attempts: int) -> dict[str, Any]:
@@ -671,6 +699,7 @@ CREATE INDEX IF NOT EXISTS moon_sessions_user_idx ON moon_sessions (user_id);
 ALTER TABLE moon_visitors ADD COLUMN IF NOT EXISTS merged_into TEXT;
 ALTER TABLE moon_users ADD COLUMN IF NOT EXISTS birth_date TEXT;
 ALTER TABLE moon_users ADD COLUMN IF NOT EXISTS birth_time TEXT;
+ALTER TABLE moon_users ADD COLUMN IF NOT EXISTS email TEXT;
 """
 
 
@@ -881,7 +910,7 @@ class PostgresCreditService:
     def list_orders(self, status: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
         def fn(cur):
             cols = ", ".join("o." + c.strip() for c in self.ORDER_COLS.split(","))
-            sql = (f"SELECT {cols}, COALESCE(v.credits, 0), u.username FROM moon_orders o "
+            sql = (f"SELECT {cols}, COALESCE(v.credits, 0), u.username, u.email FROM moon_orders o "
                    "LEFT JOIN moon_visitors v ON v.id = o.visitor "
                    "LEFT JOIN moon_users u ON u.id = o.visitor ")
             params: tuple = ()
@@ -895,6 +924,7 @@ class PostgresCreditService:
                 o = self._order(r[: self.NCOLS])
                 o["visitorCredits"] = int(r[self.NCOLS])
                 o["username"] = r[self.NCOLS + 1]
+                o["email"] = r[self.NCOLS + 2]
                 out.append(o)
             return out
         return self._run(fn)
@@ -987,6 +1017,29 @@ class PostgresCreditService:
                 "WHERE s.token_hash = %s AND s.expires_at > now()", (token_hash,))
             r = cur.fetchone()
             return {"id": r[0], "username": r[1], "birthDate": r[2], "birthTime": r[3]} if r else None
+        return self._run(fn)
+
+    def upsert_google_user(self, sub: str, email: str, new_id: str) -> dict[str, Any]:
+        key = GOOGLE_KEY_PREFIX + sub
+
+        def fn(cur):
+            cur.execute(
+                "INSERT INTO moon_users (id, username, username_key, password, email) VALUES (%s, %s, %s, '!google', %s) "
+                "ON CONFLICT (username_key) DO UPDATE SET email = EXCLUDED.email, username = EXCLUDED.email "
+                "RETURNING id, (xmax = 0)", (new_id, email, key, email))
+            uid, created = cur.fetchone()
+            cur.execute("INSERT INTO moon_visitors (id) VALUES (%s) ON CONFLICT (id) DO NOTHING", (uid,))
+            return {"id": uid, "username": email, "created": bool(created)}
+        return self._run(fn)
+
+    def list_users(self) -> list[dict[str, Any]]:
+        def fn(cur):
+            cur.execute("SELECT u.username, u.email, u.username_key, COALESCE(v.credits, 0), COALESCE(v.free_used, FALSE), "
+                        "u.created_at FROM moon_users u LEFT JOIN moon_visitors v ON v.id = u.id "
+                        "ORDER BY u.created_at DESC LIMIT 2000")
+            return [{"username": r[0], "email": r[1],
+                     "kind": "google" if r[2].startswith(GOOGLE_KEY_PREFIX) else "password",
+                     "credits": int(r[3]), "freeUsed": bool(r[4]), "createdAt": _iso(r[5])} for r in cur.fetchall()]
         return self._run(fn)
 
     def set_birth(self, user_id: str, birth_date: str | None, birth_time: str | None) -> None:

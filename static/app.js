@@ -13,6 +13,14 @@ const I18N = {
     gateSignup: "สมัครฟรี",
     gateLogin: "เข้าสู่ระบบ",
     accReady: "พร้อมแล้ว! กรอกชื่อ วันเกิด และคำถามได้เลยค่ะ",
+    gTitle: "เข้าสู่ระบบด้วย Google",
+    gNote: "ใช้บัญชี Google (Gmail) เท่านั้น ไม่ต้องตั้งรหัสผ่าน เครดิตเก็บไว้ในบัญชี ใช้ได้ทุกอุปกรณ์",
+    gFree: "บัญชีใหม่รับคำถามแรกฟรี 1 ข้อ",
+    gPrivacy: "เราเก็บเฉพาะอีเมลของคุณเพื่อผูกเครดิตกับบัญชี ไม่โพสต์หรือส่งอะไรในนามคุณ",
+    gLoading: "กำลังโหลดปุ่ม Google…",
+    gBlocked: "โหลดปุ่ม Google ไม่ได้ ลองปิดตัวบล็อกโฆษณา/โหมดส่วนตัว แล้วรีเฟรชหน้าอีกครั้ง",
+    gateCopyG: "ถามไพ่ได้หลังเข้าสู่ระบบด้วย Google (Gmail) เท่านั้น ไม่ต้องตั้งรหัสผ่าน ไม่ถึง 1 นาที แล้วกรอกคำถามได้เลย",
+    gateSignupG: "เข้าสู่ระบบด้วย Google",
     forgotLink: "ลืมรหัสผ่าน?",
     forgotHow: "ไม่ต้องกังวลค่ะ ทักแอดมินทางช่องทางด้านล่าง พร้อมแจ้ง “ชื่อผู้ใช้” ของคุณ แอดมินจะตั้งรหัสผ่านชั่วคราวให้ เข้าสู่ระบบแล้วเปลี่ยนรหัสใหม่ได้ที่เมนูบัญชี เครดิตของคุณยังอยู่ครบ",
     forgotNone: "ติดต่อแอดมินพร้อมแจ้งชื่อผู้ใช้ของคุณ",
@@ -149,6 +157,8 @@ const I18N = {
     accForgot: "ลืมรหัสผ่าน? ทัก LINE: ivymoonask แอดมินจะตั้งรหัสชั่วคราวให้",
     accErr: {
       bad_login: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
+      bad_google_token: "เข้าสู่ระบบด้วย Google ไม่สำเร็จ กรุณาลองใหม่",
+      google_only: "ตอนนี้เข้าสู่ระบบด้วย Google ได้อย่างเดียวค่ะ",
       username_taken: "ชื่อผู้ใช้นี้มีคนใช้แล้ว ลองชื่ออื่นนะคะ",
       bad_username: "ชื่อผู้ใช้ต้องมี 3–20 ตัว ใช้ได้เฉพาะ a-z, 0-9 และ _",
       weak_password: "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร",
@@ -195,6 +205,14 @@ const I18N = {
     gateSignup: "Sign up free",
     gateLogin: "Log in",
     accReady: "You're in! Fill in your name, birthday and question.",
+    gTitle: "Sign in with Google",
+    gNote: "Google (Gmail) accounts only. No password to remember; your credits are saved to your account on every device.",
+    gFree: "New accounts get 1 free question",
+    gPrivacy: "We only keep your email to link your credits. We never post or send anything as you.",
+    gLoading: "Loading the Google button…",
+    gBlocked: "The Google button didn't load. Try turning off ad blockers / private mode, then reload.",
+    gateCopyG: "You can ask after signing in with Google (Gmail). No password, under a minute — then type your question.",
+    gateSignupG: "Sign in with Google",
     forgotLink: "Forgot password?",
     forgotHow: "No worries. Message the admin on one of the channels below with your username. The admin will set a temporary password; log in and change it from the account menu. Your credits stay safe.",
     forgotNone: "Contact the admin with your username.",
@@ -331,6 +349,8 @@ const I18N = {
     accForgot: "Forgot your password? Message LINE: ivymoonask and the admin will set a temporary one.",
     accErr: {
       bad_login: "Wrong username or password.",
+      bad_google_token: "Google sign-in failed. Please try again.",
+      google_only: "Please sign in with Google.",
       username_taken: "That username is taken. Try another one.",
       bad_username: "Usernames are 3–20 characters: a-z, 0-9 and _ only.",
       weak_password: "Passwords need at least 8 characters.",
@@ -395,6 +415,8 @@ const state = {
   accountMsg: null,
   accountBusy: false,
   afterLogin: null,
+  authMode: "password",
+  googleClientId: null,
 };
 
 function api(path, options = {}) {
@@ -1106,7 +1128,7 @@ function renderAccountButton() {
   const btn = document.getElementById("account-btn");
   if (!label) return;
   if (state.account) {
-    label.textContent = state.account.username;
+    label.textContent = shortName(state.account.username);
     btn.classList.add("is-in");
   } else {
     label.textContent = t().accountLogin;
@@ -1137,6 +1159,94 @@ function accErrText(code, fallback) {
   return dict.accErr[code] || fallback || dict.accErr.network;
 }
 
+let gisPromise = null;
+
+function loadGis() {
+  if (window.google && window.google.accounts && window.google.accounts.id) return Promise.resolve(true);
+  if (gisPromise) return gisPromise;
+  gisPromise = new Promise((resolve) => {
+    const s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client?hl=" + (state.lang === "th" ? "th" : "en");
+    s.async = true;
+    s.defer = true;
+    s.onload = () => resolve(true);
+    s.onerror = () => { gisPromise = null; resolve(false); };
+    document.head.appendChild(s);
+  });
+  return gisPromise;
+}
+
+let gisReady = false;
+
+async function mountGoogleButton() {
+  const slot = document.getElementById("g-btn");
+  if (!slot) return;
+  const ok = await loadGis();
+  const slotNow = document.getElementById("g-btn");
+  if (!slotNow) return;
+  if (!ok || !window.google || !window.google.accounts) {
+    slotNow.innerHTML = `<p class="acc-msg error">${escapeHtml(t().gBlocked)}</p>`;
+    return;
+  }
+  if (!gisReady) {
+    window.google.accounts.id.initialize({
+      client_id: state.googleClientId,
+      callback: onGoogleCredential,
+      ux_mode: "popup",
+      auto_select: false,
+      cancel_on_tap_outside: true,
+      itp_support: true,
+    });
+    gisReady = true;
+  }
+  slotNow.innerHTML = "";
+  const width = Math.min(320, Math.max(220, slotNow.clientWidth || 300));
+  window.google.accounts.id.renderButton(slotNow, {
+    type: "standard", theme: "filled_black", size: "large", shape: "pill",
+    text: "continue_with", logo_alignment: "left", width, locale: state.lang === "th" ? "th" : "en",
+  });
+}
+
+async function onGoogleCredential(response) {
+  const dict = t();
+  state.accountBusy = true;
+  state.accountMsg = { kind: "info", text: dict.accBusy };
+  renderAccountModal();
+  try {
+    const { response: res, data } = await api("/api/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ credential: response && response.credential }),
+    });
+    state.accountBusy = false;
+    if (!res.ok || !data.ok) {
+      state.accountMsg = { kind: "error", text: accErrText(data.code, data.error) };
+      renderAccountModal();
+      return;
+    }
+    finishLogin(data);
+  } catch (_) {
+    state.accountBusy = false;
+    state.accountMsg = { kind: "error", text: dict.accErr.network };
+    renderAccountModal();
+  }
+}
+
+function finishLogin(data) {
+  const dict = t();
+  setBalance(data);
+  const moved = data.merged ? data.merged.movedCredits : 0;
+  const next = state.afterLogin;
+  state.afterLogin = null;
+  document.getElementById("account-modal").hidden = true;
+  toast([dict.accWelcome(shortName(data.account.username)), dict.accMerged(moved)].filter(Boolean).join(" · "));
+  checkOrders();
+  if (next) next();
+}
+
+function shortName(u) {
+  return String(u || "").split("@")[0];
+}
+
 function forgotHtml(dict) {
   const list = (state.contacts || []).map((c) =>
     `<li><a href="${escapeHtml(c.url)}" target="_blank" rel="noopener"><b>${escapeHtml(c.label)}</b> ${escapeHtml(c.value)}</a></li>`).join("");
@@ -1156,6 +1266,11 @@ function renderGate() {
   const out = !state.account;
   gate.hidden = !out;
   fields.disabled = out;
+  const dict = t();
+  const g = state.authMode === "google";
+  document.getElementById("gate-login").hidden = g;
+  document.getElementById("gate-signup").textContent = g ? dict.gateSignupG : dict.gateSignup;
+  document.querySelector("#login-gate .gate-copy").textContent = g ? dict.gateCopyG : dict.gateCopy;
   fields.classList.toggle("is-locked", out);
 }
 
@@ -1167,10 +1282,11 @@ function renderAccountModal() {
   if (state.account) {
     box.innerHTML = `
       <div class="acc-avatar" aria-hidden="true">☾</div>
-      <h3 id="account-title">${escapeHtml(dict.accHello(state.account.username))}</h3>
+      <h3 id="account-title">${escapeHtml(dict.accHello(shortName(state.account.username)))}</h3>
+      ${state.account.google ? `<p class="acc-email">${escapeHtml(state.account.username)}</p>` : ""}
       <p class="acc-balance">${escapeHtml(dict.accBalance(state.balance.credits))}</p>
       ${msg}
-      <details class="acc-change">
+      ${state.account.google || state.authMode === "google" ? "" : `<details class="acc-change">
         <summary>${escapeHtml(dict.accChangePw)}</summary>
         <form id="acc-pw-form" class="acc-form" novalidate>
           <label><span>${escapeHtml(dict.accCurrentPw)}</span>
@@ -1180,10 +1296,23 @@ function renderAccountModal() {
             <small>${escapeHtml(dict.accPassHint)}</small></label>
           <button type="submit" class="btn ghost" ${state.accountBusy ? "disabled" : ""}>${escapeHtml(dict.accChangePw)}</button>
         </form>
-      </details>
+      </details>`}
       <button type="button" class="btn gold" id="acc-logout">${escapeHtml(dict.accLogout)}</button>`;
     document.getElementById("acc-logout").addEventListener("click", logout);
-    document.getElementById("acc-pw-form").addEventListener("submit", changePassword);
+    const pwForm = document.getElementById("acc-pw-form");
+    if (pwForm) pwForm.addEventListener("submit", changePassword);
+    return;
+  }
+  if (state.authMode === "google") {
+    box.innerHTML = `
+      <div class="acc-avatar" aria-hidden="true">☾</div>
+      <h3 id="account-title">${escapeHtml(dict.gTitle)}</h3>
+      <p class="acc-note">${escapeHtml(dict.gNote)}</p>
+      ${msg}
+      <p class="acc-free">✨ ${escapeHtml(dict.gFree)}</p>
+      <div class="g-btn" id="g-btn"><p class="acc-note">${escapeHtml(dict.gLoading)}</p></div>
+      <p class="acc-privacy">${escapeHtml(dict.gPrivacy)}</p>`;
+    mountGoogleButton();
     return;
   }
   const signup = state.accountMode === "signup";
@@ -1247,14 +1376,7 @@ async function submitAccount(event) {
       document.getElementById("acc-user").value = username;
       return;
     }
-    setBalance(data);
-    const moved = data.merged ? data.merged.movedCredits : 0;
-    const next = state.afterLogin;
-    state.afterLogin = null;
-    document.getElementById("account-modal").hidden = true;
-    toast([dict.accWelcome(data.account.username), dict.accMerged(moved)].filter(Boolean).join(" · "));
-    checkOrders();
-    if (next) next();
+    finishLogin(data);
   } catch (_) {
     state.accountBusy = false;
     state.accountMsg = { kind: "error", text: dict.accErr.network };
@@ -1308,6 +1430,20 @@ function setupAccount() {
   renderAccountButton();
 }
 
+async function loadAuthConfig() {
+  try {
+    const { response, data } = await api("/api/auth/config");
+    if (response.ok && data.ok) {
+      state.authMode = data.mode === "google" && data.googleClientId ? "google" : "password";
+      state.googleClientId = data.googleClientId || null;
+      renderGate();
+      if (state.authMode === "google") loadGis(); // warm up so the button appears instantly
+      const modal = document.getElementById("account-modal");
+      if (modal && !modal.hidden) renderAccountModal();
+    }
+  } catch (_) { /* keep password mode */ }
+}
+
 function setup() {
   const dateInput = document.getElementById("birthDate");
   dateInput.max = new Date().toISOString().slice(0, 10);
@@ -1337,6 +1473,7 @@ function setup() {
   document.getElementById("reading-form").addEventListener("submit", onSubmit);
   setupPricing();
   setupAccount();
+  loadAuthConfig();
   applyLang();
   paintStars();
   loadPackages();

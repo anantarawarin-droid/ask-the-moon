@@ -88,6 +88,14 @@
       </table>
       <p class="err" id="panel-err" hidden></p>
     </div>
+    <div class="card" id="users-card" style="margin-top:1rem">
+      <h3 style="margin:0 0 .4rem">บัญชีลูกค้า · Accounts <small id="users-count" style="color:var(--muted)"></small></h3>
+      <p class="sub" id="users-mode" style="margin:0 0 .6rem"></p>
+      <table>
+        <thead><tr><th>อีเมล / ชื่อผู้ใช้</th><th>ประเภท</th><th>คำถามคงเหลือ</th><th>คำถามฟรี</th><th>สมัครเมื่อ (เวลาไทย)</th></tr></thead>
+        <tbody id="user-rows"></tbody>
+      </table>
+    </div>
     <div class="card" id="reset-card" style="margin-top:1rem">
       <h3 style="margin:0 0 .4rem">รีเซ็ตรหัสผ่านลูกค้า · Reset a customer's password</h3>
       <p class="sub" style="margin:0 0 .6rem">ใส่ชื่อผู้ใช้ แตะ 2 ครั้ง แล้วส่งรหัสชั่วคราวให้ลูกค้าทาง LINE · ลูกค้าเปลี่ยนรหัสเองได้ในเมนูบัญชี</p>
@@ -151,8 +159,28 @@
       + `</span>`;
   }
 
+  let googleMode = false;
+  async function loadUsers() {
+    const data = await call("/api/admin/users");
+    googleMode = data.mode === "google";
+    $("reset-card").hidden = googleMode;
+    $("users-mode").textContent = googleMode
+      ? "โหมดเข้าสู่ระบบด้วย Google เท่านั้น (ตั้ง GOOGLE_CLIENT_ID แล้ว) · Google sign-in only"
+      : "โหมดชื่อผู้ใช้ + รหัสผ่าน (ยังไม่ได้ตั้ง GOOGLE_CLIENT_ID) · Username + password mode";
+    $("users-count").textContent = `(${data.users.length})`;
+    $("user-rows").innerHTML = data.users.map((u) => `
+      <tr>
+        <td><b class="uname">${esc(u.email || u.username)}</b></td>
+        <td>${u.kind === "google" ? "Google" : "รหัสผ่าน"}</td>
+        <td>${esc(u.credits)}</td>
+        <td>${u.freeUsed ? "ใช้แล้ว" : "ยังไม่ใช้"}</td>
+        <td>${esc(fmt(u.createdAt))}</td>
+      </tr>`).join("") || `<tr><td colspan="5" class="empty">ยังไม่มีบัญชี</td></tr>`;
+  }
+
   let loadSeq = 0;
   async function load() {
+    loadUsers().catch(() => {});
     const seq = ++loadSeq;
     $("panel-err").hidden = true;
     const data = await call("/api/admin/orders" + (status ? "?status=" + status : ""));
@@ -161,7 +189,7 @@
     const rows = data.orders.map((o) => `
       <tr>
         <td class="code">${esc(o.code)}</td>
-        <td>${o.username ? `<b class="uname">${esc(o.username)}</b><br><button class="ghost mini" data-reset="${esc(o.username)}">รีเซ็ตรหัส</button>` : `<small style="color:var(--muted)">ไม่มีบัญชี</small>`}</td>
+        <td>${o.email || o.username ? `<b class="uname">${esc(o.email || o.username)}</b>${!o.email && !googleMode ? `<br><button class="ghost mini" data-reset="${esc(o.username)}">รีเซ็ตรหัส</button>` : ""}` : `<small style="color:var(--muted)">ไม่มีบัญชี</small>`}</td>
         <td>฿${esc(o.price)}</td>
         <td>${esc(o.questions)}${o.bonus ? ` <small>(โบนัส ${esc(o.bonus)})</small>` : ""}</td>
         <td>${esc(fmt(o.createdAt))}</td>

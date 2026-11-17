@@ -25,6 +25,7 @@ import slips
 import tarot
 import accounts
 import birthprofile
+import google_auth
 
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
@@ -374,7 +375,7 @@ class Handler(SimpleHTTPRequestHandler):
         if not user:
             # Asking needs an account; the free question is one per account.
             return {"account": None, "credits": bal["credits"], "freeAvailable": False, "loginRequired": True}
-        return {"account": {"username": user["username"]},
+        return {"account": {"username": user["username"], "google": "@" in user["username"]},
                 "birth": {"date": user.get("birthDate"), "time": user.get("birthTime")}, **bal}
 
     def _start_session(self, user: dict[str, Any], visitor: str | None, status: int = 200) -> None:
@@ -439,6 +440,16 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if route == "/api/packages":
             self._send(200, packages_payload())
+            return
+        if route == "/api/auth/config":
+            self._send(200, auth_config())
+            return
+        if route == "/api/admin/users":
+            def run() -> None:
+                if not self._admin_check():
+                    return
+                self._send(200, {"ok": True, "mode": auth_config()["mode"], "users": SERVICE.list_users()})
+            self._handle(run)
             return
         if route == "/api/contacts":
             self._send(200, {"ok": True, "contacts": contacts_payload()})
@@ -556,9 +567,34 @@ class Handler(SimpleHTTPRequestHandler):
         self._send(404, {"ok": False, "error": "Not found."})
 
 
+def auth_config() -> dict[str, Any]:
+    cid = google_auth.client_id()
+    return {"ok": True, "mode": "google" if cid else "password", "googleClientId": cid}
+
+
+GOOGLE_ONLY = ("/api/auth/signup", "/api/auth/login", "/api/auth/password", "/api/admin/reset-password")
+
+
 def _auth_post(self, route: str) -> None:
     body = self._json_body()
     ip = self._client_ip()
+    cid = google_auth.client_id()
+    if cid and route in GOOGLE_ONLY:
+        raise accounts.AuthError("Please sign in with Google.", 403, "google_only")
+    if route == "/api/auth/google":
+        if not cid:
+            raise accounts.AuthError("Google sign-in is not set up yet.", 503, "google_disabled")
+        if not accounts.LOGIN_BY_IP.allow(ip):
+            raise accounts.AuthError("Too many login attempts. Please wait a few minutes.", 429, "rate_limited")
+        try:
+            claims = google_auth.verify_id_token(body.get("credential"), cid)
+        except google_auth.GoogleAuthError as exc:
+            print(f"Google sign-in rejected: {exc}", flush=True)
+            raise accounts.AuthError("Google sign-in failed. Please try again.", 401, "bad_google_token") from None
+        email = str(claims["email"]).strip().lower()
+        user = SERVICE.upsert_google_user(claims["sub"], email, accounts.new_account_id())
+        self._start_session(user, self._visitor(), 201 if user.get("created") else 200)
+        return
     if route == "/api/auth/signup":
         if not accounts.SIGNUP_BY_IP.allow(ip) or not accounts.SIGNUP_GLOBAL.allow("all"):
             raise accounts.AuthError("Too many sign-ups. Please try again later.", 429, "rate_limited")

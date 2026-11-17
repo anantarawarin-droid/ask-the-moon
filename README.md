@@ -151,3 +151,20 @@ The login modal's “ลืมรหัสผ่าน?” section lists the adm
 `CONTACT_LINE` defaults to `ivymoonask` (set it to an empty value to hide LINE). Optional: `CONTACT_TIKTOK`,
 `CONTACT_IG`, `CONTACT_FACEBOOK`, `CONTACT_EMAIL` (handles without `@` are fine; badly formatted values are ignored).
 They are also returned by `GET /api/contacts` and in `/api/packages`.
+
+## Google Sign-In (Google-only accounts)
+
+Set `GOOGLE_CLIENT_ID` on Render (a Web OAuth client ID from Google Cloud; no client secret is used) and the site
+switches to **Google-only**: the login modal shows only “Sign in with Google”, username/password sign-up, login,
+change-password and admin password reset are turned off (`403 google_only`). Without the variable, the
+username/password system keeps working.
+
+* The browser gets an ID token from Google Identity Services and POSTs it to `/api/auth/google`.
+* `google_auth.py` verifies it with the standard library: Google's JWKS (cached per Cache-Control), RS256
+  (RSASSA-PKCS1-v1_5/SHA-256 via `pow()`), `aud == GOOGLE_CLIENT_ID`, Google issuer, `exp`/`iat`, `email_verified`.
+* Accounts are keyed by the Google `sub` (stored as `username_key = "google:<sub>"`), with the email saved for display.
+  First login merges the device's anonymous paid credits and pending orders; each Google account gets 1 free question.
+* Admin: `/admin` lists accounts by email (`GET /api/admin/users`); orders show the customer's email.
+
+Authorized JavaScript origins for the OAuth client: `https://foolmoon.lol`, `https://www.foolmoon.lol`,
+`https://ask-the-moon.onrender.com` (no redirect URIs needed for the popup/ID-token flow).
