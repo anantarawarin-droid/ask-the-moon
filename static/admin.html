@@ -50,7 +50,11 @@
     @media (max-width: 640px) {
       table, thead, tbody, tr, td { display:block; } thead { display:none; }
       tr { border-bottom: 1px solid var(--line); padding: .5rem 0; } td { border:0; padding: .2rem 0; }
+      td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); font-size: .78rem; }
     }
+    .wait { display:block; margin-top:.3rem; font-size:.75rem; color: var(--muted); }
+    .need { display:block; margin-top:.3rem; font-size:.78rem; font-weight:700; color:#ffd27a; }
+    tr.needs-review td { background: rgba(212,175,55,.07); }
   </style>
 </head>
 <body>
@@ -144,15 +148,36 @@
   }
 
   const SLIP_LABEL = { verified: "สลิปผ่าน (อัตโนมัติ)", review: "สลิป: ต้องตรวจเอง", failed: "สลิปไม่ผ่าน" };
+  // Thai reason from the (English) note the server keeps on the order.
+  function slipReason(o) {
+    const n = String(o.slipNote || "");
+    if (/1012|repeated|already used/.test(n)) return "สลิปซ้ำ";
+    if (/1013|amount/.test(n)) return "ยอดไม่ตรง";
+    if (/1014|receiver|different account/.test(n)) return "บัญชีผู้รับไม่ตรง";
+    if (/1000-422|HTTP 422/.test(n)) return "ระบบตรวจสลิป (SlipOK) ใช้งานไม่ได้ตอนนี้ ไม่ใช่ความผิดลูกค้า · เช็กเงินเข้าแอปธนาคารแล้วอนุมัติเอง";
+    if (/100[1-4]|setup|quota|package|API key|branch/.test(n)) return "ตั้งค่า SlipOK มีปัญหา (แพ็กเกจ/โควตา/คีย์)";
+    if (/1010|delay/.test(n)) return "ธนาคารนี้ต้องรอสักครู่ก่อนตรวจได้";
+    if (/1009|1011|not available/.test(n)) return "ธนาคารยังไม่มีข้อมูลรายการนี้";
+    if (/unreachable|timeout|network/.test(n)) return "ติดต่อระบบตรวจสลิปไม่ได้";
+    if (/1000|1005|1006|1007|1008|readable/.test(n)) return "สลิปอ่านไม่ได้";
+    return "";
+  }
+  const needsReview = (o) => o.status === "pending" && (o.slipStatus === "review" || o.slipStatus === "failed");
+  const minsAgo = (iso) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
   function slipInfo(o) {
-    if (!o.slipStatus) return "";
+    if (!o.slipStatus) {
+      return o.status === "pending"
+        ? `<span class="wait">⏳ รอลูกค้าอัปโหลดสลิป · สร้างเมื่อ ${esc(minsAgo(o.createdAt))} นาทีที่แล้ว</span>` : "";
+    }
+    const why = slipReason(o);
+    const head = needsReview(o) ? `<span class="need">⚠️ ต้องตรวจเอง${why ? " · " + esc(why) : ""}</span>` : "";
     const s = o.slipSummary || {};
     const bits = [];
     if (s.amount != null) bits.push("฿" + s.amount);
     if (s.sender) bits.push("จาก " + s.sender);
     if (s.transDate || s.transTime) bits.push([s.transDate, s.transTime].filter(Boolean).join(" "));
     if (o.slipTransRef || s.transRef) bits.push("ref " + (o.slipTransRef || s.transRef));
-    return `<span class="slip"><b class="${esc(o.slipStatus)}">${esc(SLIP_LABEL[o.slipStatus] || o.slipStatus)}</b>`
+    return head + `<span class="slip"><b class="${esc(o.slipStatus)}">${esc(SLIP_LABEL[o.slipStatus] || o.slipStatus)}</b>`
       + (o.slipNote ? ` · ${esc(o.slipNote)}` : "")
       + (bits.length ? `<br>${esc(bits.join(" · "))}` : "")
       + (o.slipAttempts ? ` <br>อัปโหลด ${esc(o.slipAttempts)} ครั้ง` : "")
@@ -171,10 +196,10 @@
     $("user-rows").innerHTML = data.users.map((u) => `
       <tr>
         <td><b class="uname">${esc(u.email || u.username)}</b></td>
-        <td>${u.kind === "google" ? "Google" : "รหัสผ่าน"}</td>
-        <td>${esc(u.credits)}</td>
-        <td>${u.freeUsed ? "ใช้แล้ว" : "ยังไม่ใช้"}</td>
-        <td>${esc(fmt(u.createdAt))}</td>
+        <td data-label="ประเภท">${u.kind === "google" ? "Google" : "รหัสผ่าน"}</td>
+        <td data-label="เครดิต">${esc(u.credits)}</td>
+        <td data-label="ข้อฟรี">${u.freeUsed ? "ใช้แล้ว" : "ยังไม่ใช้"}</td>
+        <td data-label="สมัครเมื่อ">${esc(fmt(u.createdAt))}</td>
       </tr>`).join("") || `<tr><td colspan="5" class="empty">ยังไม่มีบัญชี</td></tr>`;
   }
 
@@ -186,16 +211,19 @@
     const data = await call("/api/admin/orders" + (status ? "?status=" + status : ""));
     if (seq !== loadSeq) return; // a newer list request is on its way; ignore this stale one
     $("login").hidden = true; $("panel").hidden = false;
-    const rows = data.orders.map((o) => `
-      <tr>
+    // Orders that need a look (slip uploaded but not passed) first; the rest keep the server's order.
+    const orders = data.orders.map((o, i) => [o, i])
+      .sort((a, b) => (needsReview(b[0]) - needsReview(a[0])) || (a[1] - b[1])).map((x) => x[0]);
+    const rows = orders.map((o) => `
+      <tr class="${needsReview(o) ? "needs-review" : ""}">
         <td class="code">${esc(o.code)}</td>
         <td>${o.email || o.username ? `<b class="uname">${esc(o.email || o.username)}</b>${!o.email && !googleMode ? `<br><button class="ghost mini" data-reset="${esc(o.username)}">รีเซ็ตรหัส</button>` : ""}` : `<small style="color:var(--muted)">ไม่มีบัญชี</small>`}</td>
-        <td>฿${esc(o.price)}</td>
-        <td>${esc(o.questions)}${o.bonus ? ` <small>(โบนัส ${esc(o.bonus)})</small>` : ""}</td>
-        <td>${esc(fmt(o.createdAt))}</td>
+        <td data-label="ยอด">฿${esc(o.price)}</td>
+        <td data-label="คำถาม">${esc(o.questions)}${o.bonus ? ` <small>(โบนัส ${esc(o.bonus)})</small>` : ""}</td>
+        <td data-label="เวลา">${esc(fmt(o.createdAt))}</td>
         <td><span class="pill ${esc(o.status)}">${esc(o.status)}</span>${slipInfo(o)}</td>
         <td class="row">${o.status === "pending"
-          ? `<button class="ok" data-act="approve" data-code="${esc(o.code)}">อนุมัติ</button>
+          ? `<button class="ok" data-act="approve" data-code="${esc(o.code)}" data-noslip="${o.slipStatus ? "" : "1"}">อนุมัติ</button>
              <button class="no" data-act="reject" data-code="${esc(o.code)}">ปฏิเสธ</button>`
           : `<small style="color:var(--muted)">${esc(fmt(o.decidedAt))}</small>`}</td>
       </tr>`).join("");
@@ -237,6 +265,14 @@
       disarm();
       armed = { btn: b, label: b.textContent, timer: setTimeout(disarm, 5000) };
       b.classList.add("armed");
+      const noSlip = act === "approve" && b.dataset.noslip === "1";
+      if (noSlip) {
+        // Two taps, not a native dialog (some in-app browsers silently block those).
+        clearTimeout(armed.timer); armed.timer = setTimeout(disarm, 8000);
+        b.textContent = "เห็นเงินเข้าแล้ว แตะอีกครั้ง";
+        notice(`ลูกค้ายังไม่ได้อัปโหลดสลิป เห็นเงินเข้าบัญชีแล้วจริงไหม? (${code} · แตะอีกครั้งเพื่ออนุมัติ)`, "bad", 8000);
+        return;
+      }
       b.textContent = act === "approve" ? "แตะอีกครั้งเพื่ออนุมัติ" : "แตะอีกครั้งเพื่อปฏิเสธ";
       notice(act === "approve" ? `แตะอีกครั้งเพื่ออนุมัติ ${code} และเพิ่มคำถามให้ลูกค้า` : `แตะอีกครั้งเพื่อปฏิเสธ ${code}`, "info", 5000);
       return;

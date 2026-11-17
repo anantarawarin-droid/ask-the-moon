@@ -304,10 +304,9 @@ class SlipHttp(tc.Http):
         # No QR from the browser: no second call.
         self.calls.clear()
         other = self.order(30)
-        with self.mock_slipok((400, err_payload(1000)), (400, err_payload(1000))):
+        with self.mock_slipok((400, err_payload(1000)), (200, ok_payload("REF-QR2", 30))):
             _, data = self.upload(other)
-        # Only the "without log" fallback; nothing to retry with.
-        self.assertEqual((data["result"], self.calls), ("failed", [("image/png", None), ("image/png", None, "nolog")]))
+        self.assertEqual((data["result"], len(self.calls)), ("failed", 1))
         # A readable image is never re-checked with the QR text.
         self.calls.clear()
         third = self.order(45)
@@ -315,35 +314,24 @@ class SlipHttp(tc.Http):
             _, data = self.upload(third, qr=qr)
         self.assertEqual(len(self.calls), 1)
 
-    def test_request_rejected_everywhere_tries_each_way_then_asks_again(self):
+    def test_422_1000_is_a_setup_problem_not_the_customers_slip(self):
         """Live 17 Nov: SlipOK answered HTTP 422 code 1000 to the image and to the QR text."""
         qr = "0041000600000101030040220013071152533APM077365102TH91048134"
         code = self.order()
         rej = (422, {"code": 1000, "message": "กรุณาใส่ข้อมูลให้ถูกต้อง"})
         with self.mock_slipok(rej):
             _, data = self.upload(code, qr=qr)
-        self.assertEqual(self.calls, [("image/png", None), ("image/png", None, qr),
-                                      ("image/png", None, qr, "form"), ("image/png", None, "nolog")])
-        self.assertEqual((data["result"], data["code"]), ("failed", "1000"))
-        self.assertEqual(self.admin_order(code)["slipAttempts"], 0)
-
-    def test_qr_form_fallback_can_approve(self):
-        qr = "0041000600000101030040220013071152533APM077365102TH91048134"
-        code = self.order()
-        rej = (422, {"code": 1000, "message": "กรุณาใส่ข้อมูลให้ถูกต้อง"})
-        with self.mock_slipok(rej, rej, (200, ok_payload("REF-FORM"))):
+        self.assertEqual(self.calls, [("image/png", None), ("image/png", None, qr)])
+        self.assertEqual((data["result"], data["code"]), ("review", "1000-422"))
+        self.assertIn("ไม่ต้องอัปโหลดซ้ำ", data["messageTh"])
+        order = self.admin_order(code)
+        self.assertEqual((order["status"], order["slipStatus"], order["slipAttempts"]), ("pending", "review", 0))
+        self.assertIn("setup", order["slipNote"])
+        # Once SlipOK works again the same order still auto-approves.
+        self.calls.clear()
+        with self.mock_slipok((200, ok_payload("REF-AFTER"))):
             _, data = self.upload(code, qr=qr)
         self.assertEqual(data["result"], "success")
-        self.assertEqual(self.admin_order(code)["status"], "approved")
-
-    def test_pass_without_log_goes_to_review_not_auto_approve(self):
-        code = self.order()
-        with self.mock_slipok((422, err_payload(1000)), (200, ok_payload("REF-NOLOG"))):
-            _, data = self.upload(code)
-        self.assertEqual(data["result"], "review")
-        order = self.admin_order(code)
-        self.assertEqual((order["status"], order["slipStatus"]), ("pending", "review"))
-        self.assertIn("log", order["slipNote"])
 
     def test_bad_qr_header_ignored(self):
         self.assertIsNone(slips.clean_qr("short"))
@@ -434,3 +422,32 @@ class BrowserQr(unittest.TestCase):
         self.assertIn('headers["X-Slip-QR"] = encodeURIComponent(prepared.qr)', js)
         self.assertIn('s.src = "/vendor/jsQR.js"', js)
         self.assertTrue(os.path.exists(os.path.join(static, "vendor", "jsQR.js")))
+
+
+class AdminPage(unittest.TestCase):
+    """Static checks on the admin page's slip labels and the no-slip approve guard."""
+
+    def setUp(self):
+        self.html = (Path(__file__).resolve().parent.parent / "static" / "admin.html").read_text("utf-8")
+
+    def test_waiting_for_slip_label(self):
+        self.assertIn("⏳ รอลูกค้าอัปโหลดสลิป · สร้างเมื่อ", self.html)
+        self.assertIn("นาทีที่แล้ว", self.html)
+
+    def test_review_reasons_in_thai_and_sorted_first(self):
+        for reason in ("สลิปอ่านไม่ได้", "ยอดไม่ตรง", "สลิปซ้ำ", "ต้องตรวจเอง"):
+            self.assertIn(reason, self.html)
+        self.assertIn("needsReview(b[0]) - needsReview(a[0])", self.html)
+
+    def test_no_slip_approve_asks_first(self):
+        self.assertIn("ลูกค้ายังไม่ได้อัปโหลดสลิป เห็นเงินเข้าบัญชีแล้วจริงไหม?", self.html)
+        self.assertIn('data-noslip="${o.slipStatus ? "" : "1"}"', self.html)
+
+    def test_mobile_column_labels(self):
+        self.assertIn('data-label="เครดิต"', self.html)
+        self.assertIn('data-label="ข้อฟรี"', self.html)
+        self.assertIn("td[data-label]::before", self.html)
+
+    def test_customer_picker_accepts_any_image(self):
+        js = (Path(__file__).resolve().parent.parent / "static" / "app.js").read_text("utf-8")
+        self.assertIn('accept="image/*"', js)

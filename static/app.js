@@ -949,7 +949,7 @@ function slipSectionHtml(dict) {
       <p class="slip-title">${escapeHtml(dict.slipTitle)}</p>
       <p class="slip-hint">${escapeHtml(dict.slipHint)}</p>
       <label class="slip-pick">
-        <input type="file" id="slip-file" accept="image/jpeg,image/png,image/webp" />
+        <input type="file" id="slip-file" accept="image/*" />
         <span id="slip-file-label">${escapeHtml(state.slipFile ? state.slipFile.name : dict.slipChoose)}</span>
       </label>
       <button type="button" class="btn gold" id="slip-send" ${state.slipBusy ? "disabled" : ""}>${escapeHtml(state.slipBusy ? dict.slipChecking : dict.slipCheck)}</button>
@@ -1010,10 +1010,11 @@ async function prepareSlip(file) {
         if (Math.max(w0, h0) <= side) break;
       }
     }
-    if (file.size > 3000000 || Math.max(w0, h0) > 4000) { // only huge pictures; normal slips go as they are
+    const odd = !["image/jpeg", "image/png", "image/webp"].includes(file.type); // e.g. HEIC from a phone gallery
+    if (odd || file.size > 3000000 || Math.max(w0, h0) > 4000) { // huge or odd pictures; normal slips go as they are
       const { c } = draw(1800);
       const blob = await new Promise((resolve) => c.toBlob(resolve, "image/jpeg", 0.92));
-      if (blob && blob.size < file.size) { out.body = blob; out.type = "image/jpeg"; }
+      if (blob && (odd || blob.size < file.size)) { out.body = blob; out.type = "image/jpeg"; }
     }
   } catch (_) { /* send the original picture */ }
   return out;
@@ -1028,7 +1029,8 @@ function setupSlipUpload() {
   const validate = (f) => {
     const dict = t();
     if (!f) return dict.slipNoFile;
-    const typeOk = OK_TYPES.includes(f.type) || /\.(jpe?g|png|webp)$/i.test(f.name || "");
+    // Any picture the browser can open; others (e.g. HEIC) are turned into JPEG before upload.
+    const typeOk = OK_TYPES.includes(f.type) || /^image\//.test(f.type || "") || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name || "");
     if (!typeOk) return dict.slipBadType;
     if (f.size > state.slipMaxBytes) return dict.slipTooBig;
     return null;

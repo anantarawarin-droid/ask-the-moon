@@ -160,7 +160,7 @@ SETUP_PROBLEMS = {
     1004: "SlipOK quota used up — top up / renew the package",
 }
 # Not the customer's fault, or nothing was really checked: these uploads don't use up an attempt.
-UNCOUNTED_CODES = {"1000", "1005", "1006", "1007", "1008", "1009", "1010", "1001", "1002", "1003", "1004",
+UNCOUNTED_CODES = {"1000", "1000-422", "1005", "1006", "1007", "1008", "1009", "1010", "1001", "1002", "1003", "1004",
                    "timeout", "network", "URLError", "OSError", "ConnectionError", "RemoteDisconnected"}
 # SlipOK could not find a usable slip in the uploaded picture.
 UNREADABLE_CODES = {1000, 1005, 1006, 1007, 1008}
@@ -186,50 +186,23 @@ def _log_attempt(label: str, result: dict[str, Any]) -> None:
 
 
 def check_slip(image: bytes, mime: str, amount: int, qr: str | None = None) -> dict[str, Any]:
-    """Ask SlipOK about the slip. Never raises.
+    """Send the image to SlipOK; if SlipOK can't read it but the browser already
+    read the slip's QR code, ask again with that QR text. Never raises.
 
-    1. the image (SlipOK reads the QR itself);
-    2. if SlipOK can't read it and the browser already read the slip's QR: that QR text (JSON),
-    3. ... then the QR text as a form field;
-    4. if SlipOK still rejects the request itself (1000): the image without ``log``. A pass there
-       skips SlipOK's receiver/duplicate checks, so it only goes to the admin for review.
     The amount is checked locally (``classify``), so it is not sent.
-
-    Returns {"status", "payload", "retried", "error", "via", ...}.
+    Returns {"status", "payload", "retried", "error", "via"}.
     """
-    plan: list[tuple[str, dict[str, Any]]] = [("image", {})]
-    result: dict[str, Any] = {}
-    first: int | None = None
-    tried: list[str] = []
-    while plan:
-        via, kw = plan.pop(0)
-        result = _check_once(image, mime, None, **kw)
-        result["via"] = via
-        tried.append(via)
-        _log_attempt(via, result)
-        if result.get("status") is None:
-            break
-        code = _code(result.get("payload") or {})
-        if first is None:
-            first = code
-        if via == "image" and code in (1000, 1006, 1007) and qr:
-            plan = [("qr", {"qr": qr}), ("qr-form", {"qr": qr, "qr_form": True})]
-            if code == REQUEST_REJECTED:
-                plan.append(("image-nolog", {"log": False}))
-            continue
-        if via == "image" and code == REQUEST_REJECTED:
-            plan = [("image-nolog", {"log": False})]
-            continue
-        if via == "qr" and code == REQUEST_REJECTED:
-            continue  # try the next way
-        if via == "qr-form" and code == REQUEST_REJECTED:
-            continue
-        break
-    if len(tried) > 1:
-        result["firstCode"] = first
-        result["tried"] = tried
-    if result.get("via") == "image-nolog":
-        result["nolog"] = True
+    result = _check_once(image, mime, None)
+    result["via"] = "image"
+    _log_attempt("image", result)
+    first = _code(result.get("payload") or {})
+    if qr and result.get("status") is not None and first in (1000, 1006, 1007):
+        again = _check_once(image, mime, None, qr)
+        _log_attempt("qr", again)
+        if again.get("status") is not None:
+            again["via"] = "qr"
+            again["firstCode"] = first
+            return again
     return result
 
 
@@ -309,6 +282,8 @@ MSG = {
                  "from another screen. This try doesn't count."),
     "review": ("กำลังตรวจสอบเพิ่มเติม เครดิตจะเข้าอัตโนมัติเมื่อผ่าน",
                "We're checking this further. Credits are added automatically once it passes."),
+    "manual": ("ได้รับสลิปแล้ว แอดมินกำลังตรวจยอดให้ เครดิตจะเข้าเร็ว ๆ นี้ ไม่ต้องอัปโหลดซ้ำนะคะ",
+               "Slip received. The admin is checking it and your credits will be added shortly. No need to upload again."),
     "delay": ("ธนาคารนี้ต้องรอสักครู่ก่อนตรวจสลิปได้ ลองอัปโหลดอีกครั้งในอีกไม่กี่นาที หรือรอแอดมินตรวจให้",
               "This bank needs a few minutes before slips can be checked. Try again in a few minutes, or wait for the admin to check it."),
 }
@@ -331,9 +306,6 @@ def classify(check: dict[str, Any], price: int, prior_review: bool = False) -> O
         if not _amount_matches(data.get("amount"), price):
             return Outcome("failed", "amount_local", f"slip amount {data.get('amount')} ≠ order {price}",
                            *MSG["amount"], summary=summary, trans_ref=ref)
-        if check.get("nolog"):
-            return Outcome("review", "nolog", "SlipOK read the slip (amount OK) but rejected the shop check (log); "
-                           "confirm the money arrived", *MSG["review"], summary=summary, trans_ref=None)
         return Outcome("success", "ok", "verified by SlipOK", *MSG["success"], summary=summary, trans_ref=ref)
 
     code = payload.get("code")
@@ -353,6 +325,15 @@ def classify(check: dict[str, Any], price: int, prior_review: bool = False) -> O
             return Outcome("review", "1012", "SlipOK 1012 repeated slip; amount matches — confirm it isn't reused",
                            *MSG["review"], summary=summary, trans_ref=None)
         return Outcome("failed", "1012", "SlipOK 1012 repeated slip", *MSG["duplicate"], summary=summary)
+    if code_i == REQUEST_REJECTED and status == 422:
+        # Seen live on 17 Nov for every slip (image and QR text alike, answered in under a second):
+        # SlipOK refuses the request itself, so it says nothing about the slip. Don't make the
+        # customer re-upload; the admin checks the money and SlipOK's account setup.
+        msg = str(payload.get("message") or "")[:80]
+        print(f"SlipOK setup problem: HTTP 422 code 1000 ({msg})", file=sys.stderr, flush=True)
+        return Outcome("review", "1000-422", f"SlipOK setup problem: HTTP 422 code 1000 ({msg}) on every try; "
+                       "check the money in the bank app, and the SlipOK account (shop info, bank account on the "
+                       "API branch, package)", *MSG["manual"], summary=summary)
     if code_i in UNREADABLE_CODES:
         msg = str(payload.get("message") or "")[:80]
         return Outcome("failed", str(code_i), f"SlipOK {code_i} no readable slip/QR in the picture ({msg}); "
