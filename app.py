@@ -761,6 +761,7 @@ def main() -> None:
     elif slips.enabled():
         print(f"SlipOK branch ID looks valid ({slips.describe_branch(os.environ.get('SLIPOK_BRANCH_ID', ''))}"
               f"{', used ' + str(len(slips.config()[0])) + ' digits' if slips.config() else ''})", flush=True)
+        print(f"SlipOK API key shape: {slips.describe_key(os.environ.get('SLIPOK_API_KEY', ''))}", flush=True)
     print(f"ถามจันทร์ / Ask the Moon is listening on http://{HOST}:{PORT}  —  readings: {mode}; {pay}; {admin}", flush=True)
     if STORE_KIND == "postgres":
         tls = "off" if SERVICE.cfg["sslmode"] == "disable" else "on"

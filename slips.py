@@ -77,6 +77,17 @@ def describe_branch(raw: str) -> str:
     return f"{len(text)} chars ({', '.join(kinds) or 'empty'})"
 
 
+def describe_key(raw: str) -> str:
+    """Shape of SLIPOK_API_KEY for logs (length, prefix check, character kinds), never the key."""
+    text = raw or ""
+    clean = _clean(text)
+    notes = [describe_branch(text)]
+    if clean != text:
+        notes.append(f"{len(clean)} after trimming")
+    notes.append("starts with SLIPOK" if clean.upper().startswith("SLIPOK") else "does not start with SLIPOK")
+    return "; ".join(notes)
+
+
 def config_problem() -> str | None:
     """A short, secret-free note when the SlipOK settings can't work, else None."""
     raw = os.environ.get("SLIPOK_BRANCH_ID", "")
