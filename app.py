@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import json
 import os
+import random
+import time
 import re
 import sys
 import traceback
@@ -44,7 +46,68 @@ TOPICS = {
     "life_path": {"en": "life path", "th": "เส้นทางชีวิต"},
 }
 
-LLM_TIMEOUT = 30
+LLM_TIMEOUT = 25            # per attempt (seconds)
+LLM_TOTAL_BUDGET = 55       # all attempts + waits stay under a minute
+LLM_MAX_ATTEMPTS = 3
+LLM_RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+LLM_BACKOFFS = (1.0, 2.5)   # base wait before attempt 2 and 3 (plus jitter)
+LLM_RETRY_AFTER_CAP = 5.0
+_sleep = time.sleep         # patched in tests
+_monotonic = time.monotonic
+
+
+def _llm_retryable(exc: Exception) -> bool:
+    if isinstance(exc, urllib.error.HTTPError):
+        return exc.code in LLM_RETRY_STATUSES
+    # URLError (DNS/connection reset/timeout), socket timeouts, connection errors.
+    return isinstance(exc, (urllib.error.URLError, TimeoutError, ConnectionError, OSError))
+
+
+def _llm_retry_wait(exc: Exception, attempt: int) -> float:
+    base = LLM_BACKOFFS[min(attempt - 1, len(LLM_BACKOFFS) - 1)]
+    wait = base + random.uniform(0, base * 0.3)
+    if isinstance(exc, urllib.error.HTTPError):
+        ra = (exc.headers or {}).get("Retry-After") if exc.headers is not None else None
+        try:
+            if ra is not None:
+                wait = max(wait, float(ra))
+        except (TypeError, ValueError):
+            pass
+    return min(wait, LLM_RETRY_AFTER_CAP)
+
+
+def _llm_describe(exc: Exception) -> str:
+    if isinstance(exc, urllib.error.HTTPError):
+        return f"HTTP {exc.code}"
+    if isinstance(exc, TimeoutError) or isinstance(getattr(exc, "reason", None), TimeoutError):
+        return "timeout"
+    return type(exc).__name__
+
+
+def _llm_call(req: urllib.request.Request) -> dict[str, Any]:
+    """POST with retries on transient failures (429/5xx/timeouts/network)."""
+    deadline = _monotonic() + LLM_TOTAL_BUDGET
+    attempt = 1
+    while True:
+        timeout = max(1.0, min(LLM_TIMEOUT, deadline - _monotonic()))
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except Exception as exc:
+            if isinstance(exc, urllib.error.HTTPError):
+                try:
+                    exc.read()
+                except Exception:
+                    pass
+            if attempt >= LLM_MAX_ATTEMPTS or not _llm_retryable(exc):
+                raise
+            wait = _llm_retry_wait(exc, attempt)
+            if deadline - _monotonic() - wait < 5:
+                raise
+            print(f"LLM attempt {attempt} failed ({_llm_describe(exc)}); retrying in {wait:.1f}s.",
+                  file=sys.stderr)
+            _sleep(wait)
+            attempt += 1
 
 
 def _log_llm_failure(exc: Exception) -> None:
@@ -157,8 +220,7 @@ def llm_generate(
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=LLM_TIMEOUT) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+        data = _llm_call(req)
         text = (data["choices"][0]["message"]["content"] or "").strip()
         if not text:
             return None
