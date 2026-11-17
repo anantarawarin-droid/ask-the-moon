@@ -450,6 +450,6 @@ def classify(check: dict[str, Any], price: int, prior_review: bool = False) -> O
     if code_i in SETUP_PROBLEMS:
         print(f"SlipOK setup problem: code {code_i} ({SETUP_PROBLEMS[code_i]})", file=sys.stderr, flush=True)
         return Outcome("review", str(code_i), f"SlipOK {code_i}: {SETUP_PROBLEMS[code_i]}; check manually",
-                       *MSG["review"], summary=summary)
+                       *MSG["manual"], summary=summary)
     return Outcome("review", str(code_i or status), f"SlipOK HTTP {status} code {code_i}; check manually",
                    *MSG["review"], summary=summary)
