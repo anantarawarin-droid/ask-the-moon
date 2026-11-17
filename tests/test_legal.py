@@ -36,6 +36,7 @@ class LegalContent(unittest.TestCase):
             self.assertIn(f'<link rel="canonical" href="https://foolmoon.lol/{name}"', html)
             self.assertNotIn("<script", html)
         index = (STATIC / "index.html").read_text()
+        self.assertIn('<link rel="canonical" href="https://foolmoon.lol/"', index)
         footer = re.search(r"<footer>.*?</footer>", index, re.S).group(0)
         self.assertIn('href="/privacy"', footer)
         self.assertIn('href="/terms"', footer)
@@ -59,6 +60,58 @@ class LegalRoutes(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
+
+
+class SearchConsole(unittest.TestCase):
+    def setUp(self):
+        import threading
+        self.server = tc.app.ThreadingHTTPServer(("127.0.0.1", 0), tc.app.Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.port = self.server.server_address[1]
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+
+    def _get(self, path, host=None):
+        import http.client
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        headers = {"Host": host} if host else {}
+        conn.request("GET", path, headers=headers)
+        resp = conn.getresponse()
+        body = resp.read().decode()
+        ctype = resp.getheader("Content-Type")
+        status = resp.status
+        conn.close()
+        return status, ctype, body
+
+    def test_robots_txt_allows_all_and_blocks_admin_and_api(self):
+        status, ctype, body = self._get("/robots.txt")
+        self.assertEqual(status, 200)
+        self.assertEqual(ctype, "text/plain")
+        self.assertIn("User-agent: *", body)
+        self.assertIn("Allow: /", body)
+        self.assertIn("Disallow: /admin", body)
+        self.assertIn("Disallow: /api/", body)
+        self.assertIn("Sitemap: https://foolmoon.lol/sitemap.xml", body)
+
+    def test_sitemap_lists_public_pages_on_canonical_host(self):
+        status, ctype, body = self._get("/sitemap.xml", host="ask-the-moon.onrender.com")
+        self.assertEqual(status, 200)
+        self.assertEqual(ctype, "application/xml")
+        self.assertIn('xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"', body)
+        for url in ("https://foolmoon.lol/", "https://foolmoon.lol/privacy", "https://foolmoon.lol/terms"):
+            self.assertIn(f"<loc>{url}</loc>", body)
+        self.assertNotIn("onrender.com", body)
+        self.assertEqual(body.count("<url>"), 3)
+
+    def test_public_pages_still_load(self):
+        for path, needle in (("/", "ถามจันทร์"), ("/privacy", "นโยบายความเป็นส่วนตัว"), ("/terms", "ข้อกำหนดการใช้งาน")):
+            status, ctype, body = self._get(path)
+            self.assertEqual(status, 200, path)
+            self.assertIn("text/html", ctype)
+            self.assertIn(needle, body)
+            self.assertIn('rel="canonical"', body)
 
 
 if __name__ == "__main__":

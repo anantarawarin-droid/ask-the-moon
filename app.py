@@ -30,6 +30,8 @@ import google_auth
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
 LEGAL_PAGES = {"/privacy": "privacy.html", "/terms": "terms.html"}
+SITE_ORIGIN = "https://foolmoon.lol"
+PUBLIC_PAGES = ("/", "/privacy", "/terms")
 PORT = int(os.environ.get("PORT", "5050"))
 HOST = os.environ.get("HOST", "0.0.0.0")
 DATA_DIR = os.environ.get("DATA_DIR") or str(ROOT / "data")
@@ -358,6 +360,31 @@ def packages_payload() -> dict[str, Any]:
     }
 
 
+def robots_txt() -> bytes:
+    """Robots file for Google Search Console. Always names the foolmoon.lol sitemap."""
+    return (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /admin\n"
+        "Disallow: /api/\n"
+        f"Sitemap: {SITE_ORIGIN}/sitemap.xml\n"
+    ).encode("utf-8")
+
+
+def sitemap_xml() -> bytes:
+    """Public page sitemap. URLs stay on foolmoon.lol even if the request Host is the Render domain."""
+    urls = "\n".join(
+        f"  <url>\n    <loc>{SITE_ORIGIN}{path}</loc>\n  </url>"
+        for path in PUBLIC_PAGES
+    )
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{urls}\n"
+        "</urlset>\n"
+    ).encode("utf-8")
+
+
 class Handler(SimpleHTTPRequestHandler):
     extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".webp": "image/webp"}
 
@@ -443,15 +470,17 @@ class Handler(SimpleHTTPRequestHandler):
             raise ValueError("Invalid JSON body.")
         return body
 
-    def _serve_page(self, name: str) -> None:
-        page = (STATIC / name).read_bytes()
+    def _serve_bytes(self, body: bytes, content_type: str) -> None:
         self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Content-Length", str(len(page)))
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "public, max-age=600")
         self.end_headers()
         if self.command != "HEAD":
-            self.wfile.write(page)
+            self.wfile.write(body)
+
+    def _serve_page(self, name: str) -> None:
+        self._serve_bytes((STATIC / name).read_bytes(), "text/html; charset=utf-8")
 
     def _serve_admin_page(self) -> None:
         page = (STATIC / "admin.html").read_bytes()
@@ -479,6 +508,12 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         route = self._route()
+        if route == "/robots.txt":
+            self._serve_bytes(robots_txt(), "text/plain")
+            return
+        if route == "/sitemap.xml":
+            self._serve_bytes(sitemap_xml(), "application/xml")
+            return
         if route == "/admin":
             self._serve_admin_page()
             return
