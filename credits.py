@@ -235,6 +235,12 @@ class JsonStore:
             yield self._data
 
 
+def _wallet_id(data: dict[str, Any], visitor_id: str) -> str:
+    """Where a visitor's credits live now (an anonymous id merged into an account)."""
+    v = data["visitors"].get(visitor_id) or {}
+    return v.get("mergedInto") or visitor_id
+
+
 class CreditService:
     def __init__(self, store: JsonStore):
         self.store = store
@@ -351,6 +357,24 @@ class CreditService:
             order["status"] = "rejected"
             order["decidedAt"] = _now()
             return {"order": dict(order)}
+
+    def revoke(self, code: str) -> dict[str, Any]:
+        """Undo an approval: the order becomes 'rejected' (marked revoked) and up to its
+        questions are taken back from the customer's credits, never below 0."""
+        with self.store.transaction() as data:
+            order = data["orders"].get(str(code).upper())
+            if order is None:
+                raise PaymentError("Order not found.", 404, "not_found")
+            if order.get("revokedAt"):
+                return {"order": dict(order), "alreadyRevoked": True, "removed": 0,
+                        "credits": self._visitor(data, _wallet_id(data, order["visitor"]))["credits"]}
+            if order["status"] != "approved":
+                raise PaymentError("Only approved orders can be revoked.", 409, "not_approved")
+            v = self._visitor(data, _wallet_id(data, order["visitor"]))
+            removed = min(int(order["questions"]), max(0, int(v["credits"])))
+            v["credits"] -= removed
+            order.update(status="rejected", revokedAt=_now(), revokedCredits=removed)
+            return {"order": dict(order), "alreadyRevoked": False, "removed": removed, "credits": v["credits"]}
 
 
     # -- accounts ---------------------------------------------------------------
@@ -707,6 +731,8 @@ ALTER TABLE moon_visitors ADD COLUMN IF NOT EXISTS merged_into TEXT;
 ALTER TABLE moon_users ADD COLUMN IF NOT EXISTS birth_date TEXT;
 ALTER TABLE moon_users ADD COLUMN IF NOT EXISTS birth_time TEXT;
 ALTER TABLE moon_users ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE moon_orders ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ;
+ALTER TABLE moon_orders ADD COLUMN IF NOT EXISTS revoked_credits INTEGER;
 """
 
 
@@ -729,8 +755,9 @@ class PostgresCreditService:
 
     kind = "postgres"
     ORDER_COLS = ("code, visitor, price, questions, bonus, status, created_at, decided_at, "
-                  "slip_attempts, slip_status, slip_note, slip_summary, slip_trans_ref, slip_checked_at")
-    NCOLS = 14
+                  "slip_attempts, slip_status, slip_note, slip_summary, slip_trans_ref, slip_checked_at, "
+                  "revoked_at, revoked_credits")
+    NCOLS = 16
 
     def __init__(self, url: str):
         self.cfg = parse_database_url(url)
@@ -825,7 +852,7 @@ class PostgresCreditService:
 
     def _order(self, row) -> dict[str, Any]:
         (code, visitor, price, questions, bonus, status, created, decided,
-         attempts, slip_status, slip_note, slip_summary, slip_ref, slip_checked) = row
+         attempts, slip_status, slip_note, slip_summary, slip_ref, slip_checked, revoked_at, revoked_credits) = row
         try:
             summary = json.loads(slip_summary) if slip_summary else None
         except ValueError:
@@ -833,7 +860,8 @@ class PostgresCreditService:
         return {"code": code, "visitor": visitor, "price": price, "questions": questions, "bonus": bonus,
                 "status": status, "createdAt": _iso(created), "decidedAt": _iso(decided),
                 "slipAttempts": attempts or 0, "slipStatus": slip_status, "slipNote": slip_note,
-                "slipSummary": summary, "slipTransRef": slip_ref, "slipCheckedAt": _iso(slip_checked)}
+                "slipSummary": summary, "slipTransRef": slip_ref, "slipCheckedAt": _iso(slip_checked),
+                "revokedAt": _iso(revoked_at), "revokedCredits": revoked_credits}
 
     # -- visitors -------------------------------------------------------------
     def balance(self, visitor_id: str) -> dict[str, Any]:
@@ -979,6 +1007,37 @@ class PostgresCreditService:
                 (order["code"],),
             )
             return {"order": self._order(cur.fetchone())}
+        return self._run(fn)
+
+    def revoke(self, code: str) -> dict[str, Any]:
+        def fn(cur):
+            cur.execute(f"SELECT {self.ORDER_COLS} FROM moon_orders WHERE code = %s FOR UPDATE", (str(code).upper(),))
+            row = cur.fetchone()
+            if row is None:
+                raise PaymentError("Order not found.", 404, "not_found")
+            order = self._order(row)
+            cur.execute("SELECT COALESCE(merged_into, id) FROM moon_visitors WHERE id = %s", (order["visitor"],))
+            r = cur.fetchone()
+            wallet = r[0] if r else order["visitor"]
+            if order["revokedAt"]:
+                cur.execute("SELECT credits FROM moon_visitors WHERE id = %s", (wallet,))
+                r = cur.fetchone()
+                return {"order": order, "alreadyRevoked": True, "removed": 0, "credits": int(r[0]) if r else 0}
+            if order["status"] != "approved":
+                raise PaymentError("Only approved orders can be revoked.", 409, "not_approved")
+            cur.execute("SELECT credits FROM moon_visitors WHERE id = %s FOR UPDATE", (wallet,))
+            r = cur.fetchone()
+            have = max(0, int(r[0])) if r else 0
+            removed = min(int(order["questions"]), have)
+            if r:
+                cur.execute("UPDATE moon_visitors SET credits = credits - %s WHERE id = %s", (removed, wallet))
+            cur.execute(
+                "UPDATE moon_orders SET status = 'rejected', revoked_at = now(), revoked_credits = %s "
+                f"WHERE code = %s RETURNING {self.ORDER_COLS}",
+                (removed, order["code"]),
+            )
+            return {"order": self._order(cur.fetchone()), "alreadyRevoked": False, "removed": removed,
+                    "credits": have - removed}
         return self._run(fn)
 
 

@@ -3,6 +3,7 @@
 Run: python3 -m unittest discover -s tests -v
 """
 
+import io
 import json
 import os
 import sys
@@ -123,6 +124,77 @@ class Orders(unittest.TestCase):
             again = svc.approve(order["code"])
             self.assertTrue(again["alreadyApproved"])
             self.assertEqual(svc.balance(VISITOR)["credits"], questions)
+
+    def test_revoke_takes_back_unused_credits_once(self):
+        order = self.svc.create_order(VISITOR, 45)  # 3 questions
+        self.svc.approve(order["code"])
+        res = self.svc.revoke(order["code"].lower())
+        self.assertEqual((res["removed"], res["credits"], res["alreadyRevoked"]), (3, 0, False))
+        self.assertEqual(res["order"]["status"], "rejected")
+        self.assertIsNotNone(res["order"]["revokedAt"])
+        self.assertEqual(res["order"]["revokedCredits"], 3)
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], 0)
+        again = self.svc.revoke(order["code"])
+        self.assertEqual((again["removed"], again["alreadyRevoked"]), (0, True))
+        # A revoked order can't be approved again (no double credit).
+        with self.assertRaises(billing.PaymentError) as ctx:
+            self.svc.approve(order["code"])
+        self.assertEqual(ctx.exception.code, "not_pending")
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], 0)
+        listed = {o["code"]: o for o in self.svc.list_orders("rejected")}
+        self.assertEqual(listed[order["code"]]["revokedCredits"], 3)
+
+    def test_revoke_never_goes_below_zero_and_keeps_other_orders(self):
+        a = self.svc.create_order(VISITOR, 45)  # 3
+        self.svc.approve(a["code"])
+        self.svc.reserve_reading(VISITOR)  # used 1 paid credit -> 2 left
+        self.svc.reserve_reading(VISITOR)  # -> 1 left
+        res = self.svc.revoke(a["code"])
+        self.assertEqual((res["removed"], res["credits"]), (1, 0))
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], 0)
+        b = self.svc.create_order(VISITOR, 15)  # 1
+        c = self.svc.create_order(VISITOR, 30)  # 2
+        self.svc.approve(b["code"]); self.svc.approve(c["code"])
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], 3)
+        res = self.svc.revoke(b["code"])
+        self.assertEqual((res["removed"], res["credits"]), (1, 2))
+        self.assertEqual({o["code"]: o["status"] for o in self.svc.list_orders()}[c["code"]], "approved")
+
+    def test_revoke_only_approved_orders(self):
+        order = self.svc.create_order(VISITOR, 15)
+        with self.assertRaises(billing.PaymentError) as ctx:
+            self.svc.revoke(order["code"])
+        self.assertEqual((ctx.exception.status, ctx.exception.code), (409, "not_approved"))
+        self.svc.reject(order["code"])
+        with self.assertRaises(billing.PaymentError) as ctx:
+            self.svc.revoke(order["code"])
+        self.assertEqual(ctx.exception.code, "not_approved")
+        with self.assertRaises(billing.PaymentError) as ctx:
+            self.svc.revoke("MZZZZZ")
+        self.assertEqual(ctx.exception.status, 404)
+
+    def test_revoke_follows_merged_wallet(self):
+        order = self.svc.create_order(OTHER, 30)  # 2
+        self.svc.approve(order["code"])
+        account = "e" * 32
+        self.svc.merge_visitor(OTHER, account)
+        self.assertEqual(self.svc.balance(account)["credits"], 2)
+        res = self.svc.revoke(order["code"])
+        self.assertEqual((res["removed"], res["credits"]), (2, 0))
+        self.assertEqual(self.svc.balance(account)["credits"], 0)
+
+    def test_concurrent_revoke_takes_back_once(self):
+        order = self.svc.create_order(VISITOR, 45)
+        self.svc.approve(order["code"])
+        extra = self.svc.create_order(VISITOR, 15)
+        self.svc.approve(extra["code"])  # 4 credits total
+        results = []
+        threads = [threading.Thread(target=lambda: results.append(self.svc.revoke(order["code"])["removed"]))
+                   for _ in range(10)]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+        self.assertEqual(sum(results), 3)
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], 1)
 
     def reopen(self):
         return billing.CreditService(billing.JsonStore(self.svc.store.dir))
@@ -369,6 +441,43 @@ class Http(unittest.TestCase):
         code3 = self.req("POST", "/api/orders", {"amount": 45}, h)[1]["order"]["code"]
         self.req("POST", f"/api/admin/orders/{code3}/approve", headers=self.ADMIN)
         self.assertEqual(self.req("POST", f"/api/admin/orders/{code3}/reject", headers=self.ADMIN)[0], 409)
+
+    def test_admin_revoke_flow(self):
+        h = {"X-Visitor-Id": VISITOR}
+        code = self.req("POST", "/api/orders", {"amount": 45}, h)[1]["order"]["code"]
+        # Admin token required.
+        self.assertEqual(self.req("POST", f"/api/admin/orders/{code}/revoke")[0], 401)
+        self.assertEqual(self.req("POST", f"/api/admin/orders/{code}/revoke", headers={"X-Admin-Token": "wrong"})[0], 401)
+        # Pending orders can't be revoked.
+        st, data = self.req("POST", f"/api/admin/orders/{code}/revoke", headers=self.ADMIN)
+        self.assertEqual((st, data["code"]), (409, "not_approved"))
+        self.req("POST", f"/api/admin/orders/{code}/approve", headers=self.ADMIN)
+        self.assertEqual(self.req("GET", "/api/balance", headers=h)[1]["credits"], 3)
+        self.reading()  # customer used one
+        out = io.StringIO()
+        with mock.patch("sys.stdout", out):
+            st, data = self.req("POST", f"/api/admin/orders/{code}/revoke", headers=self.ADMIN)
+        self.assertEqual((st, data["removed"], data["credits"], data["order"]["status"]), (200, 2, 0, "rejected"))
+        self.assertIn(f"Admin revoked order {code}: took back 2 of 3", out.getvalue())
+        self.assertNotIn(self.ADMIN["X-Admin-Token"], out.getvalue())
+        self.assertNotIn(VISITOR, out.getvalue())
+        self.assertEqual(self.req("GET", "/api/balance", headers=h)[1]["credits"], 0)
+        st, data = self.req("POST", f"/api/admin/orders/{code}/revoke", headers=self.ADMIN)
+        self.assertEqual((st, data["alreadyRevoked"], data["removed"]), (200, True, 0))
+        approved = self.req("GET", "/api/admin/orders?status=approved", headers=self.ADMIN)[1]["orders"]
+        self.assertNotIn(code, [o["code"] for o in approved])
+        st, data = self.req("POST", f"/api/admin/orders/{code}/approve", headers=self.ADMIN)
+        self.assertEqual((st, data["code"]), (409, "not_pending"))
+        # The customer sees it as rejected.
+        mine = self.req("GET", "/api/orders", headers=h)[1]["orders"]
+        self.assertEqual({o["code"]: o["status"] for o in mine}[code], "rejected")
+
+    def test_admin_page_has_two_tap_revoke(self):
+        html = (ROOT / "static" / "admin.html").read_text(encoding="utf-8")
+        self.assertIn("ดึงเครดิตคืน", html)
+        self.assertIn('data-act="revoke"', html)
+        self.assertIn("แตะอีกครั้งเพื่อดึงคืน", html)
+        self.assertIn("อนุมัติวันนี้", html)
 
     def test_admin_page_does_not_rely_on_native_dialogs(self):
         import re

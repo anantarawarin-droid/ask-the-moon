@@ -55,6 +55,10 @@
     .wait { display:block; margin-top:.3rem; font-size:.75rem; color: var(--muted); }
     .need { display:block; margin-top:.3rem; font-size:.78rem; font-weight:700; color:#ffd27a; }
     tr.needs-review td { background: rgba(212,175,55,.07); }
+    .flag { display:block; margin-top:.3rem; font-size:.75rem; font-weight:700; color:#ffb4b4; }
+    .credits-left { display:block; font-size:.75rem; color: var(--muted); }
+    #summary { margin: 0 0 .6rem; font-size: .9rem; }
+    .revoke { background: rgba(255,180,180,.08); color:#ffb4b4; border:1px solid rgba(255,180,180,.4); margin-top:.3rem; }
   </style>
 </head>
 <body>
@@ -86,6 +90,7 @@
       </div>
     </div>
     <div class="card">
+      <p id="summary" hidden></p>
       <table>
         <thead><tr><th>รหัส</th><th>ลูกค้า</th><th>ยอด</th><th>คำถาม</th><th>เวลา (เวลาไทย)</th><th>สถานะ</th><th></th></tr></thead>
         <tbody id="rows"></tbody>
@@ -184,6 +189,22 @@
       + `</span>`;
   }
 
+  const bkkDay = (iso) => iso ? new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" }) : "";
+  const secsBetween = (a, b) => Math.round((new Date(b).getTime() - new Date(a).getTime()) / 1000);
+  // Warnings on approved orders, to check against the bank app.
+  function approvedFlags(o) {
+    if (o.status !== "approved") return "";
+    const out = [];
+    if (!o.slipStatus) out.push("ไม่มีสลิป · เช็กเงินเข้าในแอปธนาคาร");
+    if (o.decidedAt && o.createdAt) {
+      const s = secsBetween(o.createdAt, o.decidedAt);
+      if (s >= 0 && s < 60) out.push(`อนุมัติ ${s} วินาทีหลังสร้างออเดอร์`);
+    }
+    return out.map((t) => `<span class="flag">🚩 ${esc(t)}</span>`).join("");
+  }
+  const revokedTag = (o) => o.revokedAt
+    ? `<span class="flag">↩️ ดึงเครดิตคืนแล้ว (−${esc(o.revokedCredits || 0)}) · ${esc(fmt(o.revokedAt))}</span>` : "";
+
   let googleMode = false;
   async function loadUsers() {
     const data = await call("/api/admin/users");
@@ -217,17 +238,25 @@
     const rows = orders.map((o) => `
       <tr class="${needsReview(o) ? "needs-review" : ""}">
         <td class="code">${esc(o.code)}</td>
-        <td>${o.email || o.username ? `<b class="uname">${esc(o.email || o.username)}</b>${!o.email && !googleMode ? `<br><button class="ghost mini" data-reset="${esc(o.username)}">รีเซ็ตรหัส</button>` : ""}` : `<small style="color:var(--muted)">ไม่มีบัญชี</small>`}</td>
+        <td>${o.email || o.username ? `<b class="uname">${esc(o.email || o.username)}</b>${!o.email && !googleMode ? `<br><button class="ghost mini" data-reset="${esc(o.username)}">รีเซ็ตรหัส</button>` : ""}` : `<small style="color:var(--muted)">ไม่มีบัญชี</small>`}${o.visitorCredits != null ? `<span class="credits-left">คงเหลือ ${esc(o.visitorCredits)} คำถาม</span>` : ""}</td>
         <td data-label="ยอด">฿${esc(o.price)}</td>
         <td data-label="คำถาม">${esc(o.questions)}${o.bonus ? ` <small>(โบนัส ${esc(o.bonus)})</small>` : ""}</td>
         <td data-label="เวลา">${esc(fmt(o.createdAt))}</td>
-        <td><span class="pill ${esc(o.status)}">${esc(o.status)}</span>${slipInfo(o)}</td>
+        <td><span class="pill ${esc(o.status)}">${esc(o.revokedAt ? "revoked" : o.status)}</span>${revokedTag(o)}${approvedFlags(o)}${slipInfo(o)}</td>
         <td class="row">${o.status === "pending"
           ? `<button class="ok" data-act="approve" data-code="${esc(o.code)}" data-noslip="${o.slipStatus ? "" : "1"}">อนุมัติ</button>
              <button class="no" data-act="reject" data-code="${esc(o.code)}">ปฏิเสธ</button>`
-          : `<small style="color:var(--muted)">${esc(fmt(o.decidedAt))}</small>`}</td>
+          : `<small style="color:var(--muted)">${esc(fmt(o.decidedAt))}</small>${o.status === "approved"
+            ? `<button class="revoke mini" data-act="revoke" data-code="${esc(o.code)}">ดึงเครดิตคืน</button>` : ""}`}</td>
       </tr>`).join("");
     disarm();
+    const today = bkkDay(new Date().toISOString());
+    const todays = data.orders.filter((o) => o.status === "approved" && bkkDay(o.decidedAt) === today);
+    const flagged = todays.filter((o) => approvedFlags(o)).length;
+    $("summary").hidden = !(status === "approved" || status === "");
+    $("summary").innerHTML = `อนุมัติวันนี้ <b>${todays.length}</b> รายการ · รวม <b>฿${todays.reduce((t, o) => t + Number(o.price || 0), 0).toLocaleString("en-US")}</b>`
+      + (flagged ? ` · 🚩 ควรเช็ก ${flagged} รายการ` : "")
+      + `<br><small style="color:var(--muted)">เทียบกับเงินเข้าในแอปธนาคาร ถ้าออเดอร์ไหนไม่มีเงินเข้าจริง กด “ดึงเครดิตคืน” 2 ครั้ง</small>`;
     $("rows").innerHTML = rows || `<tr><td colspan="7" class="empty">ไม่มีคำสั่งซื้อ</td></tr>`;
   }
 
@@ -273,6 +302,12 @@
         notice(`ลูกค้ายังไม่ได้อัปโหลดสลิป เห็นเงินเข้าบัญชีแล้วจริงไหม? (${code} · แตะอีกครั้งเพื่ออนุมัติ)`, "bad", 8000);
         return;
       }
+      if (act === "revoke") {
+        clearTimeout(armed.timer); armed.timer = setTimeout(disarm, 8000);
+        b.textContent = "แตะอีกครั้งเพื่อดึงคืน";
+        notice(`ดึงเครดิตคืนจาก ${code}? คำสั่งซื้อจะถูกยกเลิก และหักคำถามคืน (ไม่ต่ำกว่า 0) · แตะอีกครั้งเพื่อยืนยัน`, "bad", 8000);
+        return;
+      }
       b.textContent = act === "approve" ? "แตะอีกครั้งเพื่ออนุมัติ" : "แตะอีกครั้งเพื่อปฏิเสธ";
       notice(act === "approve" ? `แตะอีกครั้งเพื่ออนุมัติ ${code} และเพิ่มคำถามให้ลูกค้า` : `แตะอีกครั้งเพื่อปฏิเสธ ${code}`, "info", 5000);
       return;
@@ -285,14 +320,16 @@
       const st = res.order && res.order.status;
       notice(act === "approve"
         ? (res.alreadyApproved ? `${code} อนุมัติไปแล้วก่อนหน้านี้` : `อนุมัติ ${code} แล้ว · ลูกค้ามี ${res.credits} คำถาม`)
-        : `ปฏิเสธ ${code} แล้ว (${st})`, "ok");
+        : act === "revoke"
+          ? (res.alreadyRevoked ? `${code} ดึงเครดิตคืนไปแล้วก่อนหน้านี้` : `ดึงเครดิตคืนจาก ${code} แล้ว · หักคืน ${res.removed} คำถาม · ลูกค้าเหลือ ${res.credits} คำถาม`)
+          : `ปฏิเสธ ${code} แล้ว (${st})`, "ok");
       await load();
     } catch (err) {
       const msg = `ทำรายการ ${code} ไม่สำเร็จ: ${err.message}`;
       notice(msg, "bad", 9000);
       $("panel-err").textContent = msg; $("panel-err").hidden = false;
       b.disabled = false;
-      b.textContent = act === "approve" ? "อนุมัติ" : "ปฏิเสธ";
+      b.textContent = act === "approve" ? "อนุมัติ" : act === "revoke" ? "ดึงเครดิตคืน" : "ปฏิเสธ";
     }
   });
   // Password reset (two taps, like approve/reject).

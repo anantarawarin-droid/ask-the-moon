@@ -261,7 +261,7 @@ def paid_reading(body: dict[str, Any], visitor_id: Any) -> dict[str, Any]:
     return result
 
 
-ORDER_PATH = re.compile(r"^/api/admin/orders/([A-Za-z0-9]{4,12})/(approve|reject)$")
+ORDER_PATH = re.compile(r"^/api/admin/orders/([A-Za-z0-9]{4,12})/(approve|reject|revoke)$")
 SLIP_PATH = re.compile(r"^/api/orders/([A-Za-z0-9]{4,12})/slip$")
 
 
@@ -646,7 +646,14 @@ class Handler(SimpleHTTPRequestHandler):
                 if not self._admin_check():
                     return
                 code, action = match.group(1), match.group(2)
-                result = SERVICE.approve(code) if action == "approve" else SERVICE.reject(code)
+                if action == "revoke":
+                    result = SERVICE.revoke(code)
+                    # No secrets or customer details: code, credits taken back, balance left.
+                    print(f"Admin revoked order {result['order']['code']}: took back {result['removed']} of "
+                          f"{result['order']['questions']} question credits · customer now has {result['credits']}"
+                          + (" (already revoked)" if result["alreadyRevoked"] else ""), flush=True)
+                else:
+                    result = SERVICE.approve(code) if action == "approve" else SERVICE.reject(code)
                 self._send(200, {"ok": True, **result})
             self._handle(run)
             return
