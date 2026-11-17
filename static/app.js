@@ -7,7 +7,6 @@ const I18N = {
     eyebrow: "ไพ่ทาโรต์ 3 ใบ · ตอบตรง ๆ · โปรไฟล์ดวงจากวันเกิด",
     heroTitle: "ถามจันทร์",
     heroLede: "ดูดวงไพ่ทาโรต์ 3 ใบ ตอบตรง ๆ + โปรไฟล์ดวงจากวันเกิด (ปีนักษัตร เลขวันเกิด ราศี) — พิมพ์คำถามที่อยากรู้ จันทร์จะเปิดไพ่ให้ 3 ใบ บอกคำตอบก่อน แล้วตามด้วยเหตุผลจากไพ่และคำแนะนำที่ทำได้จริง",
-    heroOffer: "สมัครฟรี รับคำถามแรกฟรี 1 ข้อ",
     gateTitle: "สมัครฟรี รับคำถามแรกฟรี 1 ข้อ",
     gateCopy: "ถามไพ่ได้หลังสมัครหรือเข้าสู่ระบบ ใช้แค่ชื่อผู้ใช้กับรหัสผ่าน ไม่ต้องใช้อีเมล ไม่ถึง 1 นาที แล้วกรอกคำถามได้เลย",
     gateSignup: "สมัครฟรี",
@@ -196,7 +195,6 @@ const I18N = {
     eyebrow: "3-card tarot · Straight answers · Birth profile",
     heroTitle: "Ask the Moon",
     heroLede: "Type what you want to know. The Moon draws three tarot cards and gives you a straight answer, the reasons in the cards, and advice you can act on. Add your birthday to see your Chinese zodiac, birth number, and star sign too.",
-    heroOffer: "Sign up free — get your first question free",
     gateTitle: "Sign up free — get your first question free",
     gateCopy: "You can ask after signing up or logging in. Just a username and password, no email, under a minute — then type your question.",
     gateSignup: "Sign up free",
@@ -759,11 +757,12 @@ function renderOffer() {
   const btn = document.getElementById("hero-signup");
   if (!btn) return;
   const { credits, freeAvailable } = state.balance;
-  if (!state.account) btn.textContent = dict.heroOffer;
-  else if (credits > 0 || freeAvailable) btn.textContent = dict.heroOfferIn(credits);
-  else btn.textContent = dict.heroOffer;
-  btn.parentElement.hidden = Boolean(state.account) && credits <= 0 && !freeAvailable;
-  btn.classList.toggle("is-in", Boolean(state.account));
+  // Logged out: no hero button. The sign-in card below already has the one Google button.
+  // Logged in: a quiet status line ("you have N questions"), only when there is something to ask with.
+  const show = Boolean(state.account) && (credits > 0 || freeAvailable);
+  if (show) btn.textContent = dict.heroOfferIn(credits);
+  btn.parentElement.hidden = !show;
+  btn.classList.toggle("is-in", show);
 }
 
 function renderBalance(bump = false) {

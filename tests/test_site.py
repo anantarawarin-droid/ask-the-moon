@@ -142,3 +142,15 @@ class PayStepsWording(unittest.TestCase):
         for text in ("สแกน QR ด้วยแอปธนาคาร แล้วโอน", "อัปโหลดสลิปด้านล่าง ระบบตรวจและเติมคำถามให้ทันที",
                      "กำลังตรวจสอบเพิ่มเติม เครดิตจะเข้าอัตโนมัติเมื่อผ่าน", 'payLine: "มีปัญหา? ติดต่อ LINE"'):
             self.assertIn(text, js)
+
+
+class SingleSignInButton(unittest.TestCase):
+    def test_hero_has_no_signup_button_when_logged_out(self):
+        index = (ROOT / "static" / "index.html").read_text()
+        self.assertIn('<p class="hero-offer" id="hero-offer" hidden>', index)
+        self.assertNotIn("สมัครฟรี รับคำถามแรกฟรี 1 ข้อ</button>", index)
+        js = (ROOT / "static" / "app.js").read_text()
+        body = js[js.index("function renderOffer"):js.index("function renderBalance")]
+        self.assertIn("const show = Boolean(state.account) && (credits > 0 || freeAvailable);", body)
+        self.assertIn("btn.parentElement.hidden = !show;", body)
+        self.assertNotIn("dict.heroOffer;", body)
