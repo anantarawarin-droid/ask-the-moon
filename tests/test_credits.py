@@ -125,6 +125,73 @@ class Orders(unittest.TestCase):
             self.assertTrue(again["alreadyApproved"])
             self.assertEqual(svc.balance(VISITOR)["credits"], questions)
 
+    # -- auto-expiry of orders with no slip ---------------------------------
+    def backdate(self, code, minutes):
+        from datetime import datetime, timedelta, timezone
+        with self.svc.store.transaction() as data:
+            data["orders"][code]["createdAt"] = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat(timespec="seconds")
+
+    def test_expire_only_old_orders_without_slip(self):
+        old = self.svc.create_order(VISITOR, 15)
+        fresh = self.svc.create_order(VISITOR, 45)
+        reviewed = self.svc.create_order(OTHER, 15)
+        tried = self.svc.create_order(OTHER, 45)
+        approved = self.svc.create_order(OTHER, 90)
+        for o in (old, reviewed, tried, approved):
+            self.backdate(o["code"], 31)
+        self.backdate(fresh["code"], 29)
+        self.svc.begin_slip_check(reviewed["code"], OTHER, 5)
+        self.svc.set_slip_result(reviewed["code"], "review", "SlipOK 1012", {})
+        self.svc.begin_slip_check(tried["code"], OTHER, 5)  # upload in flight, attempt counted
+        self.svc.approve(approved["code"])
+        credits_before = (self.svc.balance(VISITOR)["credits"], self.svc.balance(OTHER)["credits"])
+        self.assertEqual(self.svc.expire_stale_orders(30), 1)
+        self.assertEqual(self.svc.expire_stale_orders(30), 0)
+        self.assertEqual((self.svc.balance(VISITOR)["credits"], self.svc.balance(OTHER)["credits"]), credits_before)
+        pending = {o["code"] for o in self.svc.list_orders("pending")}
+        self.assertEqual(pending, {fresh["code"], reviewed["code"], tried["code"]})
+        expired = self.svc.list_orders("expired")
+        self.assertEqual([o["code"] for o in expired], [old["code"]])
+        self.assertIsNotNone(expired[0]["decidedAt"])
+        self.assertEqual(len(self.svc.list_orders()), 5)  # nothing deleted
+        self.assertEqual(self.svc.expire_stale_orders(0), 0)  # 0 = off
+
+    def test_list_orders_expires_lazily_with_env_minutes(self):
+        old = self.svc.create_order(VISITOR, 15)
+        self.backdate(old["code"], 11)
+        with mock.patch.dict(os.environ, {"ORDER_EXPIRE_MINUTES": "30"}):
+            self.assertEqual([o["code"] for o in self.svc.list_orders("pending")], [old["code"]])
+        with mock.patch.dict(os.environ, {"ORDER_EXPIRE_MINUTES": "10"}):
+            self.assertEqual(self.svc.list_orders("pending"), [])
+            self.assertEqual(self.svc.list_orders("expired")[0]["code"], old["code"])
+
+    def test_expired_order_takes_late_slip_and_admin_approval(self):
+        a = self.svc.create_order(VISITOR, 45)
+        b = self.svc.create_order(OTHER, 15)
+        self.backdate(a["code"], 40)
+        self.backdate(b["code"], 40)
+        self.assertEqual(self.svc.expire_stale_orders(30), 2)
+        # A late slip reopens the order and SlipOK can still credit it.
+        reopened = self.svc.begin_slip_check(a["code"], VISITOR, 5)
+        self.assertEqual(reopened["status"], "pending")
+        self.assertIsNone(reopened["decidedAt"])
+        self.assertEqual(self.svc.expire_stale_orders(30), 0)  # has a slip attempt now
+        res = self.svc.approve_with_slip(a["code"], "REF-LATE-1", {"amount": 45})
+        self.assertEqual(res["order"]["status"], "approved")
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], 3)
+        # The admin can approve straight from the expired tab too.
+        res = self.svc.approve(b["code"])
+        self.assertEqual(res["order"]["status"], "approved")
+        self.assertEqual(self.svc.balance(OTHER)["credits"], 1)
+
+    def test_new_order_after_expiry_is_not_the_expired_one(self):
+        old = self.svc.create_order(VISITOR, 15)
+        self.backdate(old["code"], 31)
+        self.svc.expire_stale_orders(30)
+        new = self.svc.create_order(VISITOR, 15)
+        self.assertNotEqual(new["code"], old["code"])
+        self.assertEqual(new["status"], "pending")
+
     def test_revoke_takes_back_unused_credits_once(self):
         order = self.svc.create_order(VISITOR, 45)  # 3 questions
         self.svc.approve(order["code"])
@@ -520,6 +587,11 @@ def go_free(svc, visitor, wins):
 @unittest.skipUnless(TEST_PG, "set TEST_DATABASE_URL to run against Postgres")
 class PgOrders(Orders):
     make = staticmethod(pg_service)
+
+    def backdate(self, code, minutes):
+        with self.svc._tx() as cur:
+            cur.execute("UPDATE moon_orders SET created_at = now() - make_interval(mins => %s) WHERE code = %s",
+                        (minutes, code))
 
     def reopen(self):
         # A brand-new connection/service, like a restarted server.

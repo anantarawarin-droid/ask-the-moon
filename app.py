@@ -568,7 +568,7 @@ class Handler(SimpleHTTPRequestHandler):
                 for part in query.split("&"):
                     if part.startswith("status="):
                         status = part.split("=", 1)[1] or None
-                if status not in (None, "pending", "approved", "rejected"):
+                if status not in (None, "pending", "approved", "rejected", "expired"):
                     raise ValueError("Unknown status.")
                 self._send(200, {"ok": True, "orders": SERVICE.list_orders(status)})
             self._handle(run)
@@ -748,8 +748,26 @@ def _auth_post(self, route: str) -> None:
 Handler._auth_post = _auth_post
 
 
+def _expiry_loop(interval: float = 60.0) -> None:
+    """Every minute, expire pending orders that never got a slip (one cheap UPDATE)."""
+    import time
+
+    while True:
+        time.sleep(interval)
+        try:
+            n = SERVICE.expire_stale_orders()
+            if n:
+                print(f"Expired {n} unpaid order(s) with no slip after {billing.order_expire_minutes()} min", flush=True)
+        except Exception as exc:  # housekeeping only; never crash the server
+            print(f"Order expiry skipped ({type(exc).__name__})", flush=True)
+
+
 def main() -> None:
     STATIC.mkdir(parents=True, exist_ok=True)
+    if billing.order_expire_minutes() > 0:
+        import threading
+
+        threading.Thread(target=_expiry_loop, name="order-expiry", daemon=True).start()
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     has_key = bool(os.environ.get("OPENAI_API_KEY"))
     mode = "LLM (OPENAI_API_KEY is set)" if has_key else "template fallback (no OPENAI_API_KEY)"

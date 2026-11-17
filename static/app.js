@@ -931,10 +931,15 @@ function renderPayModal() {
       <li>${dict.payStep1(order.price)}</li>
       <li>${escapeHtml(dict.payStep2Slip())}</li>
     </ol>
-    ${state.slipEnabled && order.status === "pending" ? slipSectionHtml(dict) : ""}
+    ${state.slipEnabled && isOpenOrder(order) ? slipSectionHtml(dict) : ""}
     ${statusHtml}
     <p class="pay-help"><a href="https://line.me/ti/p/~ivymoonask" target="_blank" rel="noopener">${escapeHtml(dict.payLine)}</a> <span class="pay-ref">· ${escapeHtml(dict.payRef)} ${escapeHtml(order.code)}</span></p>`;
-  if (state.slipEnabled && order.status === "pending") setupSlipUpload();
+  if (state.slipEnabled && isOpenOrder(order)) setupSlipUpload();
+}
+
+// "expired" = no slip within 30 min; a late slip still works, so keep showing the upload.
+function isOpenOrder(order) {
+  return order.status === "pending" || order.status === "expired";
 }
 
 function slipSectionHtml(dict) {
@@ -1112,7 +1117,7 @@ async function checkOrders() {
         state.order.order = fresh;
         renderPayModal();
         if (fresh.status === "approved") toast(t().payApproved(fresh.questions));
-        if (fresh.status !== "pending") stopPolling();
+        if (!isOpenOrder(fresh)) stopPolling();
       }
     }
   } catch (_) { /* try again next tick */ }
