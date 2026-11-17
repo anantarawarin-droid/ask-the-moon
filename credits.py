@@ -477,6 +477,13 @@ class CreditService:
             order["slipAttempts"] = int(order.get("slipAttempts") or 0) + 1
             return dict(order)
 
+    def release_slip_attempt(self, code: str) -> None:
+        """Give back an upload attempt that wasn't the customer's fault (unreadable picture, SlipOK down)."""
+        with self.store.transaction() as data:
+            order = data["orders"].get(str(code).upper())
+            if order is not None:
+                order["slipAttempts"] = max(0, int(order.get("slipAttempts") or 0) - 1)
+
     def set_slip_result(self, code: str, status: str, note: str, summary: dict[str, Any]) -> dict[str, Any]:
         with self.store.transaction() as data:
             order = data["orders"][str(code).upper()]
@@ -1091,6 +1098,12 @@ class PostgresCreditService:
                         (order["code"],))
             return self._order(cur.fetchone())
         return self._run(fn)
+
+    def release_slip_attempt(self, code: str) -> None:
+        def fn(cur):
+            cur.execute("UPDATE moon_orders SET slip_attempts = GREATEST(slip_attempts - 1, 0) WHERE code = %s",
+                        (str(code).upper(),))
+        self._run(fn)
 
     def set_slip_result(self, code: str, status: str, note: str, summary: dict[str, Any]) -> dict[str, Any]:
         def fn(cur):

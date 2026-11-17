@@ -961,6 +961,64 @@ function setSlipResult(kind, th, en) {
   state.slipResult = { kind, th, en };
 }
 
+let jsqrPromise = null;
+function loadJsQR() {
+  if (window.jsQR) return Promise.resolve(window.jsQR);
+  if (!jsqrPromise) {
+    jsqrPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "/vendor/jsQR.js";
+      s.onload = () => resolve(window.jsQR);
+      s.onerror = () => { jsqrPromise = null; reject(new Error("jsQR")); };
+      document.head.appendChild(s);
+    });
+  }
+  return jsqrPromise;
+}
+
+// Read the slip's QR code in the browser (sent along so the server can retry
+// with it if SlipOK can't read the picture) and shrink very large pictures.
+async function prepareSlip(file) {
+  const out = { body: file, type: file.type || "application/octet-stream", qr: null };
+  try {
+    const url = URL.createObjectURL(file);
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = url;
+    }).finally(() => URL.revokeObjectURL(url));
+    const w0 = img.naturalWidth;
+    const h0 = img.naturalHeight;
+    const draw = (maxSide) => {
+      const k = Math.min(1, maxSide / Math.max(w0, h0));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(w0 * k));
+      c.height = Math.max(1, Math.round(h0 * k));
+      const ctx = c.getContext("2d", { willReadFrequently: true });
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      return { c, ctx };
+    };
+    const jsQR = await loadJsQR().catch(() => null);
+    if (jsQR) {
+      for (const side of [1200, 800, 1800]) {
+        const { c, ctx } = draw(side);
+        const hit = jsQR(ctx.getImageData(0, 0, c.width, c.height).data, c.width, c.height, { inversionAttempts: "attemptBoth" });
+        if (hit && hit.data && /^[\x20-\x7e]{10,512}$/.test(hit.data)) { out.qr = hit.data; break; }
+        if (Math.max(w0, h0) <= side) break;
+      }
+    }
+    if (file.size > 3000000 || Math.max(w0, h0) > 4000) { // only huge pictures; normal slips go as they are
+      const { c } = draw(1800);
+      const blob = await new Promise((resolve) => c.toBlob(resolve, "image/jpeg", 0.92));
+      if (blob && blob.size < file.size) { out.body = blob; out.type = "image/jpeg"; }
+    }
+  } catch (_) { /* send the original picture */ }
+  return out;
+}
+
 function setupSlipUpload() {
   const input = document.getElementById("slip-file");
   const label = document.getElementById("slip-file-label");
@@ -999,10 +1057,13 @@ function setupSlipUpload() {
     state.slipResult = null;
     renderPayModal();
     try {
+      const prepared = await prepareSlip(file);
+      const headers = { "X-Visitor-Id": state.visitor, "Content-Type": prepared.type };
+      if (prepared.qr) headers["X-Slip-QR"] = encodeURIComponent(prepared.qr);
       const response = await fetch(`/api/orders/${encodeURIComponent(code)}/slip`, {
         method: "POST",
-        headers: { "X-Visitor-Id": state.visitor, "Content-Type": file.type || "application/octet-stream" },
-        body: file,
+        headers,
+        body: prepared.body,
       });
       let data = {};
       try { data = await response.json(); } catch (_) { /* empty */ }

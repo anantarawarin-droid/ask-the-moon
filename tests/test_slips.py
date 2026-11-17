@@ -3,6 +3,7 @@
 Run: python3 -m unittest discover -s tests -v
 """
 
+import json
 import os
 import socket
 import sys
@@ -58,8 +59,8 @@ class SlipHttp(tc.Http):
         """Each response is (status, payload) or an exception to raise."""
         seq = list(responses)
 
-        def fake(image, mime, amount):
-            self.calls.append((mime, amount))
+        def fake(image, mime, amount, qr=None):
+            self.calls.append((mime, amount) if qr is None else (mime, amount, qr))
             r = seq.pop(0) if len(seq) > 1 else seq[0]
             if isinstance(r, BaseException):
                 raise r
@@ -71,10 +72,12 @@ class SlipHttp(tc.Http):
         self.assertEqual(code, 200, data)
         return data["order"]["code"]
 
-    def upload(self, code, body=PNG, visitor=VISITOR, ctype="image/png"):
+    def upload(self, code, body=PNG, visitor=VISITOR, ctype="image/png", qr=None):
         import json as _json
         import urllib.request as ur
         headers = {"X-Visitor-Id": visitor, "Content-Type": ctype}
+        if qr:
+            headers["X-Slip-QR"] = qr
         if visitor in self.sessions:
             headers["Cookie"] = self.sessions[visitor].split(";")[0]
         r = ur.Request(f"{self.base}/api/orders/{code}/slip", data=body, method="POST", headers=headers)
@@ -150,7 +153,7 @@ class SlipHttp(tc.Http):
         cases = {
             1012: ("failed", "duplicate"), 1013: ("failed", "amount"), 1014: ("failed", "receiver"),
             1005: ("failed", "not_slip"), 1006: ("failed", "not_slip"), 1007: ("failed", "not_slip"),
-            1008: ("failed", "not_slip"),
+            1008: ("failed", "not_slip"), 1000: ("failed", "not_slip"),
         }
         for err, (kind, msg) in cases.items():
             with self.subTest(code=err):
@@ -166,7 +169,7 @@ class SlipHttp(tc.Http):
                 self.req("POST", f"/api/admin/orders/{code}/reject", {}, self.ADMIN)
 
     def test_uncertain_goes_to_review(self):
-        for err in (1000, 1001, 1002, 1003, 1004, 1009, 1010, 1011, 1099):
+        for err in (1001, 1002, 1003, 1004, 1009, 1010, 1011, 1099):
             with self.subTest(code=err):
                 slips.LIMITER = slips.VisitorLimiter()
                 code = self.order(15)
@@ -249,7 +252,7 @@ class SlipHttp(tc.Http):
 
     def test_rate_limits(self):
         code = self.order()
-        with self.mock_slipok((400, err_payload(1007))):
+        with self.mock_slipok((400, err_payload(1013, {"amount": 30}))):
             for _ in range(slips.MAX_ATTEMPTS_PER_ORDER):
                 self.assertEqual(self.upload(code)[0], 200)
             status, data = self.upload(code)
@@ -261,6 +264,56 @@ class SlipHttp(tc.Http):
             self.assertEqual(self.upload(other)[0], 200)
             status, data = self.upload(other)
             self.assertEqual((status, data["code"]), (429, "rate_limited"))
+
+    def test_unreadable_and_setup_problems_do_not_use_attempts(self):
+        code = self.order()
+        slips.LIMITER = slips.VisitorLimiter(limit=100, window=600)
+        for err in (1000, 1007, 1006, 1003, 1004, 1000, 1000):
+            with self.mock_slipok((400, err_payload(err))):
+                self.assertEqual(self.upload(code)[0], 200)
+        with self.mock_slipok(TimeoutError("timed out")):
+            self.assertEqual(self.upload(code)[0], 200)
+        self.assertEqual(self.admin_order(code)["slipAttempts"], 0)
+        # The customer can still upload the right slip afterwards.
+        with self.mock_slipok((200, ok_payload("REF-LATE"))):
+            status, data = self.upload(code)
+        self.assertEqual(data["result"], "success")
+
+    def test_1000_message_asks_for_full_clear_slip(self):
+        code = self.order()
+        with self.mock_slipok((400, err_payload(1000))):
+            _, data = self.upload(code)
+        self.assertEqual((data["result"], data["code"]), ("failed", "1000"))
+        self.assertIn("เต็มใบ", data["messageTh"])
+        self.assertIn("QR", data["messageEn"])
+        self.assertIn("doesn't count", data["messageEn"])
+        self.assertIn("1000", self.admin_order(code)["slipNote"])
+
+    def test_browser_qr_used_when_slipok_cannot_read_the_image(self):
+        qr = "0041000600000101030040220013071152533APM077365102TH91048134"
+        code = self.order()
+        with self.mock_slipok((400, err_payload(1000)), (200, ok_payload("REF-QR"))):
+            status, data = self.upload(code, qr=qr)
+        self.assertEqual(data["result"], "success")
+        self.assertEqual(self.calls, [("image/png", 15), ("image/png", 15, qr)])
+        # No QR from the browser: no second call.
+        self.calls.clear()
+        other = self.order(30)
+        with self.mock_slipok((400, err_payload(1000)), (200, ok_payload("REF-QR2", 30))):
+            _, data = self.upload(other)
+        self.assertEqual((data["result"], len(self.calls)), ("failed", 1))
+        # A readable image is never re-checked with the QR text.
+        self.calls.clear()
+        third = self.order(45)
+        with self.mock_slipok((400, err_payload(1013, {"amount": 30}))):
+            _, data = self.upload(third, qr=qr)
+        self.assertEqual(len(self.calls), 1)
+
+    def test_bad_qr_header_ignored(self):
+        self.assertIsNone(slips.clean_qr("short"))
+        self.assertIsNone(slips.clean_qr("ข้อความไทยที่ยาวพอสมควรแต่ไม่ใช่ ascii"))
+        self.assertIsNone(slips.clean_qr("A" * 600))
+        self.assertEqual(slips.clean_qr("0041000600000101%2003"), "0041000600000101 03")
 
     def test_secrets_not_in_responses(self):
         code = self.order()
@@ -310,6 +363,11 @@ class SlipOKRequest(unittest.TestCase):
         self.assertIn(b'name="files"; filename="slip.png"', body)
         self.assertIn(PNG, body)
         self.assertEqual(seen["timeout"], slips.TIMEOUT_SECONDS)
+        # With the QR text from the browser: SlipOK's JSON "data" field, no image.
+        with mock.patch.dict(os.environ, SLIP_ENV), mock.patch.object(slips.urllib.request, "urlopen", fake_urlopen):
+            slips.slipok_request(PNG, "image/png", 45, qr="00410006ABC")
+        self.assertEqual(json.loads(seen["body"]), {"data": "00410006ABC", "amount": 45, "log": True})
+        self.assertEqual(seen["headers"].get("Content-type"), "application/json")
 
     def test_sniff(self):
         self.assertEqual(slips.sniff_image(JPG), "image/jpeg")
@@ -320,3 +378,13 @@ class SlipOKRequest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BrowserQr(unittest.TestCase):
+    def test_client_reads_qr_and_sends_it(self):
+        static = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static")
+        with open(os.path.join(static, "app.js"), encoding="utf-8") as fh:
+            js = fh.read()
+        self.assertIn('headers["X-Slip-QR"] = encodeURIComponent(prepared.qr)', js)
+        self.assertIn('s.src = "/vendor/jsQR.js"', js)
+        self.assertTrue(os.path.exists(os.path.join(static, "vendor", "jsQR.js")))

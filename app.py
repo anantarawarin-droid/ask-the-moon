@@ -263,7 +263,7 @@ ORDER_PATH = re.compile(r"^/api/admin/orders/([A-Za-z0-9]{4,12})/(approve|reject
 SLIP_PATH = re.compile(r"^/api/orders/([A-Za-z0-9]{4,12})/slip$")
 
 
-def verify_slip(code: str, visitor_id: str, image: bytes) -> tuple[int, dict[str, Any]]:
+def verify_slip(code: str, visitor_id: str, image: bytes, qr: str | None = None) -> tuple[int, dict[str, Any]]:
     """Check one uploaded slip and approve the order when SlipOK confirms it."""
     mime = slips.sniff_image(image)
     if mime is None:
@@ -276,9 +276,16 @@ def verify_slip(code: str, visitor_id: str, image: bytes) -> tuple[int, dict[str
                      "messageTh": slips.MSG["success"][0], "messageEn": slips.MSG["success"][1],
                      "order": billing.public_order(order), "balance": SERVICE.balance(visitor_id)}
     prior_review = order.get("slipStatus") == "review"
-    check = slips.check_slip(image, mime, int(order["price"]))
+    check = slips.check_slip(image, mime, int(order["price"]), qr=qr)
     outcome = slips.classify(check, int(order["price"]), prior_review=prior_review)
-    print(f"Slip check {order['code']}: {outcome.kind} ({outcome.code})", flush=True)
+    reply = check.get("payload") or {}
+    # Diagnostics only: HTTP status, SlipOK code/message, file type/size. Never the key, branch, or slip data.
+    print(f"Slip check {order['code']}: {outcome.kind} ({outcome.code}) · SlipOK HTTP {check.get('status')} "
+          f"code {reply.get('code')} msg {str(reply.get('message') or '')[:100]!r} · {mime} {len(image)} bytes · "
+          f"browser QR {'yes' if qr else 'no'} · via {check.get('via')}"
+          + (f" (image gave {check.get('firstCode')})" if check.get("firstCode") else ""), flush=True)
+    if outcome.kind != "success" and (outcome.code in slips.UNCOUNTED_CODES or (check.get("error") is not None)):
+        SERVICE.release_slip_attempt(order["code"])
 
     if outcome.kind == "success" and outcome.trans_ref:
         try:
@@ -593,7 +600,8 @@ class Handler(SimpleHTTPRequestHandler):
                 if length > slips.MAX_BYTES:
                     raise billing.PaymentError("The image is larger than 4 MB.", 413, "file_too_large")
                 image = self.rfile.read(length)
-                status, payload = verify_slip(slip_match.group(1), vid, image)
+                status, payload = verify_slip(slip_match.group(1), vid, image,
+                                              slips.clean_qr(self.headers.get("X-Slip-QR")))
                 self._send(status, payload)
             self._handle(run)
             return

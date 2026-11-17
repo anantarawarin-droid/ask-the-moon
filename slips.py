@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
@@ -95,13 +97,29 @@ def _multipart(fields: dict[str, str], file_bytes: bytes, filename: str, mime: s
     return bytes(out), f"multipart/form-data; boundary={boundary}"
 
 
-def slipok_request(image: bytes, mime: str, amount: int) -> tuple[int, dict[str, Any]]:
-    """One HTTP call to SlipOK. Returns (status, json). Raises on network errors/timeouts."""
+_QR_OK = re.compile(r"^[\x20-\x7e]{10,512}$")
+
+
+def clean_qr(raw: Any) -> str | None:
+    """QR text the browser read from the slip (printable ASCII only), or None."""
+    text = urllib.parse.unquote(str(raw or "")).strip()
+    return text if _QR_OK.match(text) else None
+
+
+def slipok_request(image: bytes, mime: str, amount: int, qr: str | None = None) -> tuple[int, dict[str, Any]]:
+    """One HTTP call to SlipOK. Returns (status, json). Raises on network errors/timeouts.
+
+    With ``qr`` the QR text is sent as ``data`` (SlipOK's own field for it) instead of the image.
+    """
     cfg = config()
     if cfg is None:
         raise RuntimeError("SlipOK is not configured")
     branch, key = cfg
-    body, ctype = _multipart({"amount": str(amount), "log": "true"}, image, EXTENSIONS[mime], mime)
+    if qr:
+        body = json.dumps({"data": qr, "amount": amount, "log": True}).encode()
+        ctype = "application/json"
+    else:
+        body, ctype = _multipart({"amount": str(amount), "log": "true"}, image, EXTENSIONS[mime], mime)
     req = urllib.request.Request(
         SLIPOK_URL + urllib.request.quote(branch, safe=""),
         data=body,
@@ -121,15 +139,50 @@ def slipok_request(image: bytes, mime: str, amount: int) -> tuple[int, dict[str,
     return status, payload if isinstance(payload, dict) else {}
 
 
-def check_slip(image: bytes, mime: str, amount: int) -> dict[str, Any]:
-    """Call SlipOK with one retry on timeouts, network errors, and 5xx.
+SETUP_PROBLEMS = {
+    1001: "branch ID not found (check SLIPOK_BRANCH_ID)",
+    1002: "API key rejected (check SLIPOK_API_KEY)",
+    1003: "SlipOK package expired — renew it in SlipOK",
+    1004: "SlipOK quota used up — top up / renew the package",
+}
+# Not the customer's fault, or nothing was really checked: these uploads don't use up an attempt.
+UNCOUNTED_CODES = {"1000", "1005", "1006", "1007", "1008", "1009", "1010", "1001", "1002", "1003", "1004",
+                   "timeout", "network", "URLError", "OSError", "ConnectionError", "RemoteDisconnected"}
+# SlipOK could not find a usable slip in the uploaded picture.
+UNREADABLE_CODES = {1000, 1005, 1006, 1007, 1008}
 
-    Returns {"status", "payload", "retried", "error"}; never raises.
+
+def _code(payload: dict[str, Any]) -> int | None:
+    try:
+        return int(payload.get("code"))
+    except (TypeError, ValueError):
+        return None
+
+
+def check_slip(image: bytes, mime: str, amount: int, qr: str | None = None) -> dict[str, Any]:
+    """Send the image to SlipOK; if SlipOK can't read it but the browser already
+    read the slip's QR code, ask again with that QR text. Never raises.
+
+    Returns {"status", "payload", "retried", "error", "via"}.
     """
+    result = _check_once(image, mime, amount, None)
+    result["via"] = "image"
+    first = _code(result.get("payload") or {})
+    if qr and result.get("status") is not None and first in (1000, 1006, 1007):
+        again = _check_once(image, mime, amount, qr)
+        if again.get("status") is not None:
+            again["via"] = "qr"
+            again["firstCode"] = first
+            return again
+    return result
+
+
+def _check_once(image: bytes, mime: str, amount: int, qr: str | None) -> dict[str, Any]:
+    """One SlipOK check with one retry on timeouts, network errors, and 5xx."""
     result: dict[str, Any] = {"status": None, "payload": {}, "retried": False, "error": None}
     for attempt in (1, 2):
         try:
-            status, payload = slipok_request(image, mime, amount)
+            status, payload = slipok_request(image, mime, amount, qr)
             result.update(status=status, payload=payload, error=None)
             if status >= 500 and attempt == 1:
                 result["retried"] = True
@@ -193,8 +246,11 @@ MSG = {
     "receiver": ("บัญชีผู้รับในสลิปไม่ใช่บัญชีของถามจันทร์ กรุณาตรวจสอบการโอนอีกครั้ง",
                  "This slip was paid to a different account. Please check your transfer."),
     "duplicate": ("สลิปนี้เคยใช้ไปแล้ว ไม่สามารถใช้ซ้ำได้", "This slip has already been used and can't be used again."),
-    "not_slip": ("อ่านสลิปไม่ได้ กรุณาอัปโหลดรูปสลิปที่เห็น QR ชัดเจน (ไม่ครอป)",
-                 "We couldn't read a payment slip. Please upload the full slip image with its QR code visible."),
+    "not_slip": ("ระบบอ่านสลิปจากรูปนี้ไม่ได้ กรุณาอัปโหลดรูปสลิปเต็มใบจากแอปธนาคาร (บันทึกรูปสลิปหรือแคปหน้าจอ) "
+                 "ให้เห็น QR มุมสลิปชัด ๆ ไม่ครอป ไม่ถ่ายจากจออื่น · ครั้งนี้ไม่นับจำนวนครั้ง",
+                 "We couldn't read a slip in this picture. Please upload the full slip from your banking app "
+                 "(saved slip image or a screenshot) with its QR code clearly visible, not cropped or photographed "
+                 "from another screen. This try doesn't count."),
     "review": ("กำลังตรวจสอบเพิ่มเติม เครดิตจะเข้าอัตโนมัติเมื่อผ่าน",
                "We're checking this further. Credits are added automatically once it passes."),
     "delay": ("ธนาคารนี้ต้องรอสักครู่ก่อนตรวจสลิปได้ ลองอัปโหลดอีกครั้งในอีกไม่กี่นาที หรือรอแอดมินตรวจให้",
@@ -238,8 +294,10 @@ def classify(check: dict[str, Any], price: int, prior_review: bool = False) -> O
             return Outcome("review", "1012", "SlipOK 1012 repeated slip; amount matches — confirm it isn't reused",
                            *MSG["review"], summary=summary, trans_ref=None)
         return Outcome("failed", "1012", "SlipOK 1012 repeated slip", *MSG["duplicate"], summary=summary)
-    if code_i in (1005, 1006, 1007, 1008):
-        return Outcome("failed", str(code_i), f"SlipOK {code_i} not a readable payment slip", *MSG["not_slip"], summary=summary)
+    if code_i in UNREADABLE_CODES:
+        msg = str(payload.get("message") or "")[:80]
+        return Outcome("failed", str(code_i), f"SlipOK {code_i} no readable slip/QR in the picture ({msg}); "
+                       "customer asked to re-upload", *MSG["not_slip"], summary=summary)
     if code_i == 1010:
         delay = (data or {}).get("delay") if isinstance(data, dict) else None
         return Outcome("review", "1010", f"SlipOK 1010 bank delay{f' ({delay} min)' if delay else ''}; retry or check manually",
@@ -247,9 +305,9 @@ def classify(check: dict[str, Any], price: int, prior_review: bool = False) -> O
     if code_i in (1009, 1011):
         return Outcome("review", str(code_i), f"SlipOK {code_i} bank data not available yet; check manually",
                        *MSG["review"], summary=summary)
-    if code_i in (1000, 1001, 1002, 1003, 1004):
-        print(f"SlipOK configuration/quota problem: code {code_i}", file=sys.stderr, flush=True)
-        return Outcome("review", str(code_i), f"SlipOK {code_i} (setup/quota problem); check manually",
+    if code_i in SETUP_PROBLEMS:
+        print(f"SlipOK setup problem: code {code_i} ({SETUP_PROBLEMS[code_i]})", file=sys.stderr, flush=True)
+        return Outcome("review", str(code_i), f"SlipOK {code_i}: {SETUP_PROBLEMS[code_i]}; check manually",
                        *MSG["review"], summary=summary)
     return Outcome("review", str(code_i or status), f"SlipOK HTTP {status} code {code_i}; check manually",
                    *MSG["review"], summary=summary)
