@@ -12,9 +12,8 @@ env/
 .env.*
 !.env.example
 
-# Local / generated
-screenshot.png
-*.png
+# Local / generated screenshots at the repo root (icon files in static/ are committed)
+/*.png
 .DS_Store
 .idea/
 .vscode/

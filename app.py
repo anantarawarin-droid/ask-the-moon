@@ -447,8 +447,31 @@ def sitemap_xml() -> bytes:
     ).encode("utf-8")
 
 
+ICON_CACHE_PATHS = frozenset({
+    "/favicon.ico",
+    "/favicon.svg",
+    "/favicon-48.png",
+    "/favicon-192.png",
+    "/apple-touch-icon.png",
+    "/icon-512.png",
+    "/site.webmanifest",
+})
+
+
 class Handler(SimpleHTTPRequestHandler):
-    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".webp": "image/webp"}
+    extensions_map = {
+        **SimpleHTTPRequestHandler.extensions_map,
+        ".webp": "image/webp",
+        ".ico": "image/x-icon",
+        ".svg": "image/svg+xml",
+        ".png": "image/png",
+        ".webmanifest": "application/manifest+json",
+    }
+
+    def end_headers(self) -> None:
+        if self._route() in ICON_CACHE_PATHS:
+            self.send_header("Cache-Control", "public, max-age=604800")
+        super().end_headers()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(STATIC), **kwargs)

@@ -114,5 +114,70 @@ class SearchConsole(unittest.TestCase):
             self.assertIn('rel="canonical"', body)
 
 
+ICON_LINKS = (
+    '<link rel="icon" href="/favicon.ico" sizes="any">',
+    '<link rel="icon" type="image/svg+xml" href="/favicon.svg">',
+    '<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">',
+    '<link rel="apple-touch-icon" href="/apple-touch-icon.png">',
+    '<link rel="manifest" href="/site.webmanifest">',
+)
+
+ICON_FILES = {
+    "/favicon.ico": ("image/x-icon", None),
+    "/favicon.svg": ("image/svg+xml", None),
+    "/favicon-48.png": ("image/png", (48, 48)),
+    "/favicon-192.png": ("image/png", (192, 192)),
+    "/apple-touch-icon.png": ("image/png", (180, 180)),
+    "/icon-512.png": ("image/png", (512, 512)),
+    "/site.webmanifest": ("application/manifest+json", None),
+}
+
+
+class Favicons(unittest.TestCase):
+    def test_html_points_at_real_icon_files(self):
+        for name in ("index.html", "terms.html", "privacy.html"):
+            html = (STATIC / name).read_text()
+            self.assertNotIn("data:image/svg+xml", html, name)
+            for link in ICON_LINKS:
+                self.assertIn(link, html, name)
+
+    def test_icon_files_exist_with_expected_sizes(self):
+        from PIL import Image, IcoImagePlugin
+        svg = (STATIC / "favicon.svg").read_text()
+        self.assertIn('fill="#0a0614"', svg)
+        self.assertIn('fill="#d4af37"', svg)
+        self.assertIn("rx=\"12\"", svg)
+        self.assertIn("M38 10a22 22 0 1 0 12 36A18 18 0 1 1 38 10z", svg)
+        for path, size in (("favicon-48.png", (48, 48)), ("favicon-192.png", (192, 192)),
+                           ("apple-touch-icon.png", (180, 180)), ("icon-512.png", (512, 512))):
+            with Image.open(STATIC / path) as im:
+                self.assertEqual(im.size, size, path)
+        with (STATIC / "favicon.ico").open("rb") as fh:
+            self.assertEqual(sorted(IcoImagePlugin.IcoFile(fh).sizes()), [(16, 16), (32, 32), (48, 48)])
+
+    def test_icons_are_served_with_types_and_cache(self):
+        import http.client
+        import threading
+        server = tc.app.ThreadingHTTPServer(("127.0.0.1", 0), tc.app.Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            port = server.server_address[1]
+            for path, (ctype, _) in ICON_FILES.items():
+                conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                conn.request("GET", path)
+                resp = conn.getresponse()
+                body = resp.read()
+                self.assertEqual(resp.status, 200, path)
+                self.assertEqual(resp.getheader("Content-Type"), ctype, path)
+                self.assertEqual(resp.getheader("Cache-Control"), "public, max-age=604800", path)
+                self.assertGreater(len(body), 0, path)
+                conn.close()
+        finally:
+            server.shutdown()
+            server.server_close()
+
+
+
+
 if __name__ == "__main__":
     unittest.main()
