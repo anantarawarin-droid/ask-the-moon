@@ -168,6 +168,13 @@ const I18N = {
     },
     tarotCredit: "ภาพไพ่ทาโรต์: สำรับ Rider-Waite-Smith (ค.ศ. 1909) วาดโดย Pamela Colman Smith · สาธารณสมบัติ จาก Wikimedia Commons",
     tarotReversed: "กลับหัว",
+    shareBtn: "✦ แชร์ผลทำนายเป็นรูป",
+    shareTitle: "รูปผลทำนายของคุณ",
+    shareNote: "รูปนี้มีแค่ไพ่กับคำตอบ ไม่มีคำถามหรือชื่อของคุณ",
+    shareSave: "บันทึกรูป",
+    shareShare: "แชร์",
+    shareMaking: "กำลังทำรูป...",
+    shareFail: "ทำรูปไม่สำเร็จ ลองใหม่อีกครั้งนะคะ",
     tarotTap: "แตะไพ่เพื่อดูความหมาย",
     disclaimer: "คำตอบจากไพ่ทาโรต์มีไว้เป็นแนวทาง ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย หรือการเงิน การตัดสินใจสุดท้ายเป็นของคุณ",
     badgeZodiac: "ราศีตะวันตก",
@@ -359,6 +366,13 @@ const I18N = {
     },
     tarotCredit: "Tarot art: Rider-Waite-Smith deck (1909) by Pamela Colman Smith · public domain, via Wikimedia Commons",
     tarotReversed: "Reversed",
+    shareBtn: "✦ Share this reading as an image",
+    shareTitle: "Your reading card",
+    shareNote: "The image shows only the cards and the answer, not your question or name.",
+    shareSave: "Save image",
+    shareShare: "Share",
+    shareMaking: "Making your image...",
+    shareFail: "Couldn't make the image. Please try again.",
     tarotTap: "Tap a card to see its meaning",
     disclaimer: "Tarot answers are guidance, not medical, legal, or financial advice. The final decision is yours.",
     badgeZodiac: "Western zodiac",
@@ -560,6 +574,355 @@ function renderTarot(tarot) {
   const start = () => figs.forEach((fig, i) => setTimeout(() => fig.classList.add("is-flipped"), 500 + i * 650));
   Promise.race([Promise.all(loads), new Promise((r) => setTimeout(r, 2500))]).then(start);
   tarotRevealed = key;
+}
+
+// ---------- Share card (client-side image of the reading, no question text) ----------
+const SHARE_W = 1080;
+const SHARE_H = 1350;
+const SHARE_FONTS = [
+  ['600 64px "Noto Serif Thai"', "ถามจันทร์ไพ่"],
+  ['500 34px "Noto Serif Thai"', "คำตอบ"],
+  ['400 34px "Noto Sans Thai"', "กขคงจ ตอบ ไพ่"],
+  ['500 30px "Noto Sans Thai"', "กขคงจ"],
+  ['600 30px "Noto Sans Thai"', "กขคงจ"],
+  ['600 40px "Cinzel"', "Ask the Moon foolmoon.lol"],
+];
+let shareUrl = "";
+let shareBlob = null;
+
+async function shareFontsReady() {
+  if (!document.fonts || !document.fonts.load) return;
+  const loads = SHARE_FONTS.map(([f, s]) => document.fonts.load(f, s).catch(() => null));
+  await Promise.race([Promise.all(loads), new Promise((r) => setTimeout(r, 4000))]);
+  await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]);
+}
+
+function shareLoadImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+// Words for line-breaking: Thai has no spaces, so use the browser's word segmenter when it has one.
+function shareWords(text, lang) {
+  if (typeof Intl !== "undefined" && Intl.Segmenter) {
+    return [...new Intl.Segmenter(lang === "en" ? "en" : "th", { granularity: "word" }).segment(text)].map((s) => s.segment);
+  }
+  // Fallback: break between characters, but never before a Thai combining mark.
+  const out = [];
+  for (const ch of text) {
+    if (out.length && /[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/.test(ch)) out[out.length - 1] += ch;
+    else out.push(ch);
+  }
+  return out;
+}
+
+function shareWrap(ctx, text, maxWidth, maxLines, lang) {
+  const lines = [];
+  let line = [];
+  const fits = (segs) => ctx.measureText(segs.join("")).width <= maxWidth;
+  for (const w of shareWords(text, lang)) {
+    if (!line.length && !w.trim()) continue;
+    if (!line.length || fits([...line, w])) {
+      line.push(w);
+      continue;
+    }
+    lines.push(line);
+    line = w.trim() ? [w] : [];
+    if (lines.length === maxLines) {
+      // Out of room: trim the last line at a word (or phrase) boundary and add an ellipsis.
+      const last = lines[maxLines - 1];
+      const tidy = () => { while (last.length && /^[\s,.·—–-]*$/.test(last[last.length - 1])) last.pop(); };
+      tidy();
+      while (last.length > 1 && !fits([...last, "…"])) { last.pop(); tidy(); }
+      const sp = last.lastIndexOf(" ");
+      if (sp > last.length * 0.6) { last.length = sp; tidy(); }
+      last.push("…");
+      return lines.map((l) => l.join("").trim());
+    }
+  }
+  if (line.length) lines.push(line);
+  return lines.map((l) => l.join("").trim());
+}
+
+// The answer part only: first paragraph, without the greeting name or the customer's question.
+function shareExcerpt(data) {
+  let text = String(data.reading || "").split(/\n\s*\n/).map((p) => p.trim()).find(Boolean) || "";
+  const q = String(data.question || "").trim();
+  if (q) text = text.split(q).join("");
+  text = text.replace(/เรื่อง\s*«[^»]*»\s*/g, "").replace(/«[^»]*»/g, "");
+  const name = String(data.name || "").trim();
+  if (name) {
+    const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    text = text.replace(new RegExp("^(คุณ)?" + esc + "\\s*(ค่ะ|คะ|ครับ)?\\s*[,،:—-]?\\s*"), "");
+    text = text.split(name).join("");
+  }
+  return text.replace(/^[\s—–,:-]+/, "").replace(/\s{2,}/g, " ").trim();
+}
+
+function shareRoundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// The site's crescent (same path as favicon.svg, drawn in a 64-unit box).
+function shareCrescent(ctx, x, y, size, color) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(size / 64, size / 64);
+  ctx.fillStyle = color;
+  ctx.shadowColor = "rgba(243, 226, 168, 0.55)";
+  ctx.shadowBlur = 18;
+  ctx.fill(new Path2D("M38 10a22 22 0 1 0 12 36A18 18 0 1 1 38 10z"));
+  ctx.restore();
+}
+
+async function buildShareCard(data, lang) {
+  await shareFontsReady();
+  const th = lang !== "en";
+  const dict = I18N[th ? "th" : "en"];
+  const cards = ((data.tarot && data.tarot.cards) || []).slice(0, 3);
+  const imgs = await Promise.all(cards.map((c) => shareLoadImage(c.image)));
+  const canvas = document.createElement("canvas");
+  canvas.width = SHARE_W;
+  canvas.height = SHARE_H;
+  const ctx = canvas.getContext("2d");
+  const W = SHARE_W, H = SHARE_H, cx = W / 2;
+  const SERIF = '"Noto Serif Thai", "Cormorant Garamond", serif';
+  const SANS = '"Noto Sans Thai", sans-serif';
+  const DISPLAY = '"Cinzel", "Noto Serif Thai", serif';
+
+  // Night sky like the site background.
+  ctx.fillStyle = "#0a0614";
+  ctx.fillRect(0, 0, W, H);
+  let g = ctx.createRadialGradient(cx, -140, 40, cx, -140, 1250);
+  g.addColorStop(0, "#3a1d63");
+  g.addColorStop(0.55, "#150a24");
+  g.addColorStop(1, "#0a0614");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  g = ctx.createRadialGradient(W * 0.88, H * 0.82, 0, W * 0.88, H * 0.82, 520);
+  g.addColorStop(0, "rgba(212, 175, 55, 0.10)");
+  g.addColorStop(1, "rgba(212, 175, 55, 0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647); // fixed pattern, decoration only
+  for (let i = 0; i < 140; i += 1) {
+    ctx.globalAlpha = 0.25 + rnd() * 0.6;
+    ctx.fillStyle = rnd() > 0.8 ? "#f3e2a8" : "#ffffff";
+    ctx.beginPath();
+    ctx.arc(rnd() * W, rnd() * H, 0.6 + rnd() * 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Thin gold frame.
+  ctx.strokeStyle = "rgba(212, 175, 55, 0.45)";
+  ctx.lineWidth = 2;
+  shareRoundRect(ctx, 28, 28, W - 56, H - 56, 34);
+  ctx.stroke();
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+
+  // Header: crescent + brand.
+  const brand = th ? "ถามจันทร์" : "Ask the Moon";
+  ctx.font = th ? `600 62px ${SERIF}` : `600 54px ${DISPLAY}`;
+  const bw = ctx.measureText(brand).width;
+  const hx = cx - (bw + 78) / 2;
+  shareCrescent(ctx, hx, 78, 64, "#d4af37");
+  ctx.fillStyle = "#f3e2a8";
+  ctx.textAlign = "left";
+  ctx.fillText(brand, hx + 78, 132);
+  ctx.textAlign = "center";
+  ctx.font = `400 24px ${DISPLAY}`;
+  ctx.fillStyle = "#b7a8c9";
+  const topic = (dict.topics && dict.topics[data.topic]) || "";
+  const eyebrow = th ? `ไพ่ทาโรต์${topic ? " · " + topic : ""}` : `TAROT${topic ? " · " + topic.toUpperCase() : ""}`;
+  ctx.font = `500 28px ${th ? SANS : DISPLAY}`;
+  ctx.fillStyle = "#c9b6ff";
+  ctx.fillText(eyebrow, cx, 190);
+
+  // Cards.
+  const n = Math.max(cards.length, 1);
+  const cw = n === 1 ? 330 : n === 2 ? 290 : 272;
+  const ch = Math.round(cw * 518 / 300);
+  const gap = n === 1 ? 0 : 44;
+  const rowW = n * cw + (n - 1) * gap;
+  const top = 236;
+  cards.forEach((c, i) => {
+    const x = cx - rowW / 2 + i * (cw + gap);
+    ctx.save();
+    ctx.shadowColor = "rgba(245, 163, 208, 0.35)";
+    ctx.shadowBlur = 36;
+    ctx.fillStyle = "#f4ead2";
+    shareRoundRect(ctx, x, top, cw, ch, 16);
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    shareRoundRect(ctx, x, top, cw, ch, 16);
+    ctx.clip();
+    if (imgs[i]) {
+      if (c.reversed) {
+        ctx.translate(x + cw / 2, top + ch / 2);
+        ctx.rotate(Math.PI);
+        ctx.drawImage(imgs[i], -cw / 2, -ch / 2, cw, ch);
+      } else {
+        ctx.drawImage(imgs[i], x, top, cw, ch);
+      }
+    }
+    ctx.restore();
+    ctx.strokeStyle = "rgba(212, 175, 55, 0.9)";
+    ctx.lineWidth = 3;
+    shareRoundRect(ctx, x, top, cw, ch, 16);
+    ctx.stroke();
+
+    const name = th ? c.nameTh.replace(/\s*\(.*\)$/, "") : c.nameEn;
+    ctx.fillStyle = "#f3e2a8";
+    let size = n === 1 ? 38 : 30;
+    ctx.font = `600 ${size}px ${th ? SANS : SERIF}`;
+    while (ctx.measureText(name).width > cw + gap - 8 && size > 20) {
+      size -= 1;
+      ctx.font = `600 ${size}px ${th ? SANS : SERIF}`;
+    }
+    ctx.fillText(name, x + cw / 2, top + ch + 50);
+    if (c.reversed) {
+      ctx.font = `500 22px ${SANS}`;
+      ctx.fillStyle = "#f5a3d0";
+      ctx.fillText(dict.tarotReversed, x + cw / 2, top + ch + 84);
+    }
+  });
+
+  // Answer excerpt panel.
+  const footTop = H - 176;
+  const py = top + ch + (cards.some((c) => c.reversed) ? 112 : 92);
+  const px = 84, pw = W - 168, ph = footTop - py - 20;
+  ctx.fillStyle = "rgba(22, 12, 40, 0.82)";
+  shareRoundRect(ctx, px, py, pw, ph, 26);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(212, 175, 55, 0.35)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.font = `500 26px ${th ? SERIF : DISPLAY}`;
+  ctx.fillStyle = "#d4af37";
+  ctx.fillText(th ? "✦ คำตอบจากไพ่ ✦" : "✦ THE CARDS SAY ✦", cx, py + 52);
+  const excerpt = shareExcerpt(data);
+  const fs = 33, lh = Math.round(fs * 1.62);
+  ctx.font = `400 ${fs}px ${SANS}`;
+  ctx.fillStyle = "#f6f0e6";
+  const maxLines = Math.max(1, Math.floor((ph - 96) / lh));
+  const lines = shareWrap(ctx, excerpt, pw - 96, maxLines, lang);
+  const blockH = lines.length * lh;
+  let ty = py + 70 + Math.max(0, (ph - 90 - blockH) / 2) + fs;
+  lines.forEach((l) => { ctx.fillText(l, cx, ty); ty += lh; });
+
+  // Footer branding, big enough to read in a feed.
+  ctx.strokeStyle = "rgba(212, 175, 55, 0.35)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx - 300, footTop + 6);
+  ctx.lineTo(cx + 300, footTop + 6);
+  ctx.stroke();
+  const left = th ? "ถามจันทร์" : "Ask the Moon";
+  const sep = "  ·  ";
+  const site = "foolmoon.lol";
+  const fLeft = th ? `600 40px ${SERIF}` : `600 36px ${DISPLAY}`;
+  const fSite = `600 44px "Cormorant Garamond", ${SERIF}`;
+  ctx.font = fLeft;
+  const wl = ctx.measureText(left + sep).width;
+  ctx.font = fSite;
+  const ws = ctx.measureText(site).width;
+  const total = 56 + 16 + wl + ws;
+  let fx = cx - total / 2;
+  shareCrescent(ctx, fx, footTop + 36, 56, "#d4af37");
+  fx += 72;
+  ctx.textAlign = "left";
+  ctx.font = fLeft;
+  ctx.fillStyle = "#f3e2a8";
+  ctx.fillText(left + sep, fx, footTop + 80);
+  ctx.font = fSite;
+  ctx.fillStyle = "#d4af37";
+  ctx.fillText(site, fx + wl, footTop + 80);
+  ctx.textAlign = "center";
+  ctx.font = `400 22px ${th ? SANS : SERIF}`;
+  ctx.fillStyle = "#b7a8c9";
+  ctx.fillText(th ? "ดูดวงไพ่ทาโรต์ ตอบตรง ๆ" : "Straight answers from the tarot", cx, footTop + 118);
+  return canvas;
+}
+
+function shareCanvasBlob(canvas) {
+  return new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/png"));
+}
+
+function closeShareModal() {
+  document.getElementById("share-modal").hidden = true;
+}
+
+async function openShareModal() {
+  if (!state.last) return;
+  const dict = t();
+  const modal = document.getElementById("share-modal");
+  const img = document.getElementById("share-img");
+  const status = document.getElementById("share-status");
+  const saveBtn = document.getElementById("share-save");
+  const nativeBtn = document.getElementById("share-native");
+  modal.hidden = false;
+  img.hidden = true;
+  saveBtn.disabled = true;
+  nativeBtn.hidden = true;
+  status.hidden = false;
+  status.textContent = dict.shareMaking;
+  try {
+    const canvas = await buildShareCard(state.last, state.lang);
+    shareBlob = await shareCanvasBlob(canvas);
+    if (!shareBlob) throw new Error("blob");
+    if (shareUrl) URL.revokeObjectURL(shareUrl);
+    shareUrl = URL.createObjectURL(shareBlob);
+    img.src = shareUrl;
+    img.hidden = false;
+    status.hidden = true;
+    saveBtn.disabled = false;
+    const file = new File([shareBlob], "foolmoon-reading.png", { type: "image/png" });
+    nativeBtn.hidden = !(navigator.canShare && navigator.canShare({ files: [file] }));
+  } catch (err) {
+    status.textContent = dict.shareFail;
+  }
+}
+
+function setupShare() {
+  document.getElementById("share-btn").addEventListener("click", openShareModal);
+  document.getElementById("share-close-x").addEventListener("click", closeShareModal);
+  const modal = document.getElementById("share-modal");
+  modal.addEventListener("click", (event) => { if (event.target === modal) closeShareModal(); });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !modal.hidden) closeShareModal(); });
+  document.getElementById("share-save").addEventListener("click", () => {
+    if (!shareUrl) return;
+    const a = document.createElement("a");
+    a.href = shareUrl;
+    a.download = "foolmoon-reading.png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+  document.getElementById("share-native").addEventListener("click", async () => {
+    if (!shareBlob) return;
+    const file = new File([shareBlob], "foolmoon-reading.png", { type: "image/png" });
+    try {
+      await navigator.share({ files: [file], title: t().brand });
+    } catch (err) {
+      /* user closed the share sheet */
+    }
+  });
 }
 
 const ANIMAL_ICON = { rat: "🐀", ox: "🐂", tiger: "🐅", rabbit: "🐇", dragon: "🐉", snake: "🐍",
@@ -1539,6 +1902,7 @@ function setup() {
   syncCount();
   setupPricing();
   setupAccount();
+  setupShare();
   loadAuthConfig();
   applyLang();
   paintStars();

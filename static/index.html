@@ -161,6 +161,7 @@
             </header>
             <div class="reading-body" id="reading-body"></div>
             <p class="source" id="source-note"></p>
+            <button type="button" class="btn soft share-btn" id="share-btn" data-i18n="shareBtn">✦ แชร์ผลทำนายเป็นรูป</button>
           </article>
 
           <article class="panel reading-card premium">
@@ -218,6 +219,20 @@
     <div class="modal-card panel account-card" role="dialog" aria-modal="true" aria-labelledby="account-title">
       <button type="button" class="modal-x" id="account-close-x" aria-label="Close">×</button>
       <div id="account-content"></div>
+    </div>
+  </div>
+
+  <div id="share-modal" class="modal" hidden>
+    <div class="modal-card panel share-card" role="dialog" aria-modal="true" aria-labelledby="share-title">
+      <button type="button" class="modal-x" id="share-close-x" aria-label="Close">×</button>
+      <h3 id="share-title" data-i18n="shareTitle">รูปผลทำนายของคุณ</h3>
+      <p class="share-status" id="share-status" hidden></p>
+      <img class="share-img" id="share-img" alt="" hidden />
+      <p class="share-note" data-i18n="shareNote">รูปนี้มีแค่ไพ่กับคำตอบ ไม่มีคำถามหรือชื่อของคุณ</p>
+      <div class="share-actions">
+        <button type="button" class="btn gold" id="share-save" data-i18n="shareSave">บันทึกรูป</button>
+        <button type="button" class="btn soft" id="share-native" data-i18n="shareShare" hidden>แชร์</button>
+      </div>
     </div>
   </div>
 
