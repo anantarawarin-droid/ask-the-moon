@@ -586,6 +586,7 @@ const SHARE_FONTS = [
   ['500 30px "Noto Sans Thai"', "กขคงจ"],
   ['600 30px "Noto Sans Thai"', "กขคงจ"],
   ['600 40px "Cinzel"', "Ask the Moon foolmoon.lol"],
+  ['600 76px "Cormorant Garamond"', "foolmoon.lol"],
 ];
 let shareUrl = "";
 let shareBlob = null;
@@ -736,8 +737,8 @@ async function buildShareCard(data, lang) {
   ctx.textBaseline = "alphabetic";
 
   // Header: crescent + brand.
-  const brand = th ? "ถามจันทร์" : "Ask the Moon";
-  ctx.font = th ? `600 62px ${SERIF}` : `600 54px ${DISPLAY}`;
+  const brand = "foolmoon.lol";
+  ctx.font = `600 76px "Cormorant Garamond", ${SERIF}`;
   const bw = ctx.measureText(brand).width;
   const hx = cx - (bw + 78) / 2;
   shareCrescent(ctx, hx, 78, 64, "#d4af37");
@@ -915,7 +916,7 @@ function setupShare() {
     if (!shareBlob) return;
     const file = new File([shareBlob], "foolmoon-reading.png", { type: "image/png" });
     try {
-      await navigator.share({ files: [file], title: t().brand });
+      await navigator.share({ files: [file], title: "foolmoon.lol" });
     } catch (err) {
       /* user closed the share sheet */
     }
