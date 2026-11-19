@@ -804,7 +804,7 @@ async function buildShareCard(data, lang) {
   });
 
   // Answer excerpt panel.
-  const footTop = H - 176;
+  const footTop = H - 150;
   const py = top + ch + (cards.some((c) => c.reversed) ? 112 : 92);
   const px = 84, pw = W - 168, ph = footTop - py - 20;
   ctx.fillStyle = "rgba(22, 12, 40, 0.82)";
@@ -854,9 +854,6 @@ async function buildShareCard(data, lang) {
   ctx.fillStyle = "#d4af37";
   ctx.fillText(site, fx + wl, footTop + 80);
   ctx.textAlign = "center";
-  ctx.font = `400 22px ${th ? SANS : SERIF}`;
-  ctx.fillStyle = "#b7a8c9";
-  ctx.fillText(th ? "ดูดวงไพ่ทาโรต์ ตอบตรง ๆ" : "Straight answers from the tarot", cx, footTop + 118);
   return canvas;
 }
 
