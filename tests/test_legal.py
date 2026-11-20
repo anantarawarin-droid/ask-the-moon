@@ -103,7 +103,10 @@ class SearchConsole(unittest.TestCase):
         for url in ("https://foolmoon.lol/", "https://foolmoon.lol/privacy", "https://foolmoon.lol/terms"):
             self.assertIn(f"<loc>{url}</loc>", body)
         self.assertNotIn("onrender.com", body)
-        self.assertEqual(body.count("<url>"), 3)
+        # 3 site pages + the /tarot index + 78 card pages
+        self.assertEqual(body.count("<url>"), 3 + 1 + 78)
+        self.assertIn("<loc>https://foolmoon.lol/tarot</loc>", body)
+        self.assertIn("<loc>https://foolmoon.lol/tarot/the-fool</loc>", body)
 
     def test_public_pages_still_load(self):
         for path, needle in (("/", "ถามจันทร์"), ("/privacy", "นโยบายความเป็นส่วนตัว"), ("/terms", "ข้อกำหนดการใช้งาน")):

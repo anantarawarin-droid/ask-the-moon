@@ -1,6 +1,6 @@
 const I18N = {
   th: {
-    docTitle: "ถามจันทร์ — ดูดวงไพ่ทาโรต์ 3 ใบ ตอบตรง ๆ | Ask the Moon",
+    docTitle: "ดูดวงไพ่ทาโรต์ออนไลน์ ถามไพ่ใช่ไม่ใช่ ตอบตรง ๆ | ถามจันทร์ foolmoon.lol",
     brand: "ถามจันทร์",
     brandSub: "Ask the Moon",
     footBrand: "ถามจันทร์",

@@ -62,8 +62,10 @@ class PageLayout(unittest.TestCase):
         title = re.search(r"<title>(.*?)</title>", HTML).group(1)
         self.assertIn("ไพ่ทาโรต์", title)
         desc = re.search(r'<meta name="description" content="([^"]+)"', HTML).group(1)
-        self.assertIn(POSITIONING, desc)
-        self.assertIn(POSITIONING, re.search(r'<meta property="og:description" content="([^"]+)"', HTML).group(1))
+        og_desc = re.search(r'<meta property="og:description" content="([^"]+)"', HTML).group(1)
+        for d in (desc, og_desc):  # SEO: real Thai search terms
+            for term in ("ดูดวงไพ่ทาโรต์", "ใช่ไม่ใช่", "ไพ่ทาโรต์ความรัก", "ออนไลน์"):
+                self.assertIn(term, d)
         self.assertIn("ไพ่ทาโรต์", re.search(r'<meta property="og:title" content="([^"]+)"', HTML).group(1))
         lede = re.search(r'data-i18n="heroLede">(.*?)</p>', HTML).group(1)
         self.assertTrue(lede.startswith(POSITIONING))

@@ -1,0 +1,60 @@
+/* Tarot meaning pages (/tarot) — same moon palette as styles.css */
+:root { --bg:#0a0614; --gold:#d4af37; --gold-soft:#f3e2a8; --lilac:#c9b6ff; --text:#f6f0e6; --muted:#b7a8c9;
+  --card:rgba(22,12,40,.78); --line:rgba(212,175,55,.28); --pink:#f5a3d0; }
+*,*::before,*::after { box-sizing:border-box; }
+html,body { margin:0; padding:0; }
+body { min-height:100vh; color:var(--text); font-family:"Noto Sans Thai",sans-serif; line-height:1.75;
+  background:radial-gradient(1200px 700px at 50% -10%, #3a1d63 0%, var(--bg) 55%) fixed, var(--bg); }
+a { color:var(--gold-soft); }
+.m-top { display:flex; align-items:center; justify-content:space-between; gap:1rem; max-width:62rem; margin:0 auto; padding:1rem 5vw; }
+.m-brand { display:flex; align-items:center; gap:.55rem; text-decoration:none; color:var(--gold-soft); font:600 1.25rem "Noto Serif Thai",serif; }
+.m-brand small { color:var(--muted); font:500 .95rem "Cormorant Garamond",serif; letter-spacing:.04em; }
+.m-brand img { border-radius:8px; }
+.m-ask, .m-btn { display:inline-block; text-decoration:none; border-radius:999px; font-weight:600; color:#1a1004;
+  background:linear-gradient(180deg,#f3e2a8,#d4af37 45%,#9a7420); box-shadow:0 8px 24px rgba(212,175,55,.28); }
+.m-ask { padding:.45rem 1.1rem; font-size:.92rem; }
+.m-btn { padding:.85rem 1.6rem; font-size:1.02rem; margin-top:.4rem; }
+.m-main { max-width:62rem; margin:0 auto; padding:0 5vw 2rem; }
+.m-crumb { font-size:.85rem; color:var(--muted); margin:.4rem 0 1rem; }
+.m-crumb a { color:var(--lilac); text-decoration:none; }
+h1, h2, h3 { font-family:"Noto Serif Thai",serif; color:var(--gold-soft); line-height:1.35; }
+h1 { font-size:clamp(1.7rem,5vw,2.4rem); margin:.2rem 0 .6rem; }
+h1 small { display:block; font:500 1.2rem "Cormorant Garamond",serif; color:var(--lilac); letter-spacing:.06em; margin-top:.2rem; }
+h2 { font-size:1.3rem; margin:1.6rem 0 .5rem; }
+h3 { font-size:1.08rem; margin:0 0 .35rem; }
+.m-lede { color:var(--lilac); max-width:44rem; }
+.m-jump { display:flex; flex-wrap:wrap; gap:.5rem; margin:1rem 0 .5rem; }
+.m-jump a { text-decoration:none; border:1px solid var(--line); border-radius:999px; padding:.3rem .9rem; font-size:.9rem; background:var(--card); }
+.m-suit { margin-top:1.8rem; }
+.m-blurb { color:var(--muted); margin:-.2rem 0 1rem; font-size:.95rem; }
+.m-grid { list-style:none; padding:0; margin:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(7.2rem,1fr)); gap:1rem .8rem; }
+.m-grid a { display:grid; justify-items:center; text-align:center; text-decoration:none; color:var(--text); }
+.m-grid img { width:100%; height:auto; border-radius:8px; box-shadow:0 8px 22px rgba(0,0,0,.45), 0 0 0 1px rgba(212,175,55,.5); transition:transform .15s ease; }
+.m-grid a:hover img { transform:translateY(-3px); }
+.m-grid b { font-weight:600; color:var(--gold-soft); font-size:.93rem; margin-top:.45rem; line-height:1.35; }
+.m-grid small { color:var(--muted); font-size:.74rem; }
+.m-card { background:var(--card); border:1px solid var(--line); border-radius:22px; padding:1.4rem 1.3rem 1.6rem; box-shadow:0 24px 60px rgba(0,0,0,.45); }
+.m-hero { display:grid; grid-template-columns:minmax(8rem,13rem) 1fr; gap:1.4rem; align-items:center; }
+.m-art { width:100%; height:auto; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.5), 0 0 0 1px rgba(212,175,55,.8), 0 0 22px rgba(245,163,208,.3); }
+.m-kicker { color:var(--gold); font-size:.85rem; letter-spacing:.06em; margin:0; }
+.m-keys { margin:.6rem 0 0; display:grid; gap:.6rem; }
+.m-keys div { background:rgba(10,6,20,.45); border:1px solid var(--line); border-radius:14px; padding:.55rem .85rem; }
+.m-keys dt { color:var(--gold); font-size:.8rem; font-weight:600; }
+.m-keys dd { margin:0; }
+.m-card p { margin:.2rem 0; }
+.m-topics { display:grid; grid-template-columns:repeat(auto-fit,minmax(14rem,1fr)); gap:.8rem; margin-top:1.4rem; }
+.m-topics section { background:rgba(10,6,20,.45); border:1px solid var(--line); border-radius:16px; padding:.9rem 1rem; }
+.m-cta { text-align:center; margin:2rem 0 1rem; padding:1.6rem 1.2rem; border-radius:22px; border:1px solid rgba(212,175,55,.45);
+  background:linear-gradient(180deg, rgba(107,63,160,.35), rgba(22,12,40,.85)); }
+.m-cta-title { font:600 1.2rem "Noto Serif Thai",serif; color:var(--gold-soft); margin:0 0 .3rem; }
+.m-cta p { color:var(--lilac); margin:.2rem 0 .8rem; }
+.m-pager { display:flex; justify-content:space-between; gap:.6rem; flex-wrap:wrap; margin:1.2rem 0; font-size:.92rem; }
+.m-pager a { text-decoration:none; color:var(--lilac); }
+.m-foot { max-width:44rem; margin:0 auto; padding:1rem 5vw 3rem; text-align:center; color:var(--muted); font-size:.8rem; }
+.m-foot a { color:var(--lilac); }
+@media (max-width:560px) {
+  .m-hero { grid-template-columns:1fr; justify-items:center; text-align:center; }
+  .m-art { max-width:11rem; }
+  .m-keys { text-align:left; width:100%; }
+  .m-grid { grid-template-columns:repeat(3,1fr); gap:.9rem .6rem; }
+}

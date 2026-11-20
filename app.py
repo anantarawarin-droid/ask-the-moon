@@ -25,6 +25,7 @@ from typing import Any
 import credits as billing
 import slips
 import tarot
+import tarot_pages
 import accounts
 import birthprofile
 import google_auth
@@ -33,7 +34,7 @@ ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
 LEGAL_PAGES = {"/privacy": "privacy.html", "/terms": "terms.html"}
 SITE_ORIGIN = "https://foolmoon.lol"
-PUBLIC_PAGES = ("/", "/privacy", "/terms")
+PUBLIC_PAGES = ("/", "/privacy", "/terms", *tarot_pages.PATHS)
 PORT = int(os.environ.get("PORT", "5050"))
 HOST = os.environ.get("HOST", "0.0.0.0")
 DATA_DIR = os.environ.get("DATA_DIR") or str(ROOT / "data")
@@ -602,6 +603,12 @@ class Handler(SimpleHTTPRequestHandler):
         if route == "/admin":
             self._serve_admin_page()
             return
+        if route == "/tarot":
+            self._serve_bytes(tarot_pages.render_index(), "text/html; charset=utf-8")
+            return
+        if route.startswith("/tarot/") and route[7:] in tarot_pages.BY_SLUG:
+            self._serve_bytes(tarot_pages.render_card(route[7:]), "text/html; charset=utf-8")
+            return
         if route == "/admin.html":
             self._send(404, {"ok": False, "error": "Not found."})
             return
@@ -662,6 +669,14 @@ class Handler(SimpleHTTPRequestHandler):
             self._send(404, {"ok": False, "error": "Not found."})
             return
         super().do_GET()
+
+    def do_HEAD(self) -> None:
+        route = self._route()
+        if route in ("/robots.txt", "/sitemap.xml", "/tarot") or (
+                route.startswith("/tarot/") and route[7:] in tarot_pages.BY_SLUG):
+            self.do_GET()  # _serve_bytes skips the body for HEAD
+            return
+        super().do_HEAD()
 
     def do_POST(self) -> None:
         route = self._route()
