@@ -196,6 +196,36 @@ const I18N = {
     shadow: "สิ่งที่ต้องระวัง",
     compat: "ขั้นต่อไปที่ควรทำ",
     forecast: "ช่วงเวลาที่ไพ่ชี้",
+    heroOwn: "มีไพ่ทาโรต์ที่บ้าน? เปิดไพ่เองแล้วให้จันทร์อ่านให้ →",
+    modeLabel: "วิธีเปิดไพ่",
+    modeDraw: "ให้จันทร์สุ่มไพ่",
+    modeDrawSub: "ระบบสุ่มไพ่ 3 ใบให้",
+    modeOwn: "เปิดไพ่เอง",
+    modeOwnSub: "เลือกไพ่ที่คุณเปิดจากสำรับของคุณ 1–5 ใบ",
+    ownTitle: "ไพ่ที่คุณเปิดได้",
+    ownHint: "สับไพ่และเปิดไพ่จากสำรับของคุณเอง แล้วแตะเลือกไพ่ตามลำดับที่เปิดได้ 1–5 ใบ ถ้าไพ่ใบไหนออกกลับหัว กดปุ่ม “กลับหัว” ที่ใบนั้น",
+    ownCount: (n, max) => n ? `เลือกแล้ว ${n}/${max} ใบ` : `ยังไม่ได้เลือกไพ่ (เลือกได้ 1–${max} ใบ)`,
+    ownClear: "ล้างทั้งหมด",
+    ownEmpty: "แตะไพ่ด้านล่างเพื่อเพิ่มตามลำดับที่คุณเปิด",
+    ownFlip: "กลับหัว",
+    ownFlipOn: "กลับหัวอยู่",
+    ownRemove: "เอาออก",
+    ownFull: (max) => `เลือกได้สูงสุด ${max} ใบ เอาใบเดิมออกก่อนถ้าจะเปลี่ยน`,
+    ownNoMatch: "ไม่พบไพ่ที่ตรงกับคำค้น",
+    ownNeedCards: "กรุณาเลือกไพ่ที่คุณเปิดได้อย่างน้อย 1 ใบ",
+    ownLoadFail: "โหลดรายชื่อไพ่ไม่สำเร็จ ลองรีเฟรชหน้าอีกครั้งนะคะ",
+    grpMajor: "ชุดใหญ่",
+    grpWands: "ไม้เท้า",
+    grpCups: "ถ้วย",
+    grpSwords: "ดาบ",
+    grpPentacles: "เหรียญ",
+    ownSearchPh: "ค้นหาชื่อไพ่ ไทยหรืออังกฤษ เช่น ถ้วย, Queen",
+    submitOwn: "ให้จันทร์อ่านไพ่ที่ฉันเปิด",
+    loadingOwn: "จันทร์กำลังอ่านไพ่ที่คุณเปิด...",
+    ownBanner: (n) => `☾ อ่านจากไพ่ ${n} ใบที่คุณเปิดเองจากสำรับของคุณ ไม่ใช่ไพ่ที่เว็บสุ่มให้`,
+    sourceLlmOwn: (n) => `เรียบเรียงโดยปัญญาประดิษฐ์ จากไพ่ ${n} ใบที่คุณเปิดเอง`,
+    profileNoteOwn: "ข้อมูลนี้คำนวณจากวันเกิดของคุณ แยกจากคำตอบของไพ่ซึ่งอ่านจากไพ่ที่คุณเปิดเองเท่านั้น",
+    shareOwnEyebrow: "ไพ่ที่เปิดเอง",
   },
   en: {
     docTitle: "Ask the Moon — 3-card tarot, straight answers | ถามจันทร์",
@@ -394,6 +424,36 @@ const I18N = {
     shadow: "What to watch out for",
     compat: "Your next step",
     forecast: "Timing the cards show",
+    heroOwn: "Have your own tarot deck? Draw your cards and let the Moon read them →",
+    modeLabel: "How to draw",
+    modeDraw: "The Moon draws",
+    modeDrawSub: "We draw 3 cards for you",
+    modeOwn: "I drew my own",
+    modeOwnSub: "Pick the 1–5 cards you drew from your deck",
+    ownTitle: "The cards you drew",
+    ownHint: "Shuffle and draw from your own deck, then tap the 1–5 cards in the order you drew them. If a card came out upside down, tap “Reversed” on it.",
+    ownCount: (n, max) => n ? `${n}/${max} cards chosen` : `No cards chosen yet (pick 1–${max})`,
+    ownClear: "Clear all",
+    ownEmpty: "Tap cards below to add them in the order you drew them",
+    ownFlip: "Reversed",
+    ownFlipOn: "Reversed ✓",
+    ownRemove: "Remove",
+    ownFull: (max) => `You can pick up to ${max} cards. Remove one first to change.`,
+    ownNoMatch: "No cards match your search",
+    ownNeedCards: "Please choose at least 1 card that you drew.",
+    ownLoadFail: "Couldn't load the card list. Please refresh the page.",
+    grpMajor: "Major",
+    grpWands: "Wands",
+    grpCups: "Cups",
+    grpSwords: "Swords",
+    grpPentacles: "Pentacles",
+    ownSearchPh: "Search a card in Thai or English, e.g. Queen",
+    submitOwn: "Read the cards I drew",
+    loadingOwn: "The Moon is reading the cards you drew...",
+    ownBanner: (n) => `☾ Read from the ${n === 1 ? "card" : n + " cards"} you drew yourself from your own deck, not cards drawn by this site`,
+    sourceLlmOwn: (n) => `Written by AI from the ${n === 1 ? "card" : n + " cards"} you drew`,
+    profileNoteOwn: "Worked out from your birthday, separate from the tarot answer, which reads only the cards you drew.",
+    shareOwnEyebrow: "MY OWN DRAW",
   },
 };
 
@@ -429,6 +489,12 @@ const state = {
   afterLogin: null,
   authMode: "password",
   googleClientId: null,
+  mode: "draw", // "draw" = the site draws 3 random cards; "own" = the person drew their own cards
+  deck: [],
+  deckMax: 5,
+  own: [], // [{ id, reversed }] in the order the person drew them
+  ownGroup: "major",
+  ownQuery: "",
 };
 
 function api(path, options = {}) {
@@ -454,6 +520,10 @@ function applyLang() {
     const key = el.getAttribute("data-i18n");
     if (typeof dict[key] === "string") el.textContent = dict[key];
   });
+  document.querySelectorAll("[data-i18n-label]").forEach((el) => {
+    const key = el.getAttribute("data-i18n-label");
+    if (typeof dict[key] === "string") el.setAttribute("aria-label", dict[key]);
+  });
   document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
     const key = el.getAttribute("data-i18n-placeholder");
     if (typeof dict[key] === "string") el.setAttribute("placeholder", dict[key]);
@@ -462,6 +532,7 @@ function applyLang() {
   document.getElementById("lang-en").classList.toggle("is-on", state.lang === "en");
   renderBalance();
   renderPricing();
+  renderOwn();
   if (state.order) renderPayModal();
   if (state.last) renderResult(state.last);
   renderAccountButton();
@@ -544,6 +615,11 @@ function renderTarot(tarot) {
   const key = cards.map((c) => c.id + (c.reversed ? "r" : "u")).join(",");
   const already = key === tarotRevealed; // language switch: keep cards face up, no replay
   document.getElementById("tarot-title").textContent = th ? tarot.headingTh : tarot.headingEn;
+  const banner = document.getElementById("own-banner");
+  const own = tarot.drawnBy === "self";
+  banner.hidden = !own;
+  banner.textContent = own ? dict.ownBanner(cards.length) : "";
+  row.classList.toggle("is-flex", cards.length !== 3);
   row.innerHTML = cards
     .map((c, i) => {
       const name = th ? c.nameTh.replace(/\s*\(.*\)$/, "") : c.nameEn;
@@ -574,6 +650,157 @@ function renderTarot(tarot) {
   const start = () => figs.forEach((fig, i) => setTimeout(() => fig.classList.add("is-flipped"), 500 + i * 650));
   Promise.race([Promise.all(loads), new Promise((r) => setTimeout(r, 2500))]).then(start);
   tarotRevealed = key;
+}
+
+// ---------- "เปิดไพ่เอง": the person drew physical cards and picks them here ----------
+function ownShortTh(nameTh) {
+  return String(nameTh).replace(/\s*\(.*\)$/, "");
+}
+
+function ownCardName(c) {
+  return state.lang === "th" ? ownShortTh(c.nameTh) : c.nameEn;
+}
+
+let deckPromise = null;
+function loadDeck() {
+  if (!deckPromise) {
+    deckPromise = api("/api/deck").then(({ response, data }) => {
+      if (!response.ok || !data.ok) throw new Error("deck");
+      state.deck = data.cards || [];
+      state.deckMax = data.max || 5;
+      renderOwn();
+    }).catch((err) => { deckPromise = null; throw err; });
+  }
+  return deckPromise;
+}
+
+function setMode(mode) {
+  state.mode = mode === "own" ? "own" : "draw";
+  document.querySelectorAll(".mode-btn").forEach((btn) => {
+    const on = btn.dataset.mode === state.mode;
+    btn.classList.toggle("is-on", on);
+    btn.setAttribute("aria-checked", on ? "true" : "false");
+  });
+  document.getElementById("own-picker").hidden = state.mode !== "own";
+  document.getElementById("form-error").hidden = true;
+  if (state.mode === "own") {
+    loadDeck().catch(() => {
+      const error = document.getElementById("form-error");
+      error.textContent = t().ownLoadFail;
+      error.hidden = false;
+    });
+  }
+  renderOwn();
+}
+
+function ownToggle(id) {
+  const at = state.own.findIndex((c) => c.id === id);
+  if (at >= 0) {
+    state.own.splice(at, 1);
+  } else if (state.own.length >= state.deckMax) {
+    toast(t().ownFull(state.deckMax));
+    return;
+  } else {
+    state.own.push({ id, reversed: false });
+  }
+  renderOwn();
+}
+
+function ownMatches(c, q) {
+  if (!q) return c.group === state.ownGroup;
+  const hay = `${c.nameTh} ${c.nameEn}`.toLowerCase();
+  return q.split(/\s+/).filter(Boolean).every((w) => hay.includes(w));
+}
+
+function renderOwn() {
+  const picker = document.getElementById("own-picker");
+  if (!picker) return;
+  const dict = t();
+  const submitLabel = document.querySelector("#submit-btn .btn-label");
+  if (submitLabel) submitLabel.textContent = state.mode === "own" ? dict.submitOwn : dict.submit;
+  const loading = document.querySelector("#status p");
+  if (loading) loading.textContent = state.mode === "own" ? dict.loadingOwn : dict.loading;
+  if (state.mode !== "own") return;
+  const byId = Object.fromEntries(state.deck.map((c) => [c.id, c]));
+  const n = state.own.length;
+  document.getElementById("own-count").textContent = dict.ownCount(n, state.deckMax);
+  document.getElementById("own-clear").hidden = n === 0;
+  const tray = document.getElementById("own-tray");
+  tray.innerHTML = n
+    ? state.own.map((sel, i) => {
+      const c = byId[sel.id];
+      if (!c) return "";
+      const name = ownCardName(c);
+      const sub = state.lang === "th" ? c.nameEn : ownShortTh(c.nameTh);
+      return `
+      <li class="own-sel${sel.reversed ? " is-reversed" : ""}" data-id="${escapeHtml(c.id)}">
+        <span class="own-num" aria-hidden="true">${i + 1}</span>
+        <img src="${escapeHtml(c.image)}" alt="" loading="lazy" decoding="async" />
+        <span class="own-sel-text"><b>${escapeHtml(name)}</b><small>${escapeHtml(sub)}</small></span>
+        <button type="button" class="own-flip${sel.reversed ? " is-on" : ""}" data-act="flip" aria-pressed="${sel.reversed}">${escapeHtml(sel.reversed ? dict.ownFlipOn : dict.ownFlip)}</button>
+        <button type="button" class="own-x" data-act="remove" aria-label="${escapeHtml(dict.ownRemove + " " + name)}">×</button>
+      </li>`;
+    }).join("")
+    : `<li class="own-empty">${escapeHtml(dict.ownEmpty)}</li>`;
+  const q = state.ownQuery.trim().toLowerCase();
+  document.querySelectorAll(".own-tab").forEach((tab) => {
+    const on = !q && tab.dataset.group === state.ownGroup;
+    tab.classList.toggle("is-on", on);
+    tab.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  const cards = state.deck.filter((c) => ownMatches(c, q));
+  const grid = document.getElementById("own-grid");
+  grid.innerHTML = cards.length
+    ? cards.map((c) => {
+      const pos = state.own.findIndex((sel) => sel.id === c.id);
+      const sel = pos >= 0 ? state.own[pos] : null;
+      const name = ownCardName(c);
+      return `
+      <button type="button" class="own-card${sel ? " is-picked" : ""}${sel && sel.reversed ? " is-reversed" : ""}" data-id="${escapeHtml(c.id)}" aria-pressed="${Boolean(sel)}" title="${escapeHtml(c.nameEn)}">
+        <span class="own-card-img"><img src="${escapeHtml(c.image)}" alt="" loading="lazy" decoding="async" />${sel ? `<span class="own-badge">${pos + 1}</span>` : ""}</span>
+        <span class="own-card-name">${escapeHtml(name)}</span>
+      </button>`;
+    }).join("")
+    : (state.deck.length ? `<p class="own-nomatch">${escapeHtml(dict.ownNoMatch)}</p>` : "");
+}
+
+function setupOwn() {
+  document.querySelectorAll(".mode-btn").forEach((btn) => btn.addEventListener("click", () => setMode(btn.dataset.mode)));
+  document.getElementById("hero-own-link").addEventListener("click", (event) => {
+    event.preventDefault();
+    setMode("own");
+    document.getElementById("oracle").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  document.getElementById("own-tabs").addEventListener("click", (event) => {
+    const tab = event.target.closest(".own-tab");
+    if (!tab) return;
+    state.ownGroup = tab.dataset.group;
+    state.ownQuery = "";
+    document.getElementById("own-search").value = "";
+    renderOwn();
+  });
+  document.getElementById("own-search").addEventListener("input", (event) => {
+    state.ownQuery = event.target.value;
+    renderOwn();
+  });
+  document.getElementById("own-grid").addEventListener("click", (event) => {
+    const card = event.target.closest(".own-card");
+    if (card) ownToggle(card.dataset.id);
+  });
+  document.getElementById("own-tray").addEventListener("click", (event) => {
+    const btn = event.target.closest("button[data-act]");
+    const li = event.target.closest(".own-sel");
+    if (!btn || !li) return;
+    const sel = state.own.find((c) => c.id === li.dataset.id);
+    if (!sel) return;
+    if (btn.dataset.act === "flip") sel.reversed = !sel.reversed;
+    else state.own = state.own.filter((c) => c.id !== sel.id);
+    renderOwn();
+  });
+  document.getElementById("own-clear").addEventListener("click", () => {
+    state.own = [];
+    renderOwn();
+  });
 }
 
 // ---------- Share card (client-side image of the reading, no question text) ----------
@@ -691,7 +918,8 @@ async function buildShareCard(data, lang) {
   await shareFontsReady();
   const th = lang !== "en";
   const dict = I18N[th ? "th" : "en"];
-  const cards = ((data.tarot && data.tarot.cards) || []).slice(0, 3);
+  const ownDraw = Boolean(data.tarot && data.tarot.drawnBy === "self");
+  const cards = ((data.tarot && data.tarot.cards) || []).slice(0, ownDraw ? 5 : 3);
   const imgs = await Promise.all(cards.map((c) => shareLoadImage(c.image)));
   const canvas = document.createElement("canvas");
   canvas.width = SHARE_W;
@@ -749,16 +977,17 @@ async function buildShareCard(data, lang) {
   ctx.font = `400 24px ${DISPLAY}`;
   ctx.fillStyle = "#b7a8c9";
   const topic = (dict.topics && dict.topics[data.topic]) || "";
-  const eyebrow = th ? `ไพ่ทาโรต์${topic ? " · " + topic : ""}` : `TAROT${topic ? " · " + topic.toUpperCase() : ""}`;
+  const lead = ownDraw ? dict.shareOwnEyebrow : (th ? "ไพ่ทาโรต์" : "TAROT");
+  const eyebrow = th ? `${lead}${topic ? " · " + topic : ""}` : `${lead}${topic ? " · " + topic.toUpperCase() : ""}`;
   ctx.font = `500 28px ${th ? SANS : DISPLAY}`;
   ctx.fillStyle = "#c9b6ff";
   ctx.fillText(eyebrow, cx, 190);
 
   // Cards.
   const n = Math.max(cards.length, 1);
-  const cw = n === 1 ? 330 : n === 2 ? 290 : 272;
+  const cw = n === 1 ? 330 : n === 2 ? 290 : n === 3 ? 272 : n === 4 ? 214 : 172;
   const ch = Math.round(cw * 518 / 300);
-  const gap = n === 1 ? 0 : 44;
+  const gap = n === 1 ? 0 : n >= 4 ? 22 : 44;
   const rowW = n * cw + (n - 1) * gap;
   const top = 236;
   cards.forEach((c, i) => {
@@ -790,9 +1019,10 @@ async function buildShareCard(data, lang) {
 
     const name = th ? c.nameTh.replace(/\s*\(.*\)$/, "") : c.nameEn;
     ctx.fillStyle = "#f3e2a8";
-    let size = n === 1 ? 38 : 30;
+    let size = n === 1 ? 38 : n >= 4 ? 24 : 30;
+    const minSize = n >= 4 ? 15 : 20;
     ctx.font = `600 ${size}px ${th ? SANS : SERIF}`;
-    while (ctx.measureText(name).width > cw + gap - 8 && size > 20) {
+    while (ctx.measureText(name).width > cw + gap - 8 && size > minSize) {
       size -= 1;
       ctx.font = `600 ${size}px ${th ? SANS : SERIF}`;
     }
@@ -971,7 +1201,10 @@ function renderResult(data) {
   renderProfile(data.profile);
   document.getElementById("reading-body").textContent = data.reading;
   const charge = data.charge || {};
-  let note = data.source === "llm" ? dict.sourceLlm : dict.sourceTemplate;
+  const ownMode = data.mode === "own";
+  const nCards = ((data.tarot && data.tarot.cards) || []).length;
+  let note = data.source === "llm" ? (ownMode ? dict.sourceLlmOwn(nCards) : dict.sourceLlm) : dict.sourceTemplate;
+  document.getElementById("profile-note").textContent = ownMode ? dict.profileNoteOwn : dict.profileNote;
   if (charge.kind && !charge.charged) note += " · " + dict.notCharged;
   else if (charge.kind === "paid") note += " · " + dict.chargedPaid;
   else if (charge.kind === "free") note += " · " + dict.chargedFree;
@@ -1035,6 +1268,13 @@ async function onSubmit(event) {
     error.hidden = false;
     return;
   }
+  const ownMode = state.mode === "own";
+  if (ownMode && !state.own.length) {
+    error.textContent = dict.ownNeedCards;
+    error.hidden = false;
+    document.getElementById("own-picker").scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
 
   if (!state.account) {
     // Every question (the free one too) needs an account.
@@ -1053,7 +1293,8 @@ async function onSubmit(event) {
   result.hidden = true;
 
   try {
-    const { response, data } = await api("/api/reading", {
+    const ownCards = ownMode ? { cards: state.own.map((c) => ({ id: c.id, reversed: Boolean(c.reversed) })) } : {};
+    const { response, data } = await api(ownMode ? "/api/reading/own" : "/api/reading", {
       method: "POST",
       body: JSON.stringify({
         name,
@@ -1063,6 +1304,7 @@ async function onSubmit(event) {
         question,
         details,
         lang: state.lang,
+        ...ownCards,
       }),
     });
     if (response.status === 402) {
@@ -1901,6 +2143,7 @@ function setup() {
   setupPricing();
   setupAccount();
   setupShare();
+  setupOwn();
   loadAuthConfig();
   applyLang();
   paintStars();

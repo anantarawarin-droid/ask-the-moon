@@ -85,6 +85,7 @@
       <p class="eyebrow" data-i18n="eyebrow">ไพ่ทาโรต์ 3 ใบ · ตอบตรง ๆ · โปรไฟล์ดวงจากวันเกิด</p>
       <h1 data-i18n="heroTitle">ถามจันทร์</h1>
       <p class="lede" data-i18n="heroLede">ดูดวงไพ่ทาโรต์ 3 ใบ ตอบตรง ๆ + โปรไฟล์ดวงจากวันเกิด (ปีนักษัตร เลขวันเกิด ราศี) — พิมพ์คำถามที่อยากรู้ จันทร์จะเปิดไพ่ให้ 3 ใบ บอกคำตอบก่อน แล้วตามด้วยเหตุผลจากไพ่และคำแนะนำที่ทำได้จริง</p>
+      <p class="hero-own"><a href="#oracle" id="hero-own-link" data-i18n="heroOwn">มีไพ่ทาโรต์ที่บ้าน? เปิดไพ่เองแล้วให้จันทร์อ่านให้ →</a></p>
       <p class="hero-offer" id="hero-offer" hidden><button type="button" class="offer-pill is-in" id="hero-signup"></button></p>
     </section>
 
@@ -100,6 +101,34 @@
           </div>
         </div>
         <fieldset class="form-fields" id="form-fields" disabled>
+        <div class="mode-switch" role="radiogroup" data-i18n-label="modeLabel" aria-label="วิธีเปิดไพ่">
+          <button type="button" class="mode-btn is-on" id="mode-draw" role="radio" aria-checked="true" data-mode="draw">
+            <b data-i18n="modeDraw">ให้จันทร์สุ่มไพ่</b>
+            <small data-i18n="modeDrawSub">ระบบสุ่มไพ่ 3 ใบให้</small>
+          </button>
+          <button type="button" class="mode-btn" id="mode-own" role="radio" aria-checked="false" data-mode="own">
+            <b data-i18n="modeOwn">เปิดไพ่เอง</b>
+            <small data-i18n="modeOwnSub">เลือกไพ่ที่คุณเปิดจากสำรับของคุณ 1–5 ใบ</small>
+          </button>
+        </div>
+        <section class="own-picker" id="own-picker" hidden aria-labelledby="own-title">
+          <h3 class="own-title" id="own-title" data-i18n="ownTitle">ไพ่ที่คุณเปิดได้</h3>
+          <p class="own-hint" data-i18n="ownHint">สับไพ่และเปิดไพ่จากสำรับของคุณเอง แล้วแตะเลือกไพ่ตามลำดับที่เปิดได้ 1–5 ใบ ถ้าไพ่ใบไหนออกกลับหัว กดปุ่ม “กลับหัว” ที่ใบนั้น</p>
+          <div class="own-tray-head">
+            <span id="own-count" aria-live="polite"></span>
+            <button type="button" class="own-clear" id="own-clear" data-i18n="ownClear" hidden>ล้างทั้งหมด</button>
+          </div>
+          <ol class="own-tray" id="own-tray"></ol>
+          <div class="own-tabs" role="tablist" id="own-tabs">
+            <button type="button" role="tab" class="own-tab is-on" data-group="major" data-i18n="grpMajor">ชุดใหญ่</button>
+            <button type="button" role="tab" class="own-tab" data-group="wands" data-i18n="grpWands">ไม้เท้า</button>
+            <button type="button" role="tab" class="own-tab" data-group="cups" data-i18n="grpCups">ถ้วย</button>
+            <button type="button" role="tab" class="own-tab" data-group="swords" data-i18n="grpSwords">ดาบ</button>
+            <button type="button" role="tab" class="own-tab" data-group="pentacles" data-i18n="grpPentacles">เหรียญ</button>
+          </div>
+          <input type="search" class="own-search" id="own-search" autocomplete="off" data-i18n-placeholder="ownSearchPh" placeholder="ค้นหาชื่อไพ่ ไทยหรืออังกฤษ เช่น ถ้วย, Queen" />
+          <div class="own-grid" id="own-grid"></div>
+        </section>
         <div class="grid-2">
           <label>
             <span data-i18n="nameLabel">ชื่อ</span>
@@ -159,6 +188,7 @@
 
         <section class="tarot" id="tarot" hidden aria-live="polite">
           <h3 class="tarot-title" id="tarot-title">ให้ไพ่เล่าเรื่องราว</h3>
+          <p class="own-banner" id="own-banner" hidden></p>
           <div class="tarot-row" id="tarot-row"></div>
         </section>
 
@@ -197,7 +227,7 @@
             <p class="profile-sub" id="profile-sub"></p>
           </header>
           <div class="profile-grid" id="profile-grid"></div>
-          <p class="profile-note" data-i18n="profileNote">ข้อมูลนี้คำนวณจากวันเกิดของคุณ แยกจากคำตอบของไพ่ซึ่งอ่านจากไพ่ 3 ใบเท่านั้น</p>
+          <p class="profile-note" id="profile-note" data-i18n="profileNote">ข้อมูลนี้คำนวณจากวันเกิดของคุณ แยกจากคำตอบของไพ่ซึ่งอ่านจากไพ่ 3 ใบเท่านั้น</p>
         </section>
 
       </section>

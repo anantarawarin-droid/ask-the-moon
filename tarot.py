@@ -265,6 +265,53 @@ def draw(count: int = DRAW_COUNT) -> list[dict[str, Any]]:
     return out
 
 
+OWN_MIN = 1
+OWN_MAX = 5
+
+
+def card_from_choice(card_id: str, reversed_: bool) -> dict[str, Any]:
+    """The same card shape as draw(), for a card the person chose themselves."""
+    card = BY_ID[card_id]
+    return {
+        "id": card["id"],
+        "nameEn": card["nameEn"],
+        "nameTh": card["nameTh"],
+        "reversed": reversed_,
+        "meaningEn": card["revEn"] if reversed_ else card["upEn"],
+        "meaningTh": card["revTh"] if reversed_ else card["upTh"],
+        "image": image_path(card["id"]),
+    }
+
+
+def parse_own_cards(raw: Any) -> list[dict[str, Any]]:
+    """Validate cards the person drew from their own deck: 1-5 real, unique cards in their
+    drawn order, each {"id": <one of the 78 ids>, "reversed": true|false}. Raises ValueError."""
+    if not isinstance(raw, list) or not OWN_MIN <= len(raw) <= OWN_MAX:
+        raise ValueError(f"Please choose {OWN_MIN} to {OWN_MAX} cards.")
+    out, seen = [], set()
+    for item in raw:
+        if not isinstance(item, dict):
+            raise ValueError("Invalid card.")
+        cid = item.get("id")
+        rev = item.get("reversed", False)
+        if not isinstance(cid, str) or cid not in BY_ID:
+            raise ValueError("Unknown card.")
+        if not isinstance(rev, bool):
+            raise ValueError("Invalid card orientation.")
+        if cid in seen:
+            raise ValueError("Each card can be chosen only once.")
+        seen.add(cid)
+        out.append(card_from_choice(cid, rev))
+    return out
+
+
+def picker_deck() -> list[dict[str, Any]]:
+    """Public card list for the own-cards picker (names and images only)."""
+    return [{"id": c["id"], "nameEn": c["nameEn"], "nameTh": c["nameTh"],
+             "group": "major" if c["arcana"] == "major" else c["id"].split("-")[0],
+             "image": image_path(c["id"])} for c in DECK]
+
+
 def prompt_lines(cards: list[dict[str, Any]]) -> str:
     lines = []
     for c in cards:
@@ -313,6 +360,14 @@ LIKELY_AT = 1.0  # 1 <= score < 3    -> likely   (mirror: -3 < score <= -1 -> un
 
 def verdict(cards: list[dict[str, Any]]) -> str:
     return verdict_for_score(sum(card_score(c) for c in cards))
+
+
+def verdict_scaled(cards: list[dict[str, Any]]) -> str:
+    """Lean for any number of cards on the same scale as a 3-card draw (score * 3 / n),
+    so 1 or 5 chosen cards are judged like the usual three. Equals verdict() for 3 cards."""
+    if not cards:
+        return "not_yet"
+    return verdict_for_score(sum(card_score(c) for c in cards) * DRAW_COUNT / len(cards))
 
 
 def verdict_for_score(score: float) -> str:
@@ -438,9 +493,9 @@ def dominant_suit(cards: list[dict[str, Any]]) -> str:
 
 
 def fallback_reading(name: str, question: str, topic_th: str, topic_en: str,
-                     cards: list[dict[str, Any]], lang: str) -> str:
+                     cards: list[dict[str, Any]], lang: str, lean: str | None = None) -> str:
     """Direct, cards-only answer used when the AI is unavailable."""
-    v = verdict(cards)
+    v = lean or verdict(cards)
     yn = is_yes_no(question)
     best, worst = best_and_worst(cards)
     act_th, act_en = ACTION[suit_of(best["id"])]
