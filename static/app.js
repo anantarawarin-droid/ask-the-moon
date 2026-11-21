@@ -24,10 +24,11 @@ const I18N = {
     iaOpen: (b) => `เปิดใน ${b}`,
     iaCopy: "คัดลอกลิงก์",
     iaCopied: "คัดลอกลิงก์แล้ว วางในแถบที่อยู่ของ Safari หรือ Chrome ได้เลย",
-    iaCopiedIos: "คัดลอกแล้ว ไปวางใน Safari ได้เลย",
-    iaCopyIos: "คัดลอกลิงก์ แล้วไปวางใน Safari",
-    iaStepsTitle: (app) => `หรือเปิดใน Safari จากแอป${app || "ที่ใช้อยู่"}:`,
-    iaSteps: ["กดปุ่ม ⋯ หรือไอคอนแชร์ ⤴ (มุมบนหรือล่างของจอ)", "เลือก “เปิดใน Safari” (Open in Safari)", "กด “เข้าสู่ระบบ” อีกครั้งใน Safari"],
+    iaCopiedIos: "คัดลอกแล้ว ไปวางใน Safari หรือ Chrome ได้เลย",
+    iaCopyIos: "คัดลอกลิงก์ แล้วไปวางในเบราว์เซอร์",
+    iaStepsTitle: (app) => `หรือเปิดในเบราว์เซอร์ (Safari / Chrome) จากแอป${app || "ที่ใช้อยู่"}:`,
+    iaSteps: ["กดปุ่ม ⋯ / ⋮ หรือไอคอนแชร์ ⤴ (มุมบนหรือล่างของจอ)", "เลือก “เปิดในเบราว์เซอร์” (Open in browser / Open in Safari)", "กด “เข้าสู่ระบบ” อีกครั้ง"],
+    iaStepsX: ["กดปุ่ม ⋮ ข้างชื่อเว็บด้านล่าง", "เลือก “Open in browser” (เปิดในเบราว์เซอร์)", "กด “เข้าสู่ระบบ” อีกครั้ง"],
     iaHowIos: "หรือกดปุ่ม ⋯ / ไอคอนแชร์ ⤴ มุมจอ แล้วเลือก “เปิดใน Safari” (Open in Safari)",
     iaHowAndroid: "หรือกดปุ่ม ⋮ มุมขวาบน แล้วเลือก “เปิดในเบราว์เซอร์” / “Open in Chrome”",
     iaHowOther: "หรือกดปุ่ม ⋯ / ⋮ มุมจอ แล้วเลือก “เปิดในเบราว์เซอร์” (Safari หรือ Chrome)",
@@ -267,10 +268,11 @@ const I18N = {
     iaOpen: (b) => `Open in ${b}`,
     iaCopy: "Copy link",
     iaCopied: "Link copied. Paste it into Safari or Chrome.",
-    iaCopiedIos: "Copied! Now paste it into Safari.",
-    iaCopyIos: "Copy link, then paste in Safari",
-    iaStepsTitle: (app) => `Or open it in Safari from the${app || " current"} app:`,
-    iaSteps: ["Tap ⋯ or the share icon ⤴ (top or bottom of the screen)", "Choose “Open in Safari”", "Tap “Sign in” again in Safari"],
+    iaCopiedIos: "Copied! Now paste it into Safari or Chrome.",
+    iaCopyIos: "Copy link, then paste in your browser",
+    iaStepsTitle: (app) => `Or open it in your browser (Safari / Chrome) from the${app || " current"} app:`,
+    iaSteps: ["Tap ⋯ / ⋮ or the share icon ⤴ (top or bottom of the screen)", "Choose “Open in browser” (or “Open in Safari”)", "Tap “Sign in” again"],
+    iaStepsX: ["Tap the ⋮ button next to the site name at the bottom", "Choose “Open in browser”", "Tap “Sign in” again"],
     iaHowIos: "Or tap the ⋯ / share ⤴ button in the corner and choose “Open in Safari”.",
     iaHowAndroid: "Or tap ⋮ at the top right and choose “Open in browser” / “Open in Chrome”.",
     iaHowOther: "Or tap the ⋯ / ⋮ menu and choose “Open in browser” (Safari or Chrome).",
@@ -1928,7 +1930,7 @@ function inAppNoticeHtml(dict, info) {
       ${plat === "ios" && info.app !== "LINE" ? `
       <button type="button" class="btn gold inapp-copy-main" id="inapp-copy">📋 ${escapeHtml(dict.iaCopyIos)}</button>
       <p class="inapp-steps-title">${escapeHtml(dict.iaStepsTitle(app))}</p>
-      <ol class="inapp-steps">${dict.iaSteps.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ol>` : `
+      <ol class="inapp-steps">${(info.app === "X" ? dict.iaStepsX : dict.iaSteps).map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ol>` : `
       <div class="inapp-actions">
         <a class="btn gold" id="inapp-open" href="${escapeHtml(externalOpenUrl(navigator.userAgent))}">${escapeHtml(dict.iaOpen(browser))}</a>
         <button type="button" class="btn ghost" id="inapp-copy">${escapeHtml(dict.iaCopy)}</button>

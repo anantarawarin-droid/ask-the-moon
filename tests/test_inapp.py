@@ -96,7 +96,10 @@ class Wiring(unittest.TestCase):
         self.assertIn('plat === "ios" && info.app !== "LINE" ? `', JS)
         self.assertIn('id="inapp-copy">📋', JS)
         self.assertEqual(len(re.findall(r"\biaCopiedIos:", JS)), 2)
-        self.assertIn("คัดลอกแล้ว ไปวางใน Safari ได้เลย", JS)
+        self.assertIn("คัดลอกแล้ว ไปวางใน Safari หรือ Chrome ได้เลย", JS)
+        self.assertEqual(len(re.findall(r"\biaStepsX:", JS)), 2)
+        self.assertIn("กดปุ่ม ⋮ ข้างชื่อเว็บด้านล่าง", JS)
+        self.assertIn('info.app === "X" ? dict.iaStepsX : dict.iaSteps', JS)
 
     def test_site_verification_meta_kept(self):
         self.assertIn('name="google-site-verification"', HTML)
