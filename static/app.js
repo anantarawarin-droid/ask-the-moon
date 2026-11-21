@@ -19,6 +19,17 @@ const I18N = {
     gPrivacy: "เราใช้อีเมลของคุณเพื่อผูกเครดิตกับบัญชี ไม่โพสต์หรือส่งอะไรในนามคุณ",
     gLoading: "กำลังโหลดปุ่ม Google…",
     gBlocked: "โหลดปุ่ม Google ไม่ได้ ลองปิดตัวบล็อกโฆษณา/โหมดส่วนตัว แล้วรีเฟรชหน้าอีกครั้ง",
+    iaTitle: "เปิดในเบราว์เซอร์ก่อนนะคะ",
+    iaWhy: (app) => `ตอนนี้คุณเปิดเว็บอยู่ในแอป${app} ซึ่ง Google ไม่อนุญาตให้เข้าสู่ระบบในแอปแบบนี้ (กดแล้วจะขึ้นหน้าขาวหรือ error) เปิดใน Safari หรือ Chrome แล้วเข้าสู่ระบบได้ตามปกติค่ะ`,
+    iaOpen: (b) => `เปิดใน ${b}`,
+    iaCopy: "คัดลอกลิงก์",
+    iaCopied: "คัดลอกลิงก์แล้ว วางในแถบที่อยู่ของ Safari หรือ Chrome ได้เลย",
+    iaHowIos: "หรือกดปุ่ม ⋯ / ไอคอนแชร์ ⤴ มุมจอ แล้วเลือก “เปิดใน Safari” (Open in Safari)",
+    iaHowAndroid: "หรือกดปุ่ม ⋮ มุมขวาบน แล้วเลือก “เปิดในเบราว์เซอร์” / “Open in Chrome”",
+    iaHowOther: "หรือกดปุ่ม ⋯ / ⋮ มุมจอ แล้วเลือก “เปิดในเบราว์เซอร์” (Safari หรือ Chrome)",
+    iaStill: "ไม่เด้ง? ใช้ปุ่ม ⋯ มุมจอ หรือคัดลอกลิงก์ไปเปิดใน Safari/Chrome ได้เลยค่ะ",
+    iaBrowse: "ดูเว็บต่อในแอปนี้ได้ตามปกติ แค่ตอนเข้าสู่ระบบต้องเปิดในเบราว์เซอร์",
+    iaTry: "ลองเข้าสู่ระบบในแอปนี้อยู่ดี",
     gateCopyG: "ถามไพ่ได้หลังเข้าสู่ระบบด้วย Google (Gmail) เท่านั้น ไม่ต้องตั้งรหัสผ่าน ไม่ถึง 1 นาที แล้วกรอกคำถามได้เลย",
     gateSignupG: "เข้าสู่ระบบด้วย Google",
     forgotLink: "ลืมรหัสผ่าน?",
@@ -247,6 +258,17 @@ const I18N = {
     gPrivacy: "We use your email to link your credits to your account. We never post or send anything as you.",
     gLoading: "Loading the Google button…",
     gBlocked: "The Google button didn't load. Try turning off ad blockers / private mode, then reload.",
+    iaTitle: "Please open in your browser",
+    iaWhy: (app) => `You're viewing this inside the${app} app. Google doesn't allow sign-in inside in-app browsers (you'd get a blank page or an error). Open the site in Safari or Chrome and sign in as usual.`,
+    iaOpen: (b) => `Open in ${b}`,
+    iaCopy: "Copy link",
+    iaCopied: "Link copied. Paste it into Safari or Chrome.",
+    iaHowIos: "Or tap the ⋯ / share ⤴ button in the corner and choose “Open in Safari”.",
+    iaHowAndroid: "Or tap ⋮ at the top right and choose “Open in browser” / “Open in Chrome”.",
+    iaHowOther: "Or tap the ⋯ / ⋮ menu and choose “Open in browser” (Safari or Chrome).",
+    iaStill: "Nothing happened? Use the ⋯ menu, or copy the link into Safari/Chrome.",
+    iaBrowse: "You can keep browsing here; only sign-in needs a real browser.",
+    iaTry: "Try signing in here anyway",
     gateCopyG: "You can ask after signing in with Google (Gmail). No password, under a minute — then type your question.",
     gateSignupG: "Sign in with Google",
     forgotLink: "Forgot password?",
@@ -1822,6 +1844,124 @@ function accErrText(code, fallback) {
   return dict.accErr[code] || fallback || dict.accErr.network;
 }
 
+// ---- In-app browsers (X, LINE, IG, FB, TikTok, webviews): Google blocks sign-in there ----
+function inAppBrowser(ua) {
+  ua = String(ua || "");
+  const named = [
+    [/\bLine\//i, "LINE"],
+    [/Twitter|TwitterAndroid/i, "X"],
+    [/Instagram/i, "Instagram"],
+    [/FBAN|FBAV|FB_IAB|FBIOS|FB4A|Messenger/i, "Facebook"],
+    [/musical_ly|Bytedance|TikTok|trill_/i, "TikTok"],
+    [/KAKAOTALK|Snapchat|Pinterest|WhatsApp|Threads|Barcelona/i, ""],
+  ];
+  for (const [re, app] of named) if (re.test(ua)) return { app };
+  if (/Android/i.test(ua) && /;\s*wv\)/i.test(ua)) return { app: "" };
+  // iOS apps using a bare WKWebView: Safari/Chrome/Firefox/Edge on iOS all carry "Safari/".
+  if (/(iPhone|iPod|iPad)/i.test(ua) && /AppleWebKit/i.test(ua) && !/Safari\//i.test(ua)) return { app: "" };
+  return null;
+}
+
+function devicePlatform(ua) {
+  ua = String(ua || "");
+  if (/Android/i.test(ua)) return "android";
+  if (/(iPhone|iPod|iPad)/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1)) return "ios";
+  return "other";
+}
+
+// The page to come back to in a real browser; login=1 reopens the sign-in box there.
+function resumeLoginUrl() {
+  const u = new URL(location.href);
+  u.hash = "";
+  u.searchParams.delete("openExternalBrowser");
+  u.searchParams.set("login", "1");
+  return u.toString();
+}
+
+function externalOpenUrl(ua) {
+  const target = resumeLoginUrl();
+  const info = inAppBrowser(ua);
+  if (info && info.app === "LINE") {
+    const u = new URL(target);
+    u.searchParams.set("openExternalBrowser", "1");
+    return u.toString();
+  }
+  const plat = devicePlatform(ua);
+  if (plat === "android") {
+    const u = new URL(target);
+    return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=com.android.chrome;`
+      + `S.browser_fallback_url=${encodeURIComponent(target)};end`;
+  }
+  if (plat === "ios") return target.replace(/^https:/, "x-safari-https:");
+  return target;
+}
+
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+  } catch (_) { /* fall through */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy"); ta.remove(); return ok;
+  } catch (_) { return false; }
+}
+
+function inAppNoticeHtml(dict, info) {
+  const plat = devicePlatform(navigator.userAgent);
+  const browser = plat === "ios" ? "Safari" : plat === "android" ? "Chrome" : (state.lang === "th" ? "เบราว์เซอร์" : "browser");
+  const how = plat === "ios" ? dict.iaHowIos : plat === "android" ? dict.iaHowAndroid : dict.iaHowOther;
+  const app = info.app ? " " + info.app : "";
+  return `
+    <div class="inapp-note" id="inapp-note" role="note">
+      <p class="inapp-title">⚠︎ ${escapeHtml(dict.iaTitle)}</p>
+      <p class="inapp-why">${escapeHtml(dict.iaWhy(app))}</p>
+      <div class="inapp-actions">
+        <a class="btn gold" id="inapp-open" href="${escapeHtml(externalOpenUrl(navigator.userAgent))}">${escapeHtml(dict.iaOpen(browser))}</a>
+        <button type="button" class="btn ghost" id="inapp-copy">${escapeHtml(dict.iaCopy)}</button>
+      </div>
+      <p class="inapp-how" id="inapp-how">${escapeHtml(how)}</p>
+      <p class="inapp-browse">${escapeHtml(dict.iaBrowse)}</p>
+      <button type="button" class="inapp-try" id="inapp-try">${escapeHtml(dict.iaTry)}</button>
+    </div>`;
+}
+
+function wireInAppNotice() {
+  const dict = t();
+  const open = document.getElementById("inapp-open");
+  if (open) open.addEventListener("click", () => {
+    // If the app swallows the link, point at the manual way after a moment.
+    setTimeout(() => {
+      if (document.visibilityState === "visible") {
+        const how = document.getElementById("inapp-how");
+        if (how) { how.textContent = dict.iaStill; how.classList.add("is-hint"); }
+      }
+    }, 1600);
+  });
+  const copy = document.getElementById("inapp-copy");
+  if (copy) copy.addEventListener("click", async () => {
+    const ok = await copyText(resumeLoginUrl());
+    toast(ok ? t().iaCopied : resumeLoginUrl());
+  });
+  const tryBtn = document.getElementById("inapp-try");
+  if (tryBtn) tryBtn.addEventListener("click", () => {
+    state.inAppBypass = true;
+    renderAccountModal();
+  });
+}
+
+async function maybeResumeLogin() {
+  const params = new URLSearchParams(location.search);
+  if (params.get("login") !== "1") return;
+  params.delete("login");
+  params.delete("openExternalBrowser");
+  const q = params.toString();
+  history.replaceState(null, "", location.pathname + (q ? "?" + q : "") + location.hash);
+  await refreshBalance();
+  if (!state.account) openAccountModal("login", null);
+}
+
 let gisPromise = null;
 
 function loadGis() {
@@ -1967,16 +2107,18 @@ function renderAccountModal() {
     return;
   }
   if (state.authMode === "google") {
+    const inApp = state.inAppBypass ? null : inAppBrowser(navigator.userAgent);
     box.innerHTML = `
       <div class="acc-avatar" aria-hidden="true">☾</div>
       <h3 id="account-title">${escapeHtml(dict.gTitle)}</h3>
       <p class="acc-note">${escapeHtml(dict.gNote)}</p>
       ${msg}
       <p class="acc-free">✨ ${escapeHtml(dict.gFree)}</p>
-      <div class="g-btn" id="g-btn"><p class="acc-note">${escapeHtml(dict.gLoading)}</p></div>
+      ${inApp ? inAppNoticeHtml(dict, inApp) : `<div class="g-btn" id="g-btn"><p class="acc-note">${escapeHtml(dict.gLoading)}</p></div>`}
       <p class="acc-privacy">${escapeHtml(dict.gPrivacy)}</p>
       <p class="acc-legal">${escapeHtml(dict.legalPre)} <a href="/privacy" target="_blank" rel="noopener">${escapeHtml(dict.privacyLink)}</a> ${escapeHtml(dict.legalAnd)} <a href="/terms" target="_blank" rel="noopener">${escapeHtml(dict.termsLink)}</a></p>`;
-    mountGoogleButton();
+    if (inApp) wireInAppNotice();
+    else mountGoogleButton();
     return;
   }
   const signup = state.accountMode === "signup";
@@ -2144,7 +2286,7 @@ function setup() {
   setupAccount();
   setupShare();
   setupOwn();
-  loadAuthConfig();
+  loadAuthConfig().then(maybeResumeLogin);
   applyLang();
   paintStars();
   loadPackages();
