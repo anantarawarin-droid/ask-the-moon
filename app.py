@@ -18,7 +18,10 @@ import re
 import sys
 import traceback
 import urllib.error
+import urllib.parse
 import urllib.request
+import hmac
+from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -723,6 +726,53 @@ class Handler(SimpleHTTPRequestHandler):
         self._send(status, {"ok": True, "merged": merged, **self._account_payload()},
                    cookie=accounts.session_cookie(token))
 
+    def _redirect(self, location: str, cookie: str | None = None) -> None:
+        self.send_response(303)
+        self.send_header("Location", location)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", "0")
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
+        self.end_headers()
+
+    def _google_redirect_login(self) -> None:
+        """Google's redirect-mode sign-in: Google POSTs credential + g_csrf_token (form) here.
+        No popup, so it works where popups get blocked. Ends with a 303 back to the site."""
+        try:
+            cid = google_auth.client_id()
+            if not cid:
+                self._redirect("/?login=failed")
+                return
+            length = int(self.headers.get("Content-Length") or 0)
+            if length <= 0 or length > 16_000:
+                self._redirect("/?login=failed")
+                return
+            form = urllib.parse.parse_qs(self.rfile.read(length).decode("utf-8", "replace"))
+            body_csrf = (form.get("g_csrf_token") or [""])[0]
+            cookie_csrf = csrf_cookie(self.headers.get("Cookie"))
+            if not body_csrf or not cookie_csrf or not hmac.compare_digest(body_csrf, cookie_csrf):
+                print("Google redirect sign-in rejected: CSRF token mismatch", flush=True)
+                self._redirect("/?login=failed")
+                return
+            if not accounts.LOGIN_BY_IP.allow(self._client_ip()):
+                self._redirect("/?login=failed")
+                return
+            try:
+                claims = google_auth.verify_id_token((form.get("credential") or [""])[0], cid)
+            except google_auth.GoogleAuthError as exc:
+                print(f"Google redirect sign-in rejected: {exc}", flush=True)
+                self._redirect("/?login=failed")
+                return
+            email = str(claims["email"]).strip().lower()
+            user = SERVICE.upsert_google_user(claims["sub"], email, accounts.new_account_id())
+            token = accounts.new_session_token()
+            SERVICE.create_session(user["id"], accounts.token_hash(token), accounts.session_expiry())
+            # Visitor credits are merged by the page afterwards (POST /api/auth/merge with X-Visitor-Id).
+            self._redirect("/?login=done", cookie=accounts.session_cookie(token))
+        except Exception:
+            traceback.print_exc()
+            self._redirect("/?login=failed")
+
     def _admin_check(self) -> bool:
         ok = billing.admin_token_ok(self.headers.get("X-Admin-Token"))
         if ok is None:
@@ -910,6 +960,19 @@ class Handler(SimpleHTTPRequestHandler):
                 })
             self._handle(run)
             return
+        if route == "/api/auth/google/redirect":
+            self._google_redirect_login()
+            return
+        if route == "/api/auth/merge":
+            def run() -> None:
+                user = self._user()
+                if not user:
+                    raise accounts.AuthError("Not logged in.", 401, "login_required")
+                vid = self._visitor()
+                merged = SERVICE.merge_visitor(vid, user["id"]) if vid else {"movedCredits": 0, "movedOrders": 0}
+                self._send(200, {"ok": True, "merged": merged, **self._account_payload()})
+            self._handle(run)
+            return
         if route.startswith("/api/auth/") or route == "/api/admin/reset-password":
             self._handle(lambda: self._auth_post(route))
             return
@@ -952,9 +1015,24 @@ class Handler(SimpleHTTPRequestHandler):
         self._send(404, {"ok": False, "error": "Not found."})
 
 
+def google_ux_mode() -> str:
+    """popup (default) or redirect. Redirect needs https://<site>/api/auth/google/redirect
+    added to the OAuth client's Authorized redirect URIs in Google Cloud first."""
+    return "redirect" if (os.environ.get("GOOGLE_UX_MODE") or "").strip().lower() == "redirect" else "popup"
+
+
 def auth_config() -> dict[str, Any]:
     cid = google_auth.client_id()
-    return {"ok": True, "mode": "google" if cid else "password", "googleClientId": cid}
+    return {"ok": True, "mode": "google" if cid else "password", "googleClientId": cid, "uxMode": google_ux_mode()}
+
+
+def csrf_cookie(cookie_header: str | None) -> str:
+    jar = SimpleCookie()
+    try:
+        jar.load(cookie_header or "")
+    except Exception:
+        return ""
+    return jar["g_csrf_token"].value if "g_csrf_token" in jar else ""
 
 
 GOOGLE_ONLY = ("/api/auth/signup", "/api/auth/login", "/api/auth/password", "/api/admin/reset-password")

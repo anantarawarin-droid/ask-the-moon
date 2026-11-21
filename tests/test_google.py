@@ -200,7 +200,7 @@ class GoogleHttp(tc.Http):
 
     def test_config_and_password_routes_closed(self):
         self.assertEqual(self.req("GET", "/api/auth/config")[1],
-                         {"ok": True, "mode": "google", "googleClientId": CLIENT_ID})
+                         {"ok": True, "mode": "google", "googleClientId": CLIENT_ID, "uxMode": "popup"})
         for path, body in (("/api/auth/signup", {"username": "abc_def", "password": "password-1"}),
                            ("/api/auth/login", {"username": "abc_def", "password": "password-1"}),
                            ("/api/auth/password", {"current": "x", "new": "password-2"})):
@@ -251,6 +251,45 @@ class GoogleHttp(tc.Http):
             code, data, ck = self.google(tok, "j" * 32)
             self.assertEqual((code, data["code"]), (401, "bad_google_token"))
             self.assertIsNone(ck)
+
+    def form_post(self, path, fields, cookie=None):
+        import http.client
+        import urllib.parse
+        host, port = self.base.replace("http://", "").split(":")
+        conn = http.client.HTTPConnection(host, int(port), timeout=10)
+        body = urllib.parse.urlencode(fields)
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+        if cookie:
+            headers["Cookie"] = cookie
+        conn.request("POST", path, body, headers)
+        res = conn.getresponse()
+        res.read()
+        out = (res.status, res.getheader("Location"), res.getheader("Set-Cookie"))
+        conn.close()
+        return out
+
+    def test_redirect_mode_login(self):
+        with mock.patch.dict(os.environ, {"GOOGLE_UX_MODE": "redirect"}):
+            self.assertEqual(self.req("GET", "/api/auth/config")[1]["uxMode"], "redirect")
+        path = "/api/auth/google/redirect"
+        # CSRF: Google's double-submit token must be in both the cookie and the form.
+        self.assertEqual(self.form_post(path, {"credential": token(), "g_csrf_token": "abc"})[:2], (303, "/?login=failed"))
+        self.assertEqual(self.form_post(path, {"credential": token(), "g_csrf_token": "abc"}, "g_csrf_token=xyz")[:2],
+                         (303, "/?login=failed"))
+        code, loc, ck = self.form_post(path, {"credential": token(aud="other"), "g_csrf_token": "abc"}, "g_csrf_token=abc")
+        self.assertEqual((code, loc, ck), (303, "/?login=failed", None))
+        code, loc, ck = self.form_post(path, {"credential": token(), "g_csrf_token": "abc"}, "other=1; g_csrf_token=abc")
+        self.assertEqual((code, loc), (303, "/?login=done"))
+        self.assertIn("HttpOnly", ck)
+        cookie = ck.split(";")[0]
+        # Back on the site, the page merges this browser's guest credits into the account.
+        vid = "m" * 32
+        __import__("test_accounts")._give(app.SERVICE, vid, 3, free_used=True)
+        code, data, _ = self.raw("POST", "/api/auth/merge", {}, {"X-Visitor-Id": vid, "Cookie": cookie})
+        self.assertEqual(code, 200)
+        self.assertEqual(data["account"]["username"], "namphet@gmail.com")
+        self.assertEqual((data["merged"]["movedCredits"], data["credits"]), (3, 3))
+        self.assertEqual(self.raw("POST", "/api/auth/merge", {}, {"X-Visitor-Id": vid})[0], 401)
 
     def test_google_user_cannot_be_reached_by_password_login(self):
         self.google(token(), "k" * 32)

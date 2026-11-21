@@ -1953,12 +1953,23 @@ function wireInAppNotice() {
 
 async function maybeResumeLogin() {
   const params = new URLSearchParams(location.search);
-  if (params.get("login") !== "1") return;
+  const flag = params.get("login");
+  if (flag !== "1" && flag !== "done" && flag !== "failed") return;
   params.delete("login");
   params.delete("openExternalBrowser");
   const q = params.toString();
   history.replaceState(null, "", location.pathname + (q ? "?" + q : "") + location.hash);
+  if (flag === "done") {
+    // Back from Google's redirect sign-in: bring over this browser's guest credits, then greet.
+    try {
+      const { response, data } = await api("/api/auth/merge", { method: "POST", body: "{}" });
+      if (response.ok && data.ok) { finishLogin(data); return; }
+    } catch (_) { /* fall through */ }
+    await refreshBalance();
+    return;
+  }
   await refreshBalance();
+  if (flag === "failed") { if (!state.account) openAccountModal("login", t().accErr.bad_google_token || t().accErr.network); return; }
   if (!state.account) openAccountModal("login", null);
 }
 
@@ -1995,7 +2006,8 @@ async function mountGoogleButton() {
     window.google.accounts.id.initialize({
       client_id: state.googleClientId,
       callback: onGoogleCredential,
-      ux_mode: "popup",
+      ux_mode: state.googleUx === "redirect" ? "redirect" : "popup",
+      login_uri: location.origin + "/api/auth/google/redirect",
       auto_select: false,
       cancel_on_tap_outside: true,
       itp_support: true,
@@ -2242,6 +2254,7 @@ async function loadAuthConfig() {
     if (response.ok && data.ok) {
       state.authMode = data.mode === "google" && data.googleClientId ? "google" : "password";
       state.googleClientId = data.googleClientId || null;
+      state.googleUx = data.uxMode === "redirect" ? "redirect" : "popup";
       renderGate();
       if (state.authMode === "google") loadGis(); // warm up so the button appears instantly
       const modal = document.getElementById("account-modal");
