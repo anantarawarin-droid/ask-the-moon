@@ -1,6 +1,6 @@
 # ถามจันทร์ — Ask the Moon
 
-A bilingual (Thai / English) tarot web app. Visitors enter a name, a topic, and a question. The server draws three Rider-Waite-Smith cards and the AI gives a direct answer based only on those cards: a clear answer first, then how the cards support it, then 1–2 concrete pieces of advice. The visitor's birth date (and optional time) feeds a separate **profile panel** — ปีนักษัตร, the birth-date (life path) number with its meaning, and the Western sign — computed in `birthprofile.py`. Birth data is never sent to the AI; the tarot answer stays cards-only.
+A bilingual (Thai / English) tarot web app. Visitors enter a name, a topic, and a question. The server draws three tarot cards (78-card Rider-Waite-Smith structure, original Ask the Moon art) and the AI gives a direct answer based only on those cards: a clear answer first, then how the cards support it, then 1–2 concrete pieces of advice. The visitor's birth date (and optional time) feeds a separate **profile panel** — ปีนักษัตร, the birth-date (life path) number with its meaning, and the Western sign — computed in `birthprofile.py`. Birth data is never sent to the AI; the tarot answer stays cards-only.
 
 Visitors get one free question, then buy question credits (PromptPay, approved by the owner on `/admin`). Each AI-written reading uses 1 credit and unlocks the deep reading. Ad banners point advertisers to LINE `ivymoonask`.
 
@@ -79,9 +79,9 @@ the three together as one story that answers the question, and the template fall
 The draw is returned as `tarot.cards` (id, Thai/English name, reversed, meaning, image).
 Meanings (Thai + English, upright + reversed) live in `tarot.py`.
 
-**Card art credit:** Rider-Waite-Smith tarot deck (1909), illustrated by Pamela Colman Smith,
-public domain, from Wikimedia Commons. Each file's Commons page and license ("Public domain")
-are listed in `static/tarot/SOURCES.json`. Images are 300 px wide WebP files (~45 KB each).
+**Card art:** the original Ask the Moon deck made for foolmoon.lol (all 78 cards). The source file of
+each card is listed in `static/tarot/SOURCES.json`. Images are 480x853 (9:16) WebP files (~35-95 KB each),
+served as `/tarot/<id>.webp?v=N`; bump `tarot.IMAGE_VERSION` whenever the art changes.
 
 ## API
 

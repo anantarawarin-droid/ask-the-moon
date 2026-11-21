@@ -1,7 +1,7 @@
-"""The 78-card Rider-Waite-Smith tarot deck with short Thai + English meanings.
+"""The 78-card tarot deck (Rider-Waite-Smith structure) with short Thai + English meanings.
 
-Card art: Pamela Colman Smith, 1909 (public domain), from Wikimedia Commons;
-see static/tarot/SOURCES.json for the file page of every card.
+Card art: the original Ask the Moon deck made for foolmoon.lol (480x853 WebP);
+see static/tarot/SOURCES.json for the source file of every card.
 Cards are drawn without positions: the three are read together as one story.
 """
 
@@ -241,8 +241,11 @@ BY_ID = {c["id"]: c for c in DECK}
 _RNG = secrets.SystemRandom()
 
 
+IMAGE_VERSION = "2"  # bump when the card art changes, so browsers fetch the new files
+
+
 def image_path(card_id: str) -> str:
-    return f"/tarot/{card_id}.webp"
+    return f"/tarot/{card_id}.webp?v={IMAGE_VERSION}"
 
 
 def draw(count: int = DRAW_COUNT) -> list[dict[str, Any]]:

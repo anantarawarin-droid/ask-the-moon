@@ -1,392 +1,392 @@
 {
  "cups-01": {
-  "file": "File:Cups01.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Cups01.jpg",
-  "license": "Public domain"
+  "file": "01_ace_of_cups.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "cups-02": {
-  "file": "File:Cups02.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Cups02.jpg",
-  "license": "Public domain"
+  "file": "02_two_of_cups.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "cups-03": {
-  "file": "File:Cups03.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Cups03.jpg",
-  "license": "Public domain"
+  "file": "03_three_of_cups.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "cups-04": {
-  "file": "File:Cups04.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Cups04.jpg",
-  "license": "Public domain"
- },
- "major-00": {
-  "file": "File:RWS Tarot 00 Fool.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_00_Fool.jpg",
-  "license": "Public domain"
- },
- "major-01": {
-  "file": "File:RWS Tarot 01 Magician.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_01_Magician.jpg",
-  "license": "Public domain"
- },
- "major-02": {
-  "file": "File:RWS Tarot 02 High Priestess.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_02_High_Priestess.jpg",
-  "license": "Public domain"
- },
- "major-03": {
-  "file": "File:RWS Tarot 03 Empress.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_03_Empress.jpg",
-  "license": "Public domain"
- },
- "major-04": {
-  "file": "File:RWS Tarot 04 Emperor.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_04_Emperor.jpg",
-  "license": "Public domain"
- },
- "major-05": {
-  "file": "File:RWS Tarot 05 Hierophant.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_05_Hierophant.jpg",
-  "license": "Public domain"
- },
- "major-06": {
-  "file": "File:RWS Tarot 06 Lovers.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_06_Lovers.jpg",
-  "license": "Public domain"
- },
- "major-07": {
-  "file": "File:RWS Tarot 07 Chariot.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_07_Chariot.jpg",
-  "license": "Public domain"
- },
- "major-08": {
-  "file": "File:RWS Tarot 08 Strength.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_08_Strength.jpg",
-  "license": "Public domain"
- },
- "major-09": {
-  "file": "File:RWS Tarot 09 Hermit.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_09_Hermit.jpg",
-  "license": "Public domain"
- },
- "major-10": {
-  "file": "File:RWS Tarot 10 Wheel of Fortune.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_10_Wheel_of_Fortune.jpg",
-  "license": "Public domain"
- },
- "major-11": {
-  "file": "File:RWS Tarot 11 Justice.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_11_Justice.jpg",
-  "license": "Public domain"
- },
- "major-12": {
-  "file": "File:RWS Tarot 12 Hanged Man.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_12_Hanged_Man.jpg",
-  "license": "Public domain"
- },
- "major-13": {
-  "file": "File:RWS Tarot 13 Death.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_13_Death.jpg",
-  "license": "Public domain"
- },
- "major-14": {
-  "file": "File:RWS Tarot 14 Temperance.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_14_Temperance.jpg",
-  "license": "Public domain"
- },
- "major-15": {
-  "file": "File:RWS Tarot 15 Devil.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_15_Devil.jpg",
-  "license": "Public domain"
- },
- "major-16": {
-  "file": "File:RWS Tarot 16 Tower.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_16_Tower.jpg",
-  "license": "Public domain"
- },
- "major-17": {
-  "file": "File:RWS Tarot 17 Star.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_17_Star.jpg",
-  "license": "Public domain"
- },
- "major-18": {
-  "file": "File:RWS Tarot 18 Moon.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_18_Moon.jpg",
-  "license": "Public domain"
- },
- "major-19": {
-  "file": "File:RWS Tarot 19 Sun.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_19_Sun.jpg",
-  "license": "Public domain"
- },
- "major-20": {
-  "file": "File:RWS Tarot 20 Judgement.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_20_Judgement.jpg",
-  "license": "Public domain"
- },
- "major-21": {
-  "file": "File:RWS Tarot 21 World.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_21_World.jpg",
-  "license": "Public domain"
- },
- "wands-01": {
-  "file": "File:Wands01.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Wands01.jpg",
-  "license": "Public domain"
- },
- "wands-02": {
-  "file": "File:Wands02.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Wands02.jpg",
-  "license": "Public domain"
- },
- "wands-03": {
-  "file": "File:Wands03.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Wands03.jpg",
-  "license": "Public domain"
- },
- "wands-04": {
-  "file": "File:Wands04.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Wands04.jpg",
-  "license": "Public domain"
- },
- "wands-05": {
-  "file": "File:Wands05.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Wands05.jpg",
-  "license": "Public domain"
- },
- "wands-06": {
-  "file": "File:Wands06.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Wands06.jpg",
-  "license": "Public domain"
- },
- "wands-07": {
-  "file": "File:Wands07.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Wands07.jpg",
-  "license": "Public domain"
- },
- "wands-08": {
-  "file": "File:Wands08.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Wands08.jpg",
-  "license": "Public domain"
- },
- "wands-09": {
-  "file": "File:Wands09.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Wands09.jpg",
-  "license": "Public domain"
- },
- "wands-10": {
-  "file": "File:Wands10.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Wands10.jpg",
-  "license": "Public domain"
- },
- "wands-11": {
-  "file": "File:Wands11.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Wands11.jpg",
-  "license": "Public domain"
- },
- "wands-12": {
-  "file": "File:Wands12.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Wands12.jpg",
-  "license": "Public domain"
- },
- "wands-13": {
-  "file": "File:Wands13.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Wands13.jpg",
-  "license": "Public domain"
- },
- "wands-14": {
-  "file": "File:Wands14.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Wands14.jpg",
-  "license": "Public domain"
+  "file": "04_four_of_cups.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "cups-05": {
-  "file": "File:Cups05.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Cups05.jpg",
-  "license": "Public domain"
+  "file": "05_five_of_cups.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "cups-06": {
-  "file": "File:Cups06.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Cups06.jpg",
-  "license": "Public domain"
+  "file": "06_six_of_cups.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "cups-07": {
-  "file": "File:Cups07.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Cups07.jpg",
-  "license": "Public domain"
+  "file": "07_seven_of_cups.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "cups-08": {
-  "file": "File:Cups08.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Cups08.jpg",
-  "license": "Public domain"
+  "file": "08_eight_of_cups.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "cups-09": {
-  "file": "File:Cups09.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Cups09.jpg",
-  "license": "Public domain"
+  "file": "09_nine_of_cups.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "cups-10": {
-  "file": "File:Cups10.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Cups10.jpg",
-  "license": "Public domain"
+  "file": "10_ten_of_cups.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "cups-11": {
-  "file": "File:Cups11.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Cups11.jpg",
-  "license": "Public domain"
+  "file": "11_page_of_cups.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "cups-12": {
-  "file": "File:Cups12.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Cups12.jpg",
-  "license": "Public domain"
+  "file": "12_knight_of_cups.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "cups-13": {
-  "file": "File:Cups13.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Cups13.jpg",
-  "license": "Public domain"
+  "file": "13_queen_of_cups.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "cups-14": {
-  "file": "File:Cups14.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Cups14.jpg",
-  "license": "Public domain"
+  "file": "14_king_of_cups.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-00": {
+  "file": "00-fool.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-01": {
+  "file": "01-magician.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-02": {
+  "file": "02-high-priestess.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-03": {
+  "file": "03-empress.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-04": {
+  "file": "04-emperor.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-05": {
+  "file": "05-hierophant.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-06": {
+  "file": "06-lovers.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-07": {
+  "file": "07-chariot.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-08": {
+  "file": "08-strength.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-09": {
+  "file": "09-hermit.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-10": {
+  "file": "10-wheel-of-fortune.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-11": {
+  "file": "11-justice.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-12": {
+  "file": "12-hanged-man.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-13": {
+  "file": "13-death.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-14": {
+  "file": "14-temperance.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-15": {
+  "file": "15-devil.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-16": {
+  "file": "16-tower.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-17": {
+  "file": "17-star.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-18": {
+  "file": "18-moon.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-19": {
+  "file": "19-sun.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-20": {
+  "file": "20-judgement.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "major-21": {
+  "file": "21-world.jpg",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "pentacles-01": {
-  "file": "File:Pents01.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Pents01.jpg",
-  "license": "Public domain"
+  "file": "01_ace.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "pentacles-02": {
-  "file": "File:Pents02.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Pents02.jpg",
-  "license": "Public domain"
+  "file": "02_two.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "pentacles-03": {
-  "file": "File:Pents03.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Pents03.jpg",
-  "license": "Public domain"
+  "file": "03_three.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "pentacles-04": {
-  "file": "File:Pents04.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Pents04.jpg",
-  "license": "Public domain"
+  "file": "04_four.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "pentacles-05": {
-  "file": "File:Pents05.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Pents05.jpg",
-  "license": "Public domain"
+  "file": "05_five.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "pentacles-06": {
-  "file": "File:Pents06.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Pents06.jpg",
-  "license": "Public domain"
+  "file": "06_six.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "pentacles-07": {
-  "file": "File:Pents07.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Pents07.jpg",
-  "license": "Public domain"
+  "file": "07_seven.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "pentacles-08": {
-  "file": "File:Pents08.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Pents08.jpg",
-  "license": "Public domain"
+  "file": "08_eight.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "pentacles-09": {
-  "file": "File:Pents09.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Pents09.jpg",
-  "license": "Public domain"
+  "file": "09_nine.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "pentacles-10": {
-  "file": "File:Pents10.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Pents10.jpg",
-  "license": "Public domain"
+  "file": "10_ten.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "pentacles-11": {
-  "file": "File:Pents11.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Pents11.jpg",
-  "license": "Public domain"
+  "file": "11_page.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "pentacles-12": {
-  "file": "File:Pents12.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Pents12.jpg",
-  "license": "Public domain"
+  "file": "12_knight.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "pentacles-13": {
-  "file": "File:Pents13.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Pents13.jpg",
-  "license": "Public domain"
+  "file": "13_queen.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "pentacles-14": {
-  "file": "File:Pents14.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Pents14.jpg",
-  "license": "Public domain"
+  "file": "14_king.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "swords-01": {
-  "file": "File:Swords01.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Swords01.jpg",
-  "license": "Public domain"
+  "file": "01-ace-of-swords.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "swords-02": {
-  "file": "File:Swords02.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Swords02.jpg",
-  "license": "Public domain"
+  "file": "02-two-of-swords.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "swords-03": {
-  "file": "File:Swords03.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Swords03.jpg",
-  "license": "Public domain"
+  "file": "03-three-of-swords.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "swords-04": {
-  "file": "File:Swords04.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Swords04.jpg",
-  "license": "Public domain"
+  "file": "04-four-of-swords.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "swords-05": {
-  "file": "File:Swords05.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Swords05.jpg",
-  "license": "Public domain"
+  "file": "05-five-of-swords.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "swords-06": {
-  "file": "File:Swords06.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Swords06.jpg",
-  "license": "Public domain"
+  "file": "06-six-of-swords.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "swords-07": {
-  "file": "File:Swords07.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Swords07.jpg",
-  "license": "Public domain"
+  "file": "07-seven-of-swords.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "swords-08": {
-  "file": "File:Swords08.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Swords08.jpg",
-  "license": "Public domain"
+  "file": "08-eight-of-swords.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "swords-09": {
-  "file": "File:Swords09.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Swords09.jpg",
-  "license": "Public domain"
+  "file": "09-nine-of-swords.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "swords-10": {
-  "file": "File:Swords10.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Swords10.jpg",
-  "license": "Public domain"
+  "file": "10-ten-of-swords.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "swords-11": {
-  "file": "File:Swords11.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Swords11.jpg",
-  "license": "Public domain"
+  "file": "11-page-of-swords.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "swords-12": {
-  "file": "File:Swords12.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Swords12.jpg",
-  "license": "Public domain"
+  "file": "12-knight-of-swords.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "swords-13": {
-  "file": "File:Swords13.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Swords13.jpg",
-  "license": "Public domain"
+  "file": "13-queen-of-swords.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  },
  "swords-14": {
-  "file": "File:Swords14.jpg",
-  "page": "https://commons.wikimedia.org/wiki/File:Swords14.jpg",
-  "license": "Public domain"
+  "file": "14-king-of-swords.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "wands-01": {
+  "file": "01_ace_of_wands.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "wands-02": {
+  "file": "02_two_of_wands.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "wands-03": {
+  "file": "03_three_of_wands.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "wands-04": {
+  "file": "04_four_of_wands.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "wands-05": {
+  "file": "05_five_of_wands.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "wands-06": {
+  "file": "06_six_of_wands.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "wands-07": {
+  "file": "07_seven_of_wands.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "wands-08": {
+  "file": "08_eight_of_wands.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "wands-09": {
+  "file": "09_nine_of_wands.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "wands-10": {
+  "file": "10_ten_of_wands.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "wands-11": {
+  "file": "11_page_of_wands.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "wands-12": {
+  "file": "12_knight_of_wands.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "wands-13": {
+  "file": "13_queen_of_wands.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
+ },
+ "wands-14": {
+  "file": "14_king_of_wands.png",
+  "art": "Original Ask the Moon deck (foolmoon.lol)",
+  "license": "Original artwork, all rights reserved"
  }
 }

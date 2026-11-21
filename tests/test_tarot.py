@@ -33,14 +33,15 @@ class Deck(unittest.TestCase):
         sources = json.loads((ROOT / "static/tarot/SOURCES.json").read_text())
         for c in tarot.DECK:
             with self.subTest(card=c["id"]):
-                img = ROOT / "static" / tarot.image_path(c["id"]).lstrip("/")
+                img = ROOT / "static" / tarot.image_path(c["id"]).split("?")[0].lstrip("/")
                 self.assertTrue(img.is_file())
                 head = img.read_bytes()[:12]
                 self.assertTrue(head[:4] == b"RIFF" and head[8:12] == b"WEBP")
                 self.assertLess(img.stat().st_size, 120_000)
                 for k in ("upEn", "revEn", "upTh", "revTh", "nameTh"):
                     self.assertTrue(c[k].strip())
-                self.assertEqual(sources[c["id"]]["license"], "Public domain")
+                self.assertTrue(sources[c["id"]]["file"])
+                self.assertIn("Ask the Moon", sources[c["id"]]["art"])
 
     def test_draw_three_distinct_without_positions(self):
         for _ in range(200):

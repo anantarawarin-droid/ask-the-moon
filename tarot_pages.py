@@ -93,7 +93,7 @@ def _head(title: str, desc: str, path: str, image: str, ld: list[dict[str, Any]]
 FOOT = """  </main>
   <footer class="m-foot">
     <p>ความหมายไพ่เขียนโดยถามจันทร์ เพื่อเป็นแนวทางในการอ่านไพ่ ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย หรือการเงิน</p>
-    <p>ภาพไพ่: สำรับ Rider-Waite-Smith (ค.ศ. 1909) วาดโดย Pamela Colman Smith · สาธารณสมบัติ จาก Wikimedia Commons</p>
+    <p>ภาพไพ่: สำรับต้นฉบับของถามจันทร์ ออกแบบเฉพาะสำหรับ foolmoon.lol</p>
     <p><a href="/">หน้าแรก</a> · <a href="/tarot">ความหมายไพ่ทาโรต์ทั้ง 78 ใบ</a> · <a href="/privacy">นโยบายความเป็นส่วนตัว</a> · <a href="/terms">ข้อกำหนดการใช้งาน</a></p>
   </footer>
 </body>
@@ -126,7 +126,7 @@ def render_index() -> bytes:
     out = [_head(title, desc, "/tarot", "/og-image.png", ld)]
     out.append("""    <nav class="m-crumb"><a href="/">หน้าแรก</a> › <span>ความหมายไพ่ทาโรต์</span></nav>
     <h1>ความหมายไพ่ทาโรต์ทั้ง 78 ใบ</h1>
-    <p class="m-lede">ความหมายไพ่ทาโรต์สำรับ Rider-Waite-Smith ภาษาไทย ครบทุกใบ ทั้งความหมายเมื่อไพ่ปกติและไพ่กลับหัว พร้อมแนวทางเรื่องความรัก การงาน และการเงิน แตะที่ไพ่เพื่ออ่านความหมายเต็ม</p>
+    <p class="m-lede">ความหมายไพ่ทาโรต์ตามแบบ Rider-Waite-Smith ภาษาไทย ครบทุกใบ ทั้งความหมายเมื่อไพ่ปกติและไพ่กลับหัว พร้อมแนวทางเรื่องความรัก การงาน และการเงิน แตะที่ไพ่เพื่ออ่านความหมายเต็ม</p>
 """)
     out.append('    <nav class="m-jump">' + " ".join(
         f'<a href="#{key}">{_e(label.split(" (")[0])}</a>' for key, label, _ in SUIT_ORDER) + "</nav>\n")
@@ -135,7 +135,7 @@ def render_index() -> bytes:
         out.append(f'    <section class="m-suit" id="{key}">\n      <h2>{_e(label)}</h2>\n      <p class="m-blurb">{_e(blurb)}</p>\n      <ul class="m-grid">\n')
         for c in cards:
             s = slugify(c["nameEn"])
-            out.append(f'        <li><a href="/tarot/{s}"><img src="{tarot.image_path(c["id"])}" alt="ไพ่{_e(short_th(c))} ({_e(c["nameEn"])})" width="150" height="259" loading="lazy" /><b>{_e(short_th(c))}</b><small>{_e(c["nameEn"])}</small></a></li>\n')
+            out.append(f'        <li><a href="/tarot/{s}"><img src="{tarot.image_path(c["id"])}" alt="ไพ่{_e(short_th(c))} ({_e(c["nameEn"])})" width="150" height="267" loading="lazy" /><b>{_e(short_th(c))}</b><small>{_e(c["nameEn"])}</small></a></li>\n')
         out.append("      </ul>\n    </section>\n")
     out.append(_cta("อยากรู้ว่าไพ่จะตอบคำถามของคุณว่าอย่างไร?"))
     out.append(FOOT)
@@ -166,7 +166,7 @@ def render_card(slug: str) -> bytes | None:
     out.append(f"""    <nav class="m-crumb"><a href="/">หน้าแรก</a> › <a href="/tarot">ความหมายไพ่ทาโรต์</a> › <span>ไพ่{_e(th)}</span></nav>
     <article class="m-card">
       <div class="m-hero">
-        <img class="m-art" src="{img}" alt="ไพ่ทาโรต์{_e(th)} ({_e(en)}) สำรับ Rider-Waite-Smith" width="300" height="518" />
+        <img class="m-art" src="{img}" alt="ไพ่ทาโรต์{_e(th)} ({_e(en)}) สำรับถามจันทร์" width="300" height="533" />
         <div class="m-intro">
           <p class="m-kicker">{_e(group_label)}</p>
           <h1>ความหมายไพ่{_e(th)}<small>{_e(en)}</small></h1>

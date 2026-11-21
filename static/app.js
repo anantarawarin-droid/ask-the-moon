@@ -166,7 +166,7 @@ const I18N = {
       login_required: "กรุณาเข้าสู่ระบบก่อน",
       network: "เชื่อมต่อไม่ได้ กรุณาลองใหม่",
     },
-    tarotCredit: "ภาพไพ่ทาโรต์: สำรับ Rider-Waite-Smith (ค.ศ. 1909) วาดโดย Pamela Colman Smith · สาธารณสมบัติ จาก Wikimedia Commons",
+    tarotCredit: "ภาพไพ่ทาโรต์: สำรับต้นฉบับของถามจันทร์ ออกแบบเฉพาะสำหรับ foolmoon.lol",
     tarotReversed: "กลับหัว",
     shareBtn: "✦ แชร์ผลทำนายเป็นรูป",
     shareTitle: "รูปผลทำนายของคุณ",
@@ -364,7 +364,7 @@ const I18N = {
       login_required: "Please log in first.",
       network: "Couldn't connect. Please try again.",
     },
-    tarotCredit: "Tarot art: Rider-Waite-Smith deck (1909) by Pamela Colman Smith · public domain, via Wikimedia Commons",
+    tarotCredit: "Tarot art: the original Ask the Moon deck, made for foolmoon.lol",
     tarotReversed: "Reversed",
     shareBtn: "✦ Share this reading as an image",
     shareTitle: "Your reading card",
@@ -757,7 +757,7 @@ async function buildShareCard(data, lang) {
   // Cards.
   const n = Math.max(cards.length, 1);
   const cw = n === 1 ? 330 : n === 2 ? 290 : 272;
-  const ch = Math.round(cw * 518 / 300);
+  const ch = Math.round(cw * 16 / 9);
   const gap = n === 1 ? 0 : 44;
   const rowW = n * cw + (n - 1) * gap;
   const top = 236;
