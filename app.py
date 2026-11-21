@@ -230,6 +230,14 @@ def build_own_prompt(name: str, topic: str, question: str, lang: str, cards: lis
             "timing). It must NOT change the answer: the yes/no/direction still comes only from the cards and "
             "the lean below.\n\n"
         )
+    if lang == "th":
+        thai_names = "; ".join(re.sub(r"\s*\(.*\)$", "", c["nameTh"]) + (" (กลับหัว)" if c["reversed"] else "")
+                               for c in cards)
+        names_rule = (f"In the Thai text, name the {'card' if n == 1 else 'cards'} with exactly these Thai names, in this order, "
+                      f"each once: {thai_names}. You may add the English name in brackets after a Thai name, but never "
+                      "use the English name alone and never use any other Thai name.\n")
+    else:
+        names_rule = ""
     if n == 1:
         card_intro = ("The person shuffled their own physical Rider-Waite-Smith tarot deck at home and drew this ONE card "
                       "themselves (it was not drawn by this website). Read it as the answer to the question:\n")
@@ -243,7 +251,8 @@ def build_own_prompt(name: str, topic: str, question: str, lang: str, cards: lis
                    "(in Thai use exactly the Thai card name given in the card list above for each card) and noting reversed cards. "
                    "Tell it as one story, not card by card.\n")
     user = (
-        f"Language: {language}. Person's name (for a short greeting only): {name}.\n"
+        f"Language: {language}. Person's name (only to address them at the start of the first sentence; "
+        f"no 'hello' or other greeting): {name}.\n"
         f"Topic: {TOPICS[topic]['en']} ({TOPICS[topic]['th']}).\n"
         f"Question: {qline}\n"
         f"Question type: {'yes/no' if yes_no else 'open'}.\n\n"
@@ -252,11 +261,18 @@ def build_own_prompt(name: str, topic: str, question: str, lang: str, cards: lis
         f"{tarot.prompt_lines(cards)}\n"
         f"Overall lean of {cards_ref} (from their upright/reversed balance): {tarot.VERDICT_HINT_EN[lean]}.\n\n"
         "Write the answer like this:\n"
-        "1. First sentence: the clear answer. For a yes/no question say plainly yes, no, likely yes, likely no, "
-        "or not yet. For an open question give a clear direction (what is happening and where it is going). "
+        "1. First sentence: the clear answer (you may start it with the person's name, but no separate greeting "
+        "sentence before it). For a yes/no question say plainly yes, no, likely yes, likely no, "
+        "or not yet, in natural words (do not label the answer type, e.g. never write that this is a 'likely yes' answer). "
+        "For an open question give a clear direction (what is happening and where it is going). "
         f"Commit to it. It must agree with {cards_ref} and the lean above.\n"
         f"{explain}"
-        "3. End with 1–2 concrete, practical pieces of advice the person can act on.\n\n"
+        f"{names_rule}"
+        + ("" if n == 1 else f"Every one of the {count_word} cards must be named; check that none is missing.\n")
+        + "3. End with 1–2 concrete, practical pieces of advice the person can act on.\n"
+        f"Somewhere in the reading, say once and naturally that {'this is the card' if n == 1 else 'these are the cards'} the person drew themselves "
+        + ("(in Thai, e.g. 'ไพ่ที่คุณเปิด'). " if lang == "th" else "(e.g. 'the cards you drew'). ")
+        + "Separate the paragraphs with a blank line.\n\n"
         f"Rules: base everything ONLY on {cards_ref} and the question. Read the cards exactly as listed; do not "
         "add, swap, or question any card, and do not soften a card because the person chose it themselves. "
         "Do not mention astrology, zodiac signs, "
