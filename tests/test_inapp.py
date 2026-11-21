@@ -92,8 +92,26 @@ class Wiring(unittest.TestCase):
     def test_resume_login_after_switching_browser(self):
         self.assertIn("loadAuthConfig().then(maybeResumeLogin)", JS)
 
+    def test_ios_copy_link_is_primary(self):
+        self.assertIn('plat === "ios" && info.app !== "LINE" ? `', JS)
+        self.assertIn('id="inapp-copy">📋', JS)
+        self.assertEqual(len(re.findall(r"\biaCopiedIos:", JS)), 2)
+        self.assertIn("คัดลอกแล้ว ไปวางใน Safari ได้เลย", JS)
+
     def test_site_verification_meta_kept(self):
         self.assertIn('name="google-site-verification"', HTML)
+
+
+class FreshAssets(unittest.TestCase):
+    def test_index_versions_assets_and_revalidates(self):
+        import sys
+        sys.path.insert(0, str(ROOT))
+        import app
+        html = app.index_html().decode("utf-8")
+        self.assertRegex(html, r'src="/app\.js\?v=[0-9a-f]{10}"')
+        self.assertRegex(html, r'href="/styles\.css\?v=[0-9a-f]{10}"')
+        self.assertIn('name="google-site-verification"', html)
+        self.assertTrue({"/", "/app.js", "/styles.css"} <= app.REVALIDATE_PATHS)
 
 
 if __name__ == "__main__":

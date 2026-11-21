@@ -959,6 +959,10 @@ body[data-lang="en"] .pricing h2 { font-family: var(--font-display); letter-spac
 .inapp-browse { margin: 0.45rem 0 0; font-size: 0.74rem; line-height: 1.5; color: var(--muted); }
 .inapp-try { margin: 0.5rem 0 0; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; font-size: 0.74rem;
   color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+.inapp-copy-main { display: block; width: 100%; padding-top: 0.85rem; padding-bottom: 0.85rem; font-size: 1rem; font-weight: 700; }
+.inapp-steps-title { margin: 0.85rem 0 0.3rem; font-size: 0.84rem; font-weight: 600; color: var(--gold-soft); }
+.inapp-steps { margin: 0; padding-left: 1.3rem; font-size: 0.84rem; line-height: 1.6; color: var(--lilac); }
+.inapp-steps li { margin: 0.15rem 0; }
 @media (max-width: 340px) { .inapp-actions { grid-template-columns: 1fr; } }
 .acc-email { margin: 0.1rem 0 0.3rem; font-size: 0.85rem; color: var(--lilac); word-break: break-all; }
 

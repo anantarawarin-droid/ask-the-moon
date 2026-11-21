@@ -24,6 +24,10 @@ const I18N = {
     iaOpen: (b) => `เปิดใน ${b}`,
     iaCopy: "คัดลอกลิงก์",
     iaCopied: "คัดลอกลิงก์แล้ว วางในแถบที่อยู่ของ Safari หรือ Chrome ได้เลย",
+    iaCopiedIos: "คัดลอกแล้ว ไปวางใน Safari ได้เลย",
+    iaCopyIos: "คัดลอกลิงก์ แล้วไปวางใน Safari",
+    iaStepsTitle: (app) => `หรือเปิดใน Safari จากแอป${app || "ที่ใช้อยู่"}:`,
+    iaSteps: ["กดปุ่ม ⋯ หรือไอคอนแชร์ ⤴ (มุมบนหรือล่างของจอ)", "เลือก “เปิดใน Safari” (Open in Safari)", "กด “เข้าสู่ระบบ” อีกครั้งใน Safari"],
     iaHowIos: "หรือกดปุ่ม ⋯ / ไอคอนแชร์ ⤴ มุมจอ แล้วเลือก “เปิดใน Safari” (Open in Safari)",
     iaHowAndroid: "หรือกดปุ่ม ⋮ มุมขวาบน แล้วเลือก “เปิดในเบราว์เซอร์” / “Open in Chrome”",
     iaHowOther: "หรือกดปุ่ม ⋯ / ⋮ มุมจอ แล้วเลือก “เปิดในเบราว์เซอร์” (Safari หรือ Chrome)",
@@ -263,6 +267,10 @@ const I18N = {
     iaOpen: (b) => `Open in ${b}`,
     iaCopy: "Copy link",
     iaCopied: "Link copied. Paste it into Safari or Chrome.",
+    iaCopiedIos: "Copied! Now paste it into Safari.",
+    iaCopyIos: "Copy link, then paste in Safari",
+    iaStepsTitle: (app) => `Or open it in Safari from the${app || " current"} app:`,
+    iaSteps: ["Tap ⋯ or the share icon ⤴ (top or bottom of the screen)", "Choose “Open in Safari”", "Tap “Sign in” again in Safari"],
     iaHowIos: "Or tap the ⋯ / share ⤴ button in the corner and choose “Open in Safari”.",
     iaHowAndroid: "Or tap ⋮ at the top right and choose “Open in browser” / “Open in Chrome”.",
     iaHowOther: "Or tap the ⋯ / ⋮ menu and choose “Open in browser” (Safari or Chrome).",
@@ -1917,11 +1925,15 @@ function inAppNoticeHtml(dict, info) {
     <div class="inapp-note" id="inapp-note" role="note">
       <p class="inapp-title">⚠︎ ${escapeHtml(dict.iaTitle)}</p>
       <p class="inapp-why">${escapeHtml(dict.iaWhy(app))}</p>
+      ${plat === "ios" && info.app !== "LINE" ? `
+      <button type="button" class="btn gold inapp-copy-main" id="inapp-copy">📋 ${escapeHtml(dict.iaCopyIos)}</button>
+      <p class="inapp-steps-title">${escapeHtml(dict.iaStepsTitle(app))}</p>
+      <ol class="inapp-steps">${dict.iaSteps.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ol>` : `
       <div class="inapp-actions">
         <a class="btn gold" id="inapp-open" href="${escapeHtml(externalOpenUrl(navigator.userAgent))}">${escapeHtml(dict.iaOpen(browser))}</a>
         <button type="button" class="btn ghost" id="inapp-copy">${escapeHtml(dict.iaCopy)}</button>
       </div>
-      <p class="inapp-how" id="inapp-how">${escapeHtml(how)}</p>
+      <p class="inapp-how" id="inapp-how">${escapeHtml(how)}</p>`}
       <p class="inapp-browse">${escapeHtml(dict.iaBrowse)}</p>
       <button type="button" class="inapp-try" id="inapp-try">${escapeHtml(dict.iaTry)}</button>
     </div>`;
@@ -1942,7 +1954,9 @@ function wireInAppNotice() {
   const copy = document.getElementById("inapp-copy");
   if (copy) copy.addEventListener("click", async () => {
     const ok = await copyText(resumeLoginUrl());
-    toast(ok ? t().iaCopied : resumeLoginUrl());
+    const ios = devicePlatform(navigator.userAgent) === "ios";
+    toast(ok ? (ios ? t().iaCopiedIos : t().iaCopied) : resumeLoginUrl());
+    if (ok && ios) copy.textContent = "✓ " + t().iaCopiedIos;
   });
   const tryBtn = document.getElementById("inapp-try");
   if (tryBtn) tryBtn.addEventListener("click", () => {

@@ -638,6 +638,22 @@ def sitemap_xml() -> bytes:
     ).encode("utf-8")
 
 
+REVALIDATE_PATHS = frozenset({"/app.js", "/styles.css", "/index.html", "/"})
+
+
+def asset_version(name: str) -> str:
+    import hashlib
+    return hashlib.sha256((STATIC / name).read_bytes()).hexdigest()[:10]
+
+
+def index_html() -> bytes:
+    """index.html with ?v=<content hash> on app.js/styles.css, so a deploy always loads fresh files."""
+    html = (STATIC / "index.html").read_text(encoding="utf-8")
+    html = html.replace('href="/styles.css"', f'href="/styles.css?v={asset_version("styles.css")}"', 1)
+    html = html.replace('src="/app.js"', f'src="/app.js?v={asset_version("app.js")}"', 1)
+    return html.encode("utf-8")
+
+
 ICON_CACHE_PATHS = frozenset({
     "/favicon.ico",
     "/favicon.svg",
@@ -660,9 +676,23 @@ class Handler(SimpleHTTPRequestHandler):
     }
 
     def end_headers(self) -> None:
-        if self._route() in ICON_CACHE_PATHS:
+        route = self._route()
+        if route in ICON_CACHE_PATHS:
             self.send_header("Cache-Control", "public, max-age=604800")
+        elif route in REVALIDATE_PATHS:
+            # Always check for a newer copy (cheap 304 via Last-Modified), so in-app browsers
+            # never keep running yesterday's JS/CSS.
+            self.send_header("Cache-Control", "no-cache")
         super().end_headers()
+
+    def _serve_index(self) -> None:
+        body = index_html()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()  # adds Cache-Control: no-cache (REVALIDATE_PATHS)
+        if self.command != "HEAD":
+            self.wfile.write(body)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(STATIC), **kwargs)
@@ -831,6 +861,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         route = self._route()
+        if route in ("/", "/index.html"):
+            self._serve_index()
+            return
         if route == "/robots.txt":
             self._serve_bytes(robots_txt(), "text/plain")
             return
@@ -912,7 +945,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_HEAD(self) -> None:
         route = self._route()
-        if route in ("/robots.txt", "/sitemap.xml", "/tarot") or (
+        if route in ("/", "/index.html", "/robots.txt", "/sitemap.xml", "/tarot") or (
                 route.startswith("/tarot/") and route[7:] in tarot_pages.BY_SLUG):
             self.do_GET()  # _serve_bytes skips the body for HEAD
             return
