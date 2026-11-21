@@ -136,6 +136,43 @@ def clean_details(raw: Any) -> str:
     return text[:DETAILS_MAX].strip()
 
 
+CLEAR_LEANS = frozenset({"yes", "no"})
+ABSOLUTE_WORDS_TH = ("แน่นอน", "อย่างแน่นอน", "100%", "การันตี", "รับประกัน", "ไม่มีอุปสรรคใด ๆ", "ไม่มีอะไรมาขวางได้")
+ABSOLUTE_WORDS_EN = ("definitely", "certainly", "guaranteed", "100%", "without a doubt", "no obstacles at all")
+
+
+def certainty_rule(lean: str) -> str:
+    """How sure the answer may sound: it follows the lean, and never promises the future."""
+    banned = ", ".join(f"'{w}'" for w in ABSOLUTE_WORDS_TH + ABSOLUTE_WORDS_EN)
+    if lean in CLEAR_LEANS:
+        level = ("The lean is clear, so say the answer directly and confidently as what the cards show "
+                 "(for example plainly yes or plainly no), without hedging.")
+    else:
+        level = ("The lean is NOT a clear yes/no, so the answer must sound like a tendency, not a certainty: use "
+                 "calibrated words such as 'มีแนวโน้ม', 'น่าจะ', 'ยังไม่ใช่ตอนนี้' / 'likely', 'probably', 'not yet', "
+                 "and say what the condition or obstacle is.")
+    return (
+        f"Certainty: {level} Never promise or guarantee the future, whatever the lean: do not use absolute words "
+        f"such as {banned}, or anything with the same meaning. Being direct means stating clearly what the cards "
+        "show, not guaranteeing the outcome. "
+    )
+
+
+_SURELY_TH = re.compile(r"\s*อย่างแน่นอน")
+
+
+def soften_certainty(text: str) -> str:
+    """Safety net after the AI: drop the adverb 'อย่างแน่นอน' ("surely"), which the prompt already forbids.
+
+    Only this exact phrase is removed: it is a trailing adverb, so the Thai sentence stays grammatical
+    without it ("จะได้งานใหม่อย่างแน่นอนค่ะ" -> "จะได้งานใหม่ค่ะ"). Bare 'แน่นอน' is left alone because it
+    also appears in 'ไม่แน่นอน' (uncertain) and in phrasing a blind cut could break."""
+    if "อย่างแน่นอน" not in text:
+        return text
+    print("LLM reading used 'อย่างแน่นอน'; removed it.", file=sys.stderr)
+    return _SURELY_TH.sub("", text)
+
+
 def build_prompt(name: str, topic: str, question: str, lang: str, cards: list[dict[str, Any]],
                  details: str = "") -> tuple[str, str]:
     """System + user prompt. Only the name, topic, question, optional context, and the 3 cards are sent."""
@@ -184,6 +221,7 @@ def build_prompt(name: str, topic: str, question: str, lang: str, cards: list[di
         "no phrases like 'it depends on you', 'anything is possible', 'only time will tell', 'ask your heart'. "
         "If the cards are negative, say so kindly but clearly. Not harsh, not overly cautious. "
         "If the cards are positive, say so clearly and confidently; do not add doubts or warnings the cards do not show. "
+        f"{certainty_rule(lean)}"
         "No generic filler, no long greeting, no closing blessing. "
         f"Length: {length}. No markdown, headings, bullet symbols, or JSON. "
         f"Write the entire answer in {language}"
@@ -202,8 +240,10 @@ def build_own_prompt(name: str, topic: str, question: str, lang: str, cards: lis
     yes_no = tarot.is_yes_no(question)
     qline = question.strip() if question else f"(no specific question: give a direct reading about their {TOPICS[topic]['en']} right now)"
     if n == 1:
-        length = ("about 90–160 Thai words (2–3 short paragraphs)" if lang == "th"
-                  else "about 80–140 words (2–3 short paragraphs)")
+        length = ("about 70–120 Thai words, at most about 500 Thai characters, in exactly 2 short paragraphs "
+                  "(the answer with the card, then the advice); do not add a paragraph that only restates the card"
+                  if lang == "th"
+                  else "about 70–120 words in exactly 2 short paragraphs (the answer with the card, then the advice)")
     elif n <= 3:
         length = ("about 120–220 Thai words (3 short paragraphs)" if lang == "th"
                   else "about 100–180 words (3 short paragraphs)")
@@ -280,6 +320,7 @@ def build_own_prompt(name: str, topic: str, question: str, lang: str, cards: lis
         "no phrases like 'it depends on you', 'anything is possible', 'only time will tell', 'ask your heart'. "
         "If the cards are negative, say so kindly but clearly. Not harsh, not overly cautious. "
         "If the cards are positive, say so clearly and confidently; do not add doubts or warnings the cards do not show. "
+        f"{certainty_rule(lean)}"
         "No generic filler, no long greeting, no closing blessing. "
         f"Length: {length}. No markdown, headings, bullet symbols, or JSON. "
         f"Write the entire answer in {language}"
@@ -327,7 +368,7 @@ def llm_generate(
         if text.startswith("{") or text.startswith("```"):
             print("LLM response was not plain text; using template generator.", file=sys.stderr)
             return None
-        return text.replace("**", ""), {}
+        return soften_certainty(text.replace("**", "")), {}
     except Exception as exc:
         _log_llm_failure(exc)
         return None

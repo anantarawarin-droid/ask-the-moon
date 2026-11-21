@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import sys
 import tempfile
 import threading
@@ -201,6 +202,77 @@ class Prompt(unittest.TestCase):
         self.assertIn("drew these three cards themselves", full)
         for banned in ("2006", "07-07", "ราศี", "นักษัตร"):
             self.assertNotIn(banned, full)
+
+
+class Certainty(unittest.TestCase):
+    """Both prompts (random 3-card and own cards) keep the answer's certainty in line with the lean."""
+
+    def card(self, cid, rev=False):
+        return tarot.card_from_choice(cid, rev)
+
+    def prompts(self, cards):
+        normal = app.build_prompt("น้ำเพชร", "career", "จะได้งานไหม", "th", cards)[1]
+        own = app.build_own_prompt("น้ำเพชร", "career", "จะได้งานไหม", "th", cards)[1]
+        return normal, own
+
+    def test_likely_lean_asks_for_calibrated_words(self):
+        cards = [self.card("major-17"), self.card("cups-02", True), self.card("wands-03")]
+        self.assertEqual(tarot.verdict(cards), "likely")
+        for prompt in self.prompts(cards):
+            self.assertIn("NOT a clear yes/no", prompt)
+            self.assertIn("'มีแนวโน้ม', 'น่าจะ'", prompt)
+            self.assertIn("Never promise or guarantee the future", prompt)
+            for w in ("'แน่นอน'", "'อย่างแน่นอน'", "'100%'", "'ไม่มีอุปสรรคใด ๆ'", "'definitely'", "'guaranteed'"):
+                self.assertIn(w, prompt)
+            # The existing anti-hedging rules stay.
+            self.assertIn("'it depends on you'", prompt)
+            self.assertIn("do not sugarcoat or hedge", prompt)
+
+    def test_clear_lean_is_direct_but_still_no_guarantee(self):
+        cards = [self.card("major-19"), self.card("cups-10"), self.card("wands-06")]
+        self.assertEqual(tarot.verdict(cards), "yes")
+        for prompt in self.prompts(cards):
+            self.assertIn("The lean is clear, so say the answer directly and confidently", prompt)
+            self.assertNotIn("NOT a clear yes/no", prompt)
+            self.assertIn("Never promise or guarantee the future, whatever the lean", prompt)
+            self.assertIn("'อย่างแน่นอน'", prompt)
+
+    def test_rule_names_no_card(self):
+        for lean in tarot.VERDICTS:
+            rule = app.certainty_rule(lean)
+            for c in tarot.DECK:
+                self.assertNotIn(c["nameTh"], rule)
+                self.assertNotIn(re.sub(r"\s*\(.*\)$", "", c["nameTh"]), rule)
+
+    def test_one_card_length_is_two_paragraphs(self):
+        p = app.build_own_prompt("น้ำเพชร", "career", "จะได้งานไหม", "th", [self.card("major-19")])[1]
+        self.assertIn("about 70–120 Thai words, at most about 500 Thai characters, in exactly 2 short paragraphs", p)
+        p3 = app.build_own_prompt("น้ำเพชร", "career", "จะได้งานไหม", "th", tarot.parse_own_cards(THREE))[1]
+        self.assertIn("about 120–220 Thai words (3 short paragraphs)", p3)
+
+    def test_soften_certainty_only_drops_the_adverb(self):
+        self.assertEqual(app.soften_certainty("คุณจะได้งานใหม่อย่างแน่นอนค่ะ"), "คุณจะได้งานใหม่ค่ะ")
+        self.assertEqual(app.soften_certainty("ข่าวดีจะมาถึง อย่างแน่นอน แล้ว"), "ข่าวดีจะมาถึง แล้ว")
+        for keep in ("ช่วงนี้ยังมีความไม่แน่นอนค่ะ", "อย่างไม่แน่นอน", "แน่นอนว่าต้องใช้เวลา", "", "No change here."):
+            self.assertEqual(app.soften_certainty(keep), keep)
+
+    def test_llm_output_goes_through_the_safety_net(self):
+        class Resp:
+            def read(self):
+                return json.dumps({"choices": [{"message": {"content": "คุณจะได้งานอย่างแน่นอนค่ะ"}}]}).encode()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        cards = tarot.parse_own_cards(THREE)
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}), \
+                mock.patch.object(app.urllib.request, "urlopen", lambda req, timeout: Resp()):
+            for own in (False, True):
+                text, _ = app.llm_generate("น้ำเพชร", "career", "จะได้งานไหม", "th", cards=cards, own=own)
+                self.assertEqual(text, "คุณจะได้งานค่ะ")
 
 
 class Charging(unittest.TestCase):
