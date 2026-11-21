@@ -176,7 +176,7 @@ def build_prompt(name: str, topic: str, question: str, lang: str, cards: list[di
         "or not yet. For an open question give a clear direction (what is happening and where it is going). "
         "Commit to it. It must agree with the cards and the lean above.\n"
         "2. Then briefly explain how the three cards together support that answer, naming each card once "
-        "(in Thai use the Thai name, e.g. ไพ่ดวงดาว) and noting reversed cards. Tell it as one story, not card by card.\n"
+        "(in Thai use exactly the Thai card name given in the card list above for each card) and noting reversed cards. Tell it as one story, not card by card.\n"
         "3. End with 1–2 concrete, practical pieces of advice the person can act on.\n\n"
         "Rules: base everything ONLY on these three cards and the question. Do not mention astrology, zodiac signs, "
         "Chinese zodiac, birth dates, birth times, or numerology. Be polite and kind, but do not sugarcoat or hedge: "

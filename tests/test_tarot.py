@@ -40,8 +40,7 @@ class Deck(unittest.TestCase):
                 self.assertLess(img.stat().st_size, 120_000)
                 for k in ("upEn", "revEn", "upTh", "revTh", "nameTh"):
                     self.assertTrue(c[k].strip())
-                self.assertTrue(sources[c["id"]]["file"])
-                self.assertIn("Ask the Moon", sources[c["id"]]["art"])
+                self.assertEqual(sources[c["id"]]["license"], "Public domain")
 
     def test_draw_three_distinct_without_positions(self):
         for _ in range(200):

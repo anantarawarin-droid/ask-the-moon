@@ -817,7 +817,7 @@ body[data-lang="en"] .pricing h2 { font-family: var(--font-display); letter-spac
 .tcard { margin: 0; perspective: 900px; opacity: 0; animation: tdeal 0.6s ease-out forwards; animation-delay: calc(var(--i) * 0.15s); }
 .tcard.no-anim { animation: none; opacity: 1; }
 @keyframes tdeal { from { opacity: 0; translate: 0 18px; } to { opacity: 1; translate: 0 0; } }
-.tcard-inner { position: relative; display: block; width: 100%; aspect-ratio: 9 / 16; padding: 0; border: 0; background: none; cursor: pointer;
+.tcard-inner { position: relative; display: block; width: 100%; aspect-ratio: 300 / 518; padding: 0; border: 0; background: none; cursor: pointer;
   transform-style: preserve-3d; transition: transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1); }
 .tcard.no-anim .tcard-inner { transition: none; }
 .tcard.is-flipped .tcard-inner { transform: rotateY(180deg); }
