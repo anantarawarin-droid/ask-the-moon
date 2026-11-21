@@ -19,22 +19,13 @@ const I18N = {
     gPrivacy: "เราใช้อีเมลของคุณเพื่อผูกเครดิตกับบัญชี ไม่โพสต์หรือส่งอะไรในนามคุณ",
     gLoading: "กำลังโหลดปุ่ม Google…",
     gBlocked: "โหลดปุ่ม Google ไม่ได้ ลองปิดตัวบล็อกโฆษณา/โหมดส่วนตัว แล้วรีเฟรชหน้าอีกครั้ง",
-    iaTitle: "เปิดในเบราว์เซอร์ก่อนนะคะ",
-    iaWhy: (app) => `ตอนนี้คุณเปิดเว็บอยู่ในแอป${app} ซึ่ง Google ไม่อนุญาตให้เข้าสู่ระบบในแอปแบบนี้ (กดแล้วจะขึ้นหน้าขาวหรือ error) เปิดใน Safari หรือ Chrome แล้วเข้าสู่ระบบได้ตามปกติค่ะ`,
-    iaOpen: (b) => `เปิดใน ${b}`,
+    iaHintX: "ถ้ากดแล้วขึ้นหน้าขาว ให้กด ⋮ ข้างชื่อเว็บด้านล่าง แล้วเลือก “Open in browser”",
+    iaHint: "ถ้ากดแล้วขึ้นหน้าขาว ให้กดเมนู ⋯ / ⋮ ของแอป แล้วเลือก “เปิดในเบราว์เซอร์” (Open in browser)",
+    iaHintOpen: "ถ้ากดแล้วขึ้นหน้าขาว ให้เปิดเว็บในเบราว์เซอร์แทน",
+    iaOpenLink: "เปิดในเบราว์เซอร์",
     iaCopy: "คัดลอกลิงก์",
-    iaCopied: "คัดลอกลิงก์แล้ว วางในแถบที่อยู่ของ Safari หรือ Chrome ได้เลย",
-    iaCopiedIos: "คัดลอกแล้ว ไปวางใน Safari หรือ Chrome ได้เลย",
-    iaCopyIos: "คัดลอกลิงก์ แล้วไปวางในเบราว์เซอร์",
-    iaStepsTitle: (app) => `หรือเปิดในเบราว์เซอร์ (Safari / Chrome) จากแอป${app || "ที่ใช้อยู่"}:`,
-    iaSteps: ["กดปุ่ม ⋯ / ⋮ หรือไอคอนแชร์ ⤴ (มุมบนหรือล่างของจอ)", "เลือก “เปิดในเบราว์เซอร์” (Open in browser / Open in Safari)", "กด “เข้าสู่ระบบ” อีกครั้ง"],
-    iaStepsX: ["กดปุ่ม ⋮ ข้างชื่อเว็บด้านล่าง", "เลือก “Open in browser” (เปิดในเบราว์เซอร์)", "กด “เข้าสู่ระบบ” อีกครั้ง"],
-    iaHowIos: "หรือกดปุ่ม ⋯ / ไอคอนแชร์ ⤴ มุมจอ แล้วเลือก “เปิดใน Safari” (Open in Safari)",
-    iaHowAndroid: "หรือกดปุ่ม ⋮ มุมขวาบน แล้วเลือก “เปิดในเบราว์เซอร์” / “Open in Chrome”",
-    iaHowOther: "หรือกดปุ่ม ⋯ / ⋮ มุมจอ แล้วเลือก “เปิดในเบราว์เซอร์” (Safari หรือ Chrome)",
-    iaStill: "ไม่เด้ง? ใช้ปุ่ม ⋯ มุมจอ หรือคัดลอกลิงก์ไปเปิดใน Safari/Chrome ได้เลยค่ะ",
-    iaBrowse: "ดูเว็บต่อในแอปนี้ได้ตามปกติ แค่ตอนเข้าสู่ระบบต้องเปิดในเบราว์เซอร์",
-    iaTry: "ลองเข้าสู่ระบบในแอปนี้อยู่ดี",
+    iaCopiedShort: "คัดลอกแล้ว ✓",
+    iaCopied: "คัดลอกแล้ว ไปวางใน Safari หรือ Chrome ได้เลย",
     gateCopyG: "ถามไพ่ได้หลังเข้าสู่ระบบด้วย Google (Gmail) เท่านั้น ไม่ต้องตั้งรหัสผ่าน ไม่ถึง 1 นาที แล้วกรอกคำถามได้เลย",
     gateSignupG: "เข้าสู่ระบบด้วย Google",
     forgotLink: "ลืมรหัสผ่าน?",
@@ -263,22 +254,13 @@ const I18N = {
     gPrivacy: "We use your email to link your credits to your account. We never post or send anything as you.",
     gLoading: "Loading the Google button…",
     gBlocked: "The Google button didn't load. Try turning off ad blockers / private mode, then reload.",
-    iaTitle: "Please open in your browser",
-    iaWhy: (app) => `You're viewing this inside the${app} app. Google doesn't allow sign-in inside in-app browsers (you'd get a blank page or an error). Open the site in Safari or Chrome and sign in as usual.`,
-    iaOpen: (b) => `Open in ${b}`,
+    iaHintX: "If you get a blank page, tap ⋮ next to the site name at the bottom and choose “Open in browser”.",
+    iaHint: "If you get a blank page, open the app's ⋯ / ⋮ menu and choose “Open in browser”.",
+    iaHintOpen: "If you get a blank page, open the site in your browser instead.",
+    iaOpenLink: "Open in browser",
     iaCopy: "Copy link",
-    iaCopied: "Link copied. Paste it into Safari or Chrome.",
-    iaCopiedIos: "Copied! Now paste it into Safari or Chrome.",
-    iaCopyIos: "Copy link, then paste in your browser",
-    iaStepsTitle: (app) => `Or open it in your browser (Safari / Chrome) from the${app || " current"} app:`,
-    iaSteps: ["Tap ⋯ / ⋮ or the share icon ⤴ (top or bottom of the screen)", "Choose “Open in browser” (or “Open in Safari”)", "Tap “Sign in” again"],
-    iaStepsX: ["Tap the ⋮ button next to the site name at the bottom", "Choose “Open in browser”", "Tap “Sign in” again"],
-    iaHowIos: "Or tap the ⋯ / share ⤴ button in the corner and choose “Open in Safari”.",
-    iaHowAndroid: "Or tap ⋮ at the top right and choose “Open in browser” / “Open in Chrome”.",
-    iaHowOther: "Or tap the ⋯ / ⋮ menu and choose “Open in browser” (Safari or Chrome).",
-    iaStill: "Nothing happened? Use the ⋯ menu, or copy the link into Safari/Chrome.",
-    iaBrowse: "You can keep browsing here; only sign-in needs a real browser.",
-    iaTry: "Try signing in here anyway",
+    iaCopiedShort: "Copied ✓",
+    iaCopied: "Copied! Paste it into Safari or Chrome.",
     gateCopyG: "You can ask after signing in with Google (Gmail). No password, under a minute — then type your question.",
     gateSignupG: "Sign in with Google",
     forgotLink: "Forgot password?",
@@ -1918,52 +1900,23 @@ async function copyText(text) {
   } catch (_) { return false; }
 }
 
-function inAppNoticeHtml(dict, info) {
+function inAppHintHtml(dict, info) {
+  // Low-key: the Google button stays first; this only explains what to do if it goes blank.
   const plat = devicePlatform(navigator.userAgent);
-  const browser = plat === "ios" ? "Safari" : plat === "android" ? "Chrome" : (state.lang === "th" ? "เบราว์เซอร์" : "browser");
-  const how = plat === "ios" ? dict.iaHowIos : plat === "android" ? dict.iaHowAndroid : dict.iaHowOther;
-  const app = info.app ? " " + info.app : "";
-  return `
-    <div class="inapp-note" id="inapp-note" role="note">
-      <p class="inapp-title">⚠︎ ${escapeHtml(dict.iaTitle)}</p>
-      <p class="inapp-why">${escapeHtml(dict.iaWhy(app))}</p>
-      ${plat === "ios" && info.app !== "LINE" ? `
-      <button type="button" class="btn gold inapp-copy-main" id="inapp-copy">📋 ${escapeHtml(dict.iaCopyIos)}</button>
-      <p class="inapp-steps-title">${escapeHtml(dict.iaStepsTitle(app))}</p>
-      <ol class="inapp-steps">${(info.app === "X" ? dict.iaStepsX : dict.iaSteps).map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ol>` : `
-      <div class="inapp-actions">
-        <a class="btn gold" id="inapp-open" href="${escapeHtml(externalOpenUrl(navigator.userAgent))}">${escapeHtml(dict.iaOpen(browser))}</a>
-        <button type="button" class="btn ghost" id="inapp-copy">${escapeHtml(dict.iaCopy)}</button>
-      </div>
-      <p class="inapp-how" id="inapp-how">${escapeHtml(how)}</p>`}
-      <p class="inapp-browse">${escapeHtml(dict.iaBrowse)}</p>
-      <button type="button" class="inapp-try" id="inapp-try">${escapeHtml(dict.iaTry)}</button>
-    </div>`;
+  const canOpen = info.app === "LINE" || plat === "android";
+  const hint = canOpen ? dict.iaHintOpen : info.app === "X" ? dict.iaHintX : dict.iaHint;
+  const open = canOpen
+    ? `<a class="inapp-link" id="inapp-open" href="${escapeHtml(externalOpenUrl(navigator.userAgent))}">${escapeHtml(dict.iaOpenLink)}</a> · ` : "";
+  return `<p class="inapp-hint" id="inapp-hint">${escapeHtml(hint)}
+      <span class="inapp-links">${open}<button type="button" class="inapp-link" id="inapp-copy">${escapeHtml(dict.iaCopy)}</button></span></p>`;
 }
 
-function wireInAppNotice() {
-  const dict = t();
-  const open = document.getElementById("inapp-open");
-  if (open) open.addEventListener("click", () => {
-    // If the app swallows the link, point at the manual way after a moment.
-    setTimeout(() => {
-      if (document.visibilityState === "visible") {
-        const how = document.getElementById("inapp-how");
-        if (how) { how.textContent = dict.iaStill; how.classList.add("is-hint"); }
-      }
-    }, 1600);
-  });
+function wireInAppHint() {
   const copy = document.getElementById("inapp-copy");
   if (copy) copy.addEventListener("click", async () => {
     const ok = await copyText(resumeLoginUrl());
-    const ios = devicePlatform(navigator.userAgent) === "ios";
-    toast(ok ? (ios ? t().iaCopiedIos : t().iaCopied) : resumeLoginUrl());
-    if (ok && ios) copy.textContent = "✓ " + t().iaCopiedIos;
-  });
-  const tryBtn = document.getElementById("inapp-try");
-  if (tryBtn) tryBtn.addEventListener("click", () => {
-    state.inAppBypass = true;
-    renderAccountModal();
+    toast(ok ? t().iaCopied : resumeLoginUrl());
+    if (ok) copy.textContent = t().iaCopiedShort;
   });
 }
 
@@ -2135,18 +2088,19 @@ function renderAccountModal() {
     return;
   }
   if (state.authMode === "google") {
-    const inApp = state.inAppBypass ? null : inAppBrowser(navigator.userAgent);
+    const inApp = inAppBrowser(navigator.userAgent);
     box.innerHTML = `
       <div class="acc-avatar" aria-hidden="true">☾</div>
       <h3 id="account-title">${escapeHtml(dict.gTitle)}</h3>
       <p class="acc-note">${escapeHtml(dict.gNote)}</p>
       ${msg}
       <p class="acc-free">✨ ${escapeHtml(dict.gFree)}</p>
-      ${inApp ? inAppNoticeHtml(dict, inApp) : `<div class="g-btn" id="g-btn"><p class="acc-note">${escapeHtml(dict.gLoading)}</p></div>`}
+      <div class="g-btn" id="g-btn"><p class="acc-note">${escapeHtml(dict.gLoading)}</p></div>
+      ${inApp ? inAppHintHtml(dict, inApp) : ""}
       <p class="acc-privacy">${escapeHtml(dict.gPrivacy)}</p>
       <p class="acc-legal">${escapeHtml(dict.legalPre)} <a href="/privacy" target="_blank" rel="noopener">${escapeHtml(dict.privacyLink)}</a> ${escapeHtml(dict.legalAnd)} <a href="/terms" target="_blank" rel="noopener">${escapeHtml(dict.termsLink)}</a></p>`;
-    if (inApp) wireInAppNotice();
-    else mountGoogleButton();
+    mountGoogleButton();
+    if (inApp) wireInAppHint();
     return;
   }
   const signup = state.accountMode === "signup";

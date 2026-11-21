@@ -80,26 +80,21 @@ class Detection(unittest.TestCase):
 
 
 class Wiring(unittest.TestCase):
-    def test_login_box_uses_notice_in_app(self):
+    def test_google_button_always_first_with_quiet_hint(self):
         self.assertIn("inAppBrowser(navigator.userAgent)", JS)
-        self.assertRegex(JS, r"inApp \? inAppNoticeHtml\(dict, inApp\)")
-        self.assertRegex(JS, r"if \(inApp\) wireInAppNotice\(\);\s*else mountGoogleButton\(\);")
+        self.assertIn('<div class="g-btn" id="g-btn">', JS)
+        self.assertIn('${inApp ? inAppHintHtml(dict, inApp) : ""}', JS)
+        self.assertRegex(JS, r"mountGoogleButton\(\);\s*if \(inApp\) wireInAppHint\(\);")
+        self.assertNotIn("inapp-note", JS)  # no warning box / big button / numbered steps
+        self.assertNotIn("inapp-steps", JS)
 
-    def test_both_languages_have_notice_strings(self):
-        for key in ("iaTitle", "iaWhy", "iaOpen", "iaCopy", "iaCopied", "iaHowIos", "iaHowAndroid", "iaTry"):
+    def test_both_languages_have_hint_strings(self):
+        for key in ("iaHintX", "iaHint", "iaHintOpen", "iaOpenLink", "iaCopy", "iaCopied", "iaCopiedShort"):
             self.assertEqual(len(re.findall(r"\b" + key + r":", JS)), 2, key)
+        self.assertIn("ถ้ากดแล้วขึ้นหน้าขาว ให้กด ⋮ ข้างชื่อเว็บด้านล่าง แล้วเลือก “Open in browser”", JS)
 
     def test_resume_login_after_switching_browser(self):
         self.assertIn("loadAuthConfig().then(maybeResumeLogin)", JS)
-
-    def test_ios_copy_link_is_primary(self):
-        self.assertIn('plat === "ios" && info.app !== "LINE" ? `', JS)
-        self.assertIn('id="inapp-copy">📋', JS)
-        self.assertEqual(len(re.findall(r"\biaCopiedIos:", JS)), 2)
-        self.assertIn("คัดลอกแล้ว ไปวางใน Safari หรือ Chrome ได้เลย", JS)
-        self.assertEqual(len(re.findall(r"\biaStepsX:", JS)), 2)
-        self.assertIn("กดปุ่ม ⋮ ข้างชื่อเว็บด้านล่าง", JS)
-        self.assertIn('info.app === "X" ? dict.iaStepsX : dict.iaSteps', JS)
 
     def test_site_verification_meta_kept(self):
         self.assertIn('name="google-site-verification"', HTML)
