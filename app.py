@@ -201,7 +201,8 @@ def build_prompt(name: str, topic: str, question: str, lang: str, cards: list[di
             "the lean below.\n\n"
         )
     user = (
-        f"Language: {language}. Person's name (for a short greeting only): {name}.\n"
+        f"Language: {language}. Person's name (only to address them at the start of the first sentence; "
+        f"no 'hello' or other greeting): {name}.\n"
         f"Topic: {TOPICS[topic]['en']} ({TOPICS[topic]['th']}).\n"
         f"Question: {qline}\n"
         f"Question type: {'yes/no' if yes_no else 'open'}.\n\n"
@@ -210,7 +211,8 @@ def build_prompt(name: str, topic: str, question: str, lang: str, cards: list[di
         f"{tarot.prompt_lines(cards)}\n"
         f"Overall lean of these cards (from their upright/reversed balance): {tarot.VERDICT_HINT_EN[lean]}.\n\n"
         "Write the answer like this:\n"
-        "1. First sentence: the clear answer. For a yes/no question say plainly yes, no, likely yes, likely no, "
+        "1. First sentence: the clear answer (you may start it with the person's name, but no separate greeting "
+        "sentence before it, no 'สวัสดี' / 'hello'). For a yes/no question say plainly yes, no, likely yes, likely no, "
         "or not yet. For an open question give a clear direction (what is happening and where it is going). "
         "Commit to it. It must agree with the cards and the lean above.\n"
         "2. Then briefly explain how the three cards together support that answer, naming each card once "

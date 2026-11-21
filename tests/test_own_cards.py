@@ -244,6 +244,14 @@ class Certainty(unittest.TestCase):
                 self.assertNotIn(c["nameTh"], rule)
                 self.assertNotIn(re.sub(r"\s*\(.*\)$", "", c["nameTh"]), rule)
 
+    def test_no_greeting_in_either_prompt(self):
+        cards = [self.card("major-17"), self.card("cups-02", True), self.card("wands-03")]
+        for prompt in self.prompts(cards):
+            self.assertIn("no 'hello' or other greeting", prompt)
+            self.assertIn("no separate greeting", prompt)
+            self.assertNotIn("for a short greeting", prompt)
+            self.assertIn("First sentence: the clear answer", prompt)
+
     def test_one_card_length_is_two_paragraphs(self):
         p = app.build_own_prompt("น้ำเพชร", "career", "จะได้งานไหม", "th", [self.card("major-19")])[1]
         self.assertIn("about 70–120 Thai words, at most about 500 Thai characters, in exactly 2 short paragraphs", p)
