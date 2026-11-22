@@ -10,6 +10,7 @@ cards-only template answer so the site works offline. Never invents an API key.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import random
@@ -21,6 +22,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import hmac
+from datetime import datetime, timezone
 from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -38,6 +40,10 @@ ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
 LEGAL_PAGES = {"/privacy": "privacy.html", "/terms": "terms.html"}
 SITE_ORIGIN = "https://foolmoon.lol"
+CANONICAL_HOST = "foolmoon.lol"
+# Render healthCheckPath is empty (TCP bind only). If a path is added later,
+# /api/health on a non-canonical host must still return 200, not a 301.
+HEALTH_EXEMPT_PATHS = frozenset({"/api/health"})
 PUBLIC_PAGES = ("/", "/privacy", "/terms", *tarot_pages.PATHS)
 PORT = int(os.environ.get("PORT", "5050"))
 HOST = os.environ.get("HOST", "0.0.0.0")
@@ -624,10 +630,30 @@ def robots_txt() -> bytes:
     ).encode("utf-8")
 
 
+def sitemap_lastmod() -> str:
+    """YYYY-MM-DD for sitemap lastmod, from the newest public-page source file."""
+    newest = 0.0
+    for path in (
+        STATIC / "index.html",
+        STATIC / "privacy.html",
+        STATIC / "terms.html",
+        ROOT / "tarot_pages.py",
+        ROOT / "tarot_meanings.py",
+    ):
+        try:
+            newest = max(newest, path.stat().st_mtime)
+        except OSError:
+            pass
+    if not newest:
+        newest = time.time()
+    return datetime.fromtimestamp(newest, tz=timezone.utc).date().isoformat()
+
+
 def sitemap_xml() -> bytes:
     """Public page sitemap. URLs stay on foolmoon.lol even if the request Host is the Render domain."""
+    lastmod = sitemap_lastmod()
     urls = "\n".join(
-        f"  <url>\n    <loc>{SITE_ORIGIN}{path}</loc>\n  </url>"
+        f"  <url>\n    <loc>{SITE_ORIGIN}{path}</loc>\n    <lastmod>{lastmod}</lastmod>\n  </url>"
         for path in PUBLIC_PAGES
     )
     return (
@@ -676,13 +702,14 @@ class Handler(SimpleHTTPRequestHandler):
     }
 
     def end_headers(self) -> None:
-        route = self._route()
-        if route in ICON_CACHE_PATHS:
-            self.send_header("Cache-Control", "public, max-age=604800")
-        elif route in REVALIDATE_PATHS:
-            # Always check for a newer copy (cheap 304 via Last-Modified), so in-app browsers
-            # never keep running yesterday's JS/CSS.
-            self.send_header("Cache-Control", "no-cache")
+        if not getattr(self, "_skip_default_cache", False):
+            route = self._route()
+            if route in ICON_CACHE_PATHS:
+                self.send_header("Cache-Control", "public, max-age=604800")
+            elif route in REVALIDATE_PATHS:
+                # Always check for a newer copy (cheap 304 via Last-Modified), so in-app browsers
+                # never keep running yesterday's JS/CSS.
+                self.send_header("Cache-Control", "no-cache")
         super().end_headers()
 
     def _serve_index(self) -> None:
@@ -713,6 +740,75 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _route(self) -> str:
         return self.path.split("?")[0].rstrip("/") or "/"
+
+    def _raw_path_and_query(self) -> tuple[str, str]:
+        raw = self.path or "/"
+        if "?" in raw:
+            path, query = raw.split("?", 1)
+            return path or "/", "?" + query
+        return raw or "/", ""
+
+    def _normalized_path(self, path: str) -> str:
+        if path == "/index.html":
+            return "/"
+        if path != "/" and path.endswith("/"):
+            return path.rstrip("/") or "/"
+        return path
+
+    def _request_host(self) -> str:
+        return (self.headers.get("Host") or "").split(":")[0].strip().lower()
+
+    def _host_is_local_or_canonical(self, host: str) -> bool:
+        if not host or host in {CANONICAL_HOST, "localhost", "127.0.0.1", "::1"}:
+            return True
+        try:
+            ipaddress.ip_address(host.strip("[]"))
+            return True
+        except ValueError:
+            return False
+
+    def _redirect_permanent(self, location: str) -> None:
+        self._skip_default_cache = True
+        self.send_response(301)
+        self.send_header("Location", location)
+        self.send_header("Cache-Control", "public, max-age=600")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _maybe_canonical_redirect(self) -> bool:
+        """301 off-canonical hosts and /index.html or trailing-slash URLs. True if sent."""
+        raw_path, query = self._raw_path_and_query()
+        path = self._normalized_path(raw_path)
+        host = self._request_host()
+        if path in HEALTH_EXEMPT_PATHS:
+            return False
+        if not self._host_is_local_or_canonical(host):
+            self._redirect_permanent(f"{SITE_ORIGIN}{path}{query}")
+            return True
+        if path != raw_path:
+            # Stay on this host for local tests; use the canonical origin in production.
+            location = f"{SITE_ORIGIN}{path}{query}" if host == CANONICAL_HOST else f"{path}{query}"
+            self._redirect_permanent(location)
+            return True
+        return False
+
+    def _serve_404(self) -> None:
+        body = (STATIC / "404.html").read_bytes()
+        self._skip_default_cache = True
+        self.send_response(404)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "public, max-age=60")
+        self.send_header("X-Robots-Tag", "noindex, follow")
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    def send_error(self, code, message=None, explain=None):
+        if code == 404 and not self._route().startswith("/api/"):
+            self._serve_404()
+            return
+        super().send_error(code, message, explain)
 
     def _visitor(self) -> str | None:
         vid = (self.headers.get("X-Visitor-Id") or "").strip()
@@ -860,8 +956,10 @@ class Handler(SimpleHTTPRequestHandler):
             self._send(500, {"ok": False, "error": "The stars flickered. Please try again."})
 
     def do_GET(self) -> None:
+        if self._maybe_canonical_redirect():
+            return
         route = self._route()
-        if route in ("/", "/index.html"):
+        if route == "/":
             self._serve_index()
             return
         if route == "/robots.txt":
@@ -944,8 +1042,10 @@ class Handler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_HEAD(self) -> None:
+        if self._maybe_canonical_redirect():
+            return
         route = self._route()
-        if route in ("/", "/index.html", "/robots.txt", "/sitemap.xml", "/tarot") or (
+        if route in ("/", "/robots.txt", "/sitemap.xml", "/tarot") or (
                 route.startswith("/tarot/") and route[7:] in tarot_pages.BY_SLUG):
             self.do_GET()  # _serve_bytes skips the body for HEAD
             return

@@ -1,12 +1,25 @@
 const I18N = {
   th: {
-    docTitle: "ดูดวงไพ่ทาโรต์ออนไลน์ ถามไพ่ใช่ไม่ใช่ ตอบตรง ๆ | ถามจันทร์ foolmoon.lol",
+    docTitle: "ดูดวงไพ่ทาโรต์ออนไลน์ ไพ่ยิปซี ถามไพ่ใช่ไม่ใช่ ตอบตรง ๆ | ถามจันทร์",
     brand: "ถามจันทร์",
     brandSub: "Ask the Moon",
     footBrand: "ถามจันทร์",
-    eyebrow: "ไพ่ทาโรต์ 3 ใบ · ตอบตรง ๆ · โปรไฟล์ดวงจากวันเกิด",
-    heroTitle: "ถามจันทร์",
-    heroLede: "ดูดวงไพ่ทาโรต์ 3 ใบ ตอบตรง ๆ + โปรไฟล์ดวงจากวันเกิด (ปีนักษัตร เลขวันเกิด ราศี) — พิมพ์คำถามที่อยากรู้ จันทร์จะเปิดไพ่ให้ 3 ใบ บอกคำตอบก่อน แล้วตามด้วยเหตุผลจากไพ่และคำแนะนำที่ทำได้จริง",
+    eyebrow: "ไพ่ทาโรต์ · ไพ่ยิปซี 3 ใบ · ตอบตรง ๆ · โปรไฟล์ดวงจากวันเกิด",
+    heroTitle: "ถามจันทร์ · ดูดวงไพ่ทาโรต์ออนไลน์",
+    heroLede: "ดูดวงไพ่ทาโรต์ 3 ใบ ตอบตรง ๆ + โปรไฟล์ดวงจากวันเกิด (ปีนักษัตร เลขวันเกิด ราศี) — พิมพ์คำถามที่อยากรู้ จันทร์จะเปิดไพ่ให้ 3 ใบ บอกคำตอบก่อน แล้วตามด้วยเหตุผลจากไพ่และคำแนะนำที่ทำได้จริง บนเว็บนี้ไพ่ยิปซีกับไพ่ทาโรต์หมายถึงสำรับเดียวกันทั้ง 78 ใบ",
+    navMeanings: "ความหมายไพ่",
+    heroMeanings: "อ่านความหมายไพ่ทาโรต์และไพ่ยิปซีทั้ง 78 ใบ →",
+    faqTitle: "คำถามที่พบบ่อย",
+    faqQ1: "ถามไพ่ฟรีได้ไหม?",
+    faqA1: "ได้ค่ะ สมัครหรือเข้าสู่ระบบฟรี แล้วได้ถามฟรี 1 ข้อต่อบัญชี คำถามถัดไปซื้อเป็นแพ็กเกจ เริ่มต้นข้อละ 15 บาท บทอ่านลึกเปิดเมื่อใช้เครดิตที่ซื้อ ไม่ใช่คำถามฟรี",
+    faqQ2: "ไพ่ยิปซีกับไพ่ทาโรต์ต่างกันไหม?",
+    faqA2: "บนเว็บนี้ไพ่ยิปซีกับไพ่ทาโรต์หมายถึงสำรับเดียวกันทั้ง 78 ใบ (Rider-Waite-Smith) คนไทยมักเรียกว่าไพ่ยิปซี",
+    faqQ3: "เปิดไพ่กี่ใบ?",
+    faqA3: "โหมดหลักให้จันทร์สุ่มไพ่ 3 ใบ หรือจะเปิดไพ่เองจากสำรับที่บ้านแล้วเลือกบนเว็บได้ 1–5 ใบ",
+    faqQ4: "คำตอบจากไพ่ใช้ตัดสินใจเรื่องสำคัญได้ไหม?",
+    faqA4: "คำตอบจากไพ่มีไว้เป็นแนวทาง เพื่อความบันเทิง ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย หรือการเงิน การตัดสินใจสุดท้ายเป็นของคุณ",
+    faqQ5: "จ่ายเงินอย่างไร?",
+    faqA5: "เลือกแพ็กเกจ แล้วสแกน QR พร้อมเพย์ด้วยแอปธนาคาร จากนั้นอัปโหลดสลิปบนหน้านี้ ระบบตรวจอัตโนมัติ เครดิตเข้าบัญชีหลังตรวจผ่าน เครดิตที่ซื้อแล้วโดยทั่วไปคืนเงินไม่ได้ ยกเว้นกรณีความผิดพลาดในการชำระเงิน",
     gateTitle: "สมัครฟรี รับคำถามแรกฟรี 1 ข้อ",
     gateCopy: "ถามไพ่ได้หลังสมัครหรือเข้าสู่ระบบ ใช้แค่ชื่อผู้ใช้กับรหัสผ่าน ไม่ต้องใช้อีเมล ไม่ถึง 1 นาที แล้วกรอกคำถามได้เลย",
     gateSignup: "สมัครฟรี",
@@ -240,8 +253,21 @@ const I18N = {
     brandSub: "ถามจันทร์",
     footBrand: "Ask the Moon",
     eyebrow: "3-card tarot · Straight answers · Birth profile",
-    heroTitle: "Ask the Moon",
-    heroLede: "Type what you want to know. The Moon draws three tarot cards and gives you a straight answer, the reasons in the cards, and advice you can act on. Add your birthday to see your Chinese zodiac, birth number, and star sign too.",
+    heroTitle: "Ask the Moon · Online Tarot",
+    heroLede: "Type what you want to know. The Moon draws three tarot cards and gives you a straight answer, the reasons in the cards, and advice you can act on. Add your birthday to see your Chinese zodiac, birth number, and star sign too. In Thai this deck is often called ไพ่ยิปซี — here that means the same 78-card tarot deck.",
+    navMeanings: "Card meanings",
+    heroMeanings: "Read all 78 tarot card meanings →",
+    faqTitle: "Frequently asked questions",
+    faqQ1: "Can I ask a free question?",
+    faqA1: "Yes. Sign up or log in for free and you get 1 free question per account. After that, questions are sold in packages starting at 15 baht each. The deeper reading unlocks when you use a purchased credit, not the free question.",
+    faqQ2: "Are ไพ่ยิปซี and tarot different?",
+    faqA2: "On this site they mean the same 78-card Rider-Waite-Smith deck. In Thai people often call it ไพ่ยิปซี.",
+    faqQ3: "How many cards are drawn?",
+    faqA3: "The main mode draws 3 cards for you. Or you can draw from your own deck at home and pick 1–5 cards here.",
+    faqQ4: "Can I use a reading to make important decisions?",
+    faqA4: "Readings are for guidance and entertainment only. They are not medical, legal, or financial advice. The final decision is yours.",
+    faqQ5: "How does payment work?",
+    faqA5: "Choose a package, scan the PromptPay QR with your banking app, then upload the slip on this page. The system checks it automatically and credits your account when it passes. Purchased credits are generally non-refundable, except for payment errors.",
     gateTitle: "Sign up free — get your first question free",
     gateCopy: "You can ask after signing up or logging in. Just a username and password, no email, under a minute — then type your question.",
     gateSignup: "Sign up free",
@@ -613,6 +639,11 @@ function badge(label, value, hint) {
   return `<li class="badge"><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b>${hintHtml}</li>`;
 }
 
+
+function cardMeaningSlug(card) {
+  return String((card && card.nameEn) || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
 let tarotRevealed = "";
 
 function renderTarot(tarot) {
@@ -639,6 +670,10 @@ function renderTarot(tarot) {
       const name = th ? c.nameTh.replace(/\s*\(.*\)$/, "") : c.nameEn;
       const sub = th ? c.nameEn : c.nameTh.replace(/\s*\(.*\)$/, "");
       const meaning = th ? c.meaningTh : c.meaningEn;
+      const slug = cardMeaningSlug(c);
+      const nameHtml = slug
+        ? `<a class="tcard-link" href="/tarot/${escapeHtml(slug)}" target="_blank" rel="noopener">${escapeHtml(name)}</a>`
+        : escapeHtml(name);
       return `
       <figure class="tcard${c.reversed ? " is-reversed" : ""}${already ? " is-flipped no-anim" : ""}" style="--i:${i}">
         <button type="button" class="tcard-inner" aria-label="${escapeHtml(name)}" title="${escapeHtml(meaning)}">
@@ -646,7 +681,7 @@ function renderTarot(tarot) {
           <span class="tcard-face tcard-front"><img src="${escapeHtml(c.image)}" alt="${escapeHtml(c.nameEn)}" decoding="async" /></span>
         </button>
         <figcaption>
-          <b class="tcard-name">${escapeHtml(th ? c.nameTh.replace(/\s*\(.*\)$/, "") : c.nameEn)}</b>
+          <b class="tcard-name">${nameHtml}</b>
           <small class="tcard-sub">${escapeHtml(sub)}</small>
           ${c.reversed ? `<span class="tcard-rev">${escapeHtml(dict.tarotReversed)}</span>` : ""}
           <span class="tcard-meaning">${escapeHtml(meaning)}</span>

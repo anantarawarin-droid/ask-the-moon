@@ -76,9 +76,11 @@ class PagesOverHttp(unittest.TestCase):
         self.assertIn("text/html", ctype)
         self.assertIn('<link rel="canonical" href="https://foolmoon.lol/tarot" />', html)
         self.assertIn('<html lang="th">', html)
+        self.assertIn("ไพ่ยิปซี", html)
+        self.assertIn("สำรับเดียวกันทั้ง 78 ใบ", html)
         self.assertEqual(len(set(re.findall(r'href="/tarot/([a-z0-9-]+)"', html))), 78)
         self.assertIn('href="/#oracle"', html)
-        self.assertEqual(self._req("/tarot/")[0], 200)
+        self.assertEqual(self._req("/tarot/")[0], 301)
 
     def test_card_pages(self):
         for slug, th, en in (("the-fool", "คนโง่", "The Fool"), ("three-of-cups", "สามถ้วย", "Three of Cups")):
@@ -89,8 +91,12 @@ class PagesOverHttp(unittest.TestCase):
             title = re.search(r"<title>(.*?)</title>", html).group(1)
             self.assertIn(f"ความหมายไพ่{th}", title)
             self.assertIn(en, title)
+            self.assertGreaterEqual(len(title), 60, title)
+            self.assertLessEqual(len(title), 70, title)
             self.assertIn(f'<link rel="canonical" href="https://foolmoon.lol/tarot/{slug}" />', html)
-            self.assertRegex(html, r'<meta name="description" content="[^"]{60,}"')
+            desc = re.search(r'<meta name="description" content="([^"]+)"', html).group(1)
+            self.assertGreaterEqual(len(desc), 150, desc)
+            self.assertLessEqual(len(desc), 160, desc)
             self.assertIn("กลับหัว", html)
             for topic in ("ความรัก", "การงาน", "การเงิน"):
                 self.assertIn(topic, html)

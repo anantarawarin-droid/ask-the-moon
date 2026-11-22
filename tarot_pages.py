@@ -10,12 +10,61 @@ from __future__ import annotations
 import html
 import json
 import re
+from pathlib import Path
 from typing import Any
 
 import tarot
 from tarot_meanings import MEANINGS
 
 SITE = "https://foolmoon.lol"
+STATIC = Path(__file__).resolve().parent / "static"
+_IMG_SIZE: dict[str, tuple[int, int]] = {}
+
+
+def _fit_len(base: str, pads: list[str], lo: int, hi: int) -> str:
+    """Pick the longest of base+pad that stays within lo–hi characters."""
+    candidates = [base] + [base + pad for pad in pads]
+    in_range = [c for c in candidates if lo <= len(c) <= hi]
+    if in_range:
+        return max(in_range, key=len)
+    under = [c for c in candidates if len(c) <= hi]
+    return max(under, key=len) if under else min(candidates, key=len)
+
+
+def card_title(th: str, en: str) -> str:
+    return _fit_len(
+        f"ความหมายไพ่{th} ({en})",
+        [
+            " ไพ่ทาโรต์ ปกติ กลับหัว | ถามจันทร์",
+            " ไพ่ทาโรต์ออนไลน์ | ถามจันทร์",
+            " ไพ่ทาโรต์ | ถามจันทร์",
+            " | ถามจันทร์",
+        ],
+        60,
+        70,
+    )
+
+
+def card_description(th: str, en: str) -> str:
+    return _fit_len(
+        f"ความหมายไพ่{th} ({en}) ไพ่ทาโรต์ทั้งปกติและกลับหัว แนวทางความรัก การงาน และการเงิน อ่านภาษาไทยแล้วถามไพ่ออนไลน์ได้ที่ถามจันทร์",
+        [" สมัครฟรี ถามฟรี 1 ข้อ", " ใช้เป็นแนวทาง", " เป็นแนวทาง"],
+        150,
+        160,
+    )
+
+
+def card_image_size(card_id: str) -> tuple[int, int]:
+    if card_id not in _IMG_SIZE:
+        path = STATIC / "tarot" / f"{card_id}.webp"
+        try:
+            from PIL import Image
+            with Image.open(path) as im:
+                _IMG_SIZE[card_id] = im.size
+        except Exception:
+            _IMG_SIZE[card_id] = (300, 518)
+    return _IMG_SIZE[card_id]
+
 SUIT_ORDER = [
     ("major", "ไพ่ชุดใหญ่ (Major Arcana)", "22 ใบ ว่าด้วยบทเรียนสำคัญและจุดเปลี่ยนของชีวิต"),
     ("wands", "ชุดไม้เท้า (Wands)", "ธาตุไฟ: แรงบันดาลใจ ความกล้า การลงมือทำ"),
@@ -117,16 +166,16 @@ def _breadcrumb(items: list[tuple[str, str]]) -> dict[str, Any]:
 
 
 def render_index() -> bytes:
-    title = "ความหมายไพ่ทาโรต์ทั้ง 78 ใบ ภาษาไทย ไพ่ปกติและไพ่กลับหัว | ถามจันทร์"
-    desc = ("รวมความหมายไพ่ทาโรต์ Rider-Waite-Smith ครบ 78 ใบ ภาษาไทย ทั้งไพ่ชุดใหญ่และชุดเล็ก "
-            "ความหมายไพ่ปกติ ไพ่กลับหัว ความรัก การงาน การเงิน พร้อมถามไพ่ออนไลน์ฟรีที่ foolmoon.lol")
+    title = "ความหมายไพ่ทาโรต์และไพ่ยิปซีทั้ง 78 ใบ ภาษาไทย | ถามจันทร์"
+    desc = ("รวมความหมายไพ่ทาโรต์และไพ่ยิปซีครบ 78 ใบ ภาษาไทย ทั้งไพ่ปกติและกลับหัว "
+            "ด้านความรัก การงาน การเงิน พร้อมถามไพ่ออนไลน์ที่ถามจันทร์ สมัครฟรี ถามฟรี 1 ข้อ")
     ld = [_breadcrumb([("หน้าแรก", "/"), ("ความหมายไพ่ทาโรต์", "/tarot")]),
           {"@context": "https://schema.org", "@type": "CollectionPage", "name": title, "description": desc,
            "url": SITE + "/tarot", "inLanguage": "th"}]
-    out = [_head(title, desc, "/tarot", "/og-image.png", ld)]
+    out = [_head(title, desc, "/tarot", "/og-image.jpg", ld)]
     out.append("""    <nav class="m-crumb"><a href="/">หน้าแรก</a> › <span>ความหมายไพ่ทาโรต์</span></nav>
-    <h1>ความหมายไพ่ทาโรต์ทั้ง 78 ใบ</h1>
-    <p class="m-lede">ความหมายไพ่ทาโรต์สำรับ Rider-Waite-Smith ภาษาไทย ครบทุกใบ ทั้งความหมายเมื่อไพ่ปกติและไพ่กลับหัว พร้อมแนวทางเรื่องความรัก การงาน และการเงิน แตะที่ไพ่เพื่ออ่านความหมายเต็ม</p>
+    <h1>ความหมายไพ่ทาโรต์และไพ่ยิปซีทั้ง 78 ใบ</h1>
+    <p class="m-lede">ความหมายไพ่ทาโรต์สำรับ Rider-Waite-Smith ภาษาไทย ครบทุกใบ ทั้งความหมายเมื่อไพ่ปกติและไพ่กลับหัว พร้อมแนวทางเรื่องความรัก การงาน และการเงิน บนเว็บนี้ไพ่ยิปซีกับไพ่ทาโรต์หมายถึงสำรับเดียวกันทั้ง 78 ใบ แตะที่ไพ่เพื่ออ่านความหมายเต็ม</p>
 """)
     out.append('    <nav class="m-jump">' + " ".join(
         f'<a href="#{key}">{_e(label.split(" (")[0])}</a>' for key, label, _ in SUIT_ORDER) + "</nav>\n")
@@ -135,7 +184,9 @@ def render_index() -> bytes:
         out.append(f'    <section class="m-suit" id="{key}">\n      <h2>{_e(label)}</h2>\n      <p class="m-blurb">{_e(blurb)}</p>\n      <ul class="m-grid">\n')
         for c in cards:
             s = slugify(c["nameEn"])
-            out.append(f'        <li><a href="/tarot/{s}"><img src="{tarot.image_path(c["id"])}" alt="ไพ่{_e(short_th(c))} ({_e(c["nameEn"])})" width="150" height="259" loading="lazy" /><b>{_e(short_th(c))}</b><small>{_e(c["nameEn"])}</small></a></li>\n')
+            iw, ih = card_image_size(c["id"])
+            thumb_h = max(1, round(150 * ih / iw)) if iw else 259
+            out.append(f'        <li><a href="/tarot/{s}"><img src="{tarot.image_path(c["id"])}" alt="ไพ่{_e(short_th(c))} ({_e(c["nameEn"])})" width="150" height="{thumb_h}" loading="lazy" /><b>{_e(short_th(c))}</b><small>{_e(c["nameEn"])}</small></a></li>\n')
         out.append("      </ul>\n    </section>\n")
     out.append(_cta("อยากรู้ว่าไพ่จะตอบคำถามของคุณว่าอย่างไร?"))
     out.append(FOOT)
@@ -149,10 +200,11 @@ def render_card(slug: str) -> bytes | None:
     up, rev, love, work, money = MEANINGS[card["id"]]
     th = short_th(card)
     en = card["nameEn"]
-    title = f"ความหมายไพ่{th} ({en}) ไพ่ทาโรต์ ปกติ กลับหัว ความรัก การงาน การเงิน | ถามจันทร์"
-    desc = f"ความหมายไพ่{th} ({en}) ไพ่ปกติ: {card['upTh']} · ไพ่กลับหัว: {card['revTh']} · อ่านแนวทางความรัก การงาน การเงิน และถามไพ่ออนไลน์ที่ foolmoon.lol"
+    title = card_title(th, en)
+    desc = card_description(th, en)
     path = f"/tarot/{slug}"
     img = tarot.image_path(card["id"])
+    art_w, art_h = card_image_size(card["id"])
     ld = [_breadcrumb([("หน้าแรก", "/"), ("ความหมายไพ่ทาโรต์", "/tarot"), (f"ไพ่{th}", path)]),
           {"@context": "https://schema.org", "@type": "Article", "headline": f"ความหมายไพ่{th} ({en})",
            "description": desc, "inLanguage": "th", "image": SITE + img, "url": SITE + path,
@@ -166,7 +218,7 @@ def render_card(slug: str) -> bytes | None:
     out.append(f"""    <nav class="m-crumb"><a href="/">หน้าแรก</a> › <a href="/tarot">ความหมายไพ่ทาโรต์</a> › <span>ไพ่{_e(th)}</span></nav>
     <article class="m-card">
       <div class="m-hero">
-        <img class="m-art" src="{img}" alt="ไพ่ทาโรต์{_e(th)} ({_e(en)}) สำรับ Rider-Waite-Smith" width="300" height="518" />
+        <img class="m-art" src="{img}" alt="ไพ่ทาโรต์{_e(th)} ({_e(en)}) สำรับ Rider-Waite-Smith" width="{art_w}" height="{art_h}" />
         <div class="m-intro">
           <p class="m-kicker">{_e(group_label)}</p>
           <h1>ความหมายไพ่{_e(th)}<small>{_e(en)}</small></h1>

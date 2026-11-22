@@ -96,7 +96,7 @@ class SearchConsole(unittest.TestCase):
         self.assertIn("Sitemap: https://foolmoon.lol/sitemap.xml", body)
 
     def test_sitemap_lists_public_pages_on_canonical_host(self):
-        status, ctype, body = self._get("/sitemap.xml", host="ask-the-moon.onrender.com")
+        status, ctype, body = self._get("/sitemap.xml", host="foolmoon.lol")
         self.assertEqual(status, 200)
         self.assertEqual(ctype, "application/xml")
         self.assertIn('xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"', body)
@@ -105,8 +105,10 @@ class SearchConsole(unittest.TestCase):
         self.assertNotIn("onrender.com", body)
         # 3 site pages + the /tarot index + 78 card pages
         self.assertEqual(body.count("<url>"), 3 + 1 + 78)
+        self.assertEqual(body.count("<lastmod>"), 3 + 1 + 78)
         self.assertIn("<loc>https://foolmoon.lol/tarot</loc>", body)
         self.assertIn("<loc>https://foolmoon.lol/tarot/the-fool</loc>", body)
+        self.assertRegex(body, r"<lastmod>\d{4}-\d{2}-\d{2}</lastmod>")
 
     def test_public_pages_still_load(self):
         for path, needle in (("/", "ถามจันทร์"), ("/privacy", "นโยบายความเป็นส่วนตัว"), ("/terms", "ข้อกำหนดการใช้งาน")):
