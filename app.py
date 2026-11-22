@@ -22,6 +22,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import hmac
+import hashlib
 from datetime import datetime, timezone
 from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -664,20 +665,43 @@ def sitemap_xml() -> bytes:
     ).encode("utf-8")
 
 
-REVALIDATE_PATHS = frozenset({"/app.js", "/styles.css", "/index.html", "/"})
+REVALIDATE_PATHS = frozenset({"/index.html", "/"})
+SHORT_CACHE_PATHS = frozenset({"/robots.txt", "/sitemap.xml", "/privacy", "/terms", "/tarot"})
+LONG_CACHE = "public, max-age=31536000, immutable"
+LONG_CACHE_EXT = frozenset({
+    ".webp", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
+    ".woff", ".woff2", ".ttf", ".otf", ".webmanifest",
+})
+VERSIONED_EXT = frozenset({".js", ".css"})
 
 
 def asset_version(name: str) -> str:
-    import hashlib
     return hashlib.sha256((STATIC / name).read_bytes()).hexdigest()[:10]
 
 
 def index_html() -> bytes:
-    """index.html with ?v=<content hash> on app.js/styles.css, so a deploy always loads fresh files."""
+    """index.html with ?v=<content hash> on app.js/styles.css/og-image, so a deploy always loads fresh files."""
     html = (STATIC / "index.html").read_text(encoding="utf-8")
     html = html.replace('href="/styles.css"', f'href="/styles.css?v={asset_version("styles.css")}"', 1)
     html = html.replace('src="/app.js"', f'src="/app.js?v={asset_version("app.js")}"', 1)
+    html = html.replace("/og-image.jpg", f"/og-image.jpg?v={asset_version('og-image.jpg')}")
     return html.encode("utf-8")
+
+
+def cache_control_for(route: str, query: str = "") -> str | None:
+    """HTML stays no-cache; versioned CSS/JS and static images get a long immutable cache."""
+    if route in REVALIDATE_PATHS:
+        return "no-cache"
+    if route in SHORT_CACHE_PATHS or (route.startswith("/tarot/") and Path(route).suffix == ""):
+        return "public, max-age=600"
+    if route.startswith("/api/") or route == "/admin":
+        return None
+    ext = Path(route).suffix.lower()
+    if ext in LONG_CACHE_EXT:
+        return LONG_CACHE
+    if ext in VERSIONED_EXT:
+        return LONG_CACHE if "v=" in (query or "") else "no-cache"
+    return None
 
 
 ICON_CACHE_PATHS = frozenset({
@@ -703,20 +727,27 @@ class Handler(SimpleHTTPRequestHandler):
 
     def end_headers(self) -> None:
         if not getattr(self, "_skip_default_cache", False):
-            route = self._route()
-            if route in ICON_CACHE_PATHS:
-                self.send_header("Cache-Control", "public, max-age=604800")
-            elif route in REVALIDATE_PATHS:
-                # Always check for a newer copy (cheap 304 via Last-Modified), so in-app browsers
-                # never keep running yesterday's JS/CSS.
-                self.send_header("Cache-Control", "no-cache")
+            _, query = self._raw_path_and_query()
+            cc = cache_control_for(self._route(), query.lstrip("?"))
+            if cc:
+                self.send_header("Cache-Control", cc)
         super().end_headers()
+
+    def _etag_for(self, body: bytes) -> str:
+        return '"' + hashlib.sha256(body).hexdigest()[:16] + '"'
 
     def _serve_index(self) -> None:
         body = index_html()
+        etag = self._etag_for(body)
+        if self.headers.get("If-None-Match") == etag:
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.end_headers()
+            return
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("ETag", etag)
         self.end_headers()  # adds Cache-Control: no-cache (REVALIDATE_PATHS)
         if self.command != "HEAD":
             self.wfile.write(body)
@@ -920,10 +951,16 @@ class Handler(SimpleHTTPRequestHandler):
         return body
 
     def _serve_bytes(self, body: bytes, content_type: str) -> None:
+        etag = self._etag_for(body)
+        if self.headers.get("If-None-Match") == etag:
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.end_headers()
+            return
         self.send_response(200)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "public, max-age=600")
+        self.send_header("ETag", etag)
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
@@ -959,6 +996,9 @@ class Handler(SimpleHTTPRequestHandler):
         if self._maybe_canonical_redirect():
             return
         route = self._route()
+        if route == "/og-image.png":
+            self._redirect_permanent("/og-image.jpg")
+            return
         if route == "/":
             self._serve_index()
             return
@@ -1045,7 +1085,7 @@ class Handler(SimpleHTTPRequestHandler):
         if self._maybe_canonical_redirect():
             return
         route = self._route()
-        if route in ("/", "/robots.txt", "/sitemap.xml", "/tarot") or (
+        if route in ("/", "/robots.txt", "/sitemap.xml", "/tarot", "/og-image.png") or (
                 route.startswith("/tarot/") and route[7:] in tarot_pages.BY_SLUG):
             self.do_GET()  # _serve_bytes skips the body for HEAD
             return

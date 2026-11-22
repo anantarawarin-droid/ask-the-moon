@@ -174,7 +174,7 @@ class Favicons(unittest.TestCase):
                 body = resp.read()
                 self.assertEqual(resp.status, 200, path)
                 self.assertEqual(resp.getheader("Content-Type"), ctype, path)
-                self.assertEqual(resp.getheader("Cache-Control"), "public, max-age=604800", path)
+                self.assertEqual(resp.getheader("Cache-Control"), "public, max-age=31536000, immutable", path)
                 self.assertGreater(len(body), 0, path)
                 conn.close()
         finally:

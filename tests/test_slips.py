@@ -466,7 +466,7 @@ class BrowserQr(unittest.TestCase):
         with open(os.path.join(static, "app.js"), encoding="utf-8") as fh:
             js = fh.read()
         self.assertIn('headers["X-Slip-QR"] = encodeURIComponent(prepared.qr)', js)
-        self.assertIn('s.src = "/vendor/jsQR.js"', js)
+        self.assertIn('s.src = "/vendor/jsQR.js?v=bc40c8a151"', js)
         self.assertTrue(os.path.exists(os.path.join(static, "vendor", "jsQR.js")))
 
 

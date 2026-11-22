@@ -1536,6 +1536,21 @@ function closePayModal() {
   state.order = null;
 }
 
+let qrcodePromise = null;
+function loadQrcode() {
+  if (typeof qrcode === "function") return Promise.resolve();
+  if (!qrcodePromise) {
+    qrcodePromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "/vendor/qrcode.js?v=79ec86f828";
+      s.onload = () => resolve();
+      s.onerror = () => { qrcodePromise = null; reject(new Error("qrcode")); };
+      document.head.appendChild(s);
+    });
+  }
+  return qrcodePromise;
+}
+
 function qrSvg(payload) {
   if (typeof qrcode !== "function") return "";
   const qr = qrcode(0, "M");
@@ -1549,6 +1564,9 @@ function renderPayModal() {
   const box = document.getElementById("pay-content");
   const o = state.order;
   if (!o) return;
+  if (!o.soon && typeof qrcode !== "function") {
+    loadQrcode().then(() => { if (state.order) renderPayModal(); }).catch(() => {});
+  }
   if (o.soon) {
     box.innerHTML = `
       <div class="pay-soon">
@@ -1624,7 +1642,7 @@ function loadJsQR() {
   if (!jsqrPromise) {
     jsqrPromise = new Promise((resolve, reject) => {
       const s = document.createElement("script");
-      s.src = "/vendor/jsQR.js";
+      s.src = "/vendor/jsQR.js?v=bc40c8a151";
       s.onload = () => resolve(window.jsQR);
       s.onerror = () => { jsqrPromise = null; reject(new Error("jsQR")); };
       document.head.appendChild(s);

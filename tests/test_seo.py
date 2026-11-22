@@ -160,3 +160,83 @@ class CanonicalRedirects(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CacheHeaders(unittest.TestCase):
+    def setUp(self):
+        import threading
+        self.server = tc.app.ThreadingHTTPServer(("127.0.0.1", 0), tc.app.Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.port = self.server.server_address[1]
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+
+    def _get(self, path, headers=None):
+        import http.client
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.request("GET", path, headers=headers or {})
+        resp = conn.getresponse()
+        body = resp.read()
+        out = {
+            "status": resp.status,
+            "cache": resp.getheader("Cache-Control") or "",
+            "etag": resp.getheader("ETag") or "",
+            "location": resp.getheader("Location") or "",
+            "body": body,
+        }
+        conn.close()
+        return out
+
+    def test_html_is_not_cached(self):
+        for path in ("/",):
+            r = self._get(path)
+            self.assertEqual(r["status"], 200, path)
+            self.assertEqual(r["cache"], "no-cache", path)
+            self.assertTrue(r["etag"])
+
+    def test_html_supports_304(self):
+        first = self._get("/")
+        self.assertEqual(first["status"], 200)
+        again = self._get("/", {"If-None-Match": first["etag"]})
+        self.assertEqual(again["status"], 304)
+        self.assertEqual(again["body"], b"")
+        self.assertEqual(again["cache"], "no-cache")
+
+    def test_versioned_css_js_and_images_are_immutable(self):
+        long = "public, max-age=31536000, immutable"
+        html = tc.app.index_html().decode()
+        css = re.search(r'href="(/styles\.css\?v=[0-9a-f]{10})"', html).group(1)
+        js = re.search(r'src="(/app\.js\?v=[0-9a-f]{10})"', html).group(1)
+        for path in (
+            css,
+            js,
+            "/vendor/qrcode.js?v=79ec86f828",
+            "/vendor/jsQR.js?v=bc40c8a151",
+            "/tarot/major-00.webp?v=3",
+            "/og-image.jpg",
+            "/meanings.css?v=05c85a878e",
+            "/favicon.svg",
+        ):
+            r = self._get(path)
+            self.assertEqual(r["status"], 200, path)
+            self.assertEqual(r["cache"], long, path)
+
+    def test_unversioned_js_css_revalidate(self):
+        for path in ("/app.js", "/styles.css", "/vendor/qrcode.js"):
+            r = self._get(path)
+            self.assertEqual(r["status"], 200, path)
+            self.assertEqual(r["cache"], "no-cache", path)
+
+    def test_og_image_png_redirects_to_jpg(self):
+        r = self._get("/og-image.png")
+        self.assertEqual(r["status"], 301)
+        self.assertEqual(r["location"], "/og-image.jpg")
+
+    def test_meanings_css_is_versioned_and_qrcode_is_lazy(self):
+        page = tarot_pages.render_index().decode()
+        self.assertRegex(page, r'href="/meanings\.css\?v=[0-9a-f]{10}"')
+        self.assertNotIn('src="/vendor/qrcode.js"', HTML)
+        self.assertIn('s.src = "/vendor/qrcode.js?v=79ec86f828"', JS)
+        self.assertIn("function loadQrcode", JS)

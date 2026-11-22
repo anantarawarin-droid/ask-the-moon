@@ -108,8 +108,12 @@ class FreshAssets(unittest.TestCase):
         html = app.index_html().decode("utf-8")
         self.assertRegex(html, r'src="/app\.js\?v=[0-9a-f]{10}"')
         self.assertRegex(html, r'href="/styles\.css\?v=[0-9a-f]{10}"')
+        self.assertRegex(html, r'/og-image\.jpg\?v=[0-9a-f]{10}')
         self.assertIn('name="google-site-verification"', html)
-        self.assertTrue({"/", "/app.js", "/styles.css"} <= app.REVALIDATE_PATHS)
+        self.assertTrue({"/", "/index.html"} <= app.REVALIDATE_PATHS)
+        self.assertNotIn("/app.js", app.REVALIDATE_PATHS)
+        self.assertNotIn("/styles.css", app.REVALIDATE_PATHS)
+        self.assertNotIn("/vendor/qrcode.js", html)
 
 
 if __name__ == "__main__":

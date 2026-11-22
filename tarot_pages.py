@@ -7,6 +7,7 @@ read them. Reading logic and randomness are not touched here.
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import re
@@ -96,8 +97,20 @@ def _e(s: str) -> str:
     return html.escape(s, quote=True)
 
 
+def _asset_v(name: str) -> str:
+    return hashlib.sha256((STATIC / name).read_bytes()).hexdigest()[:10]
+
+
+def _versioned_image(image: str) -> str:
+    name = image.split("?", 1)[0].lstrip("/")
+    if name in {"og-image.jpg", "og-image.png"} and (STATIC / name).is_file():
+        return f"/{name}?v={_asset_v(name)}"
+    return image
+
+
 def _head(title: str, desc: str, path: str, image: str, ld: list[dict[str, Any]]) -> str:
     url = SITE + path
+    image = _versioned_image(image)
     lds = "\n".join(
         f'  <script type="application/ld+json">{json.dumps(x, ensure_ascii=False)}</script>' for x in ld
     )
@@ -124,7 +137,7 @@ def _head(title: str, desc: str, path: str, image: str, ld: list[dict[str, Any]]
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Cormorant+Garamond:wght@500;600&family=Noto+Sans+Thai:wght@400;500;600;700&family=Noto+Serif+Thai:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/meanings.css" />
+  <link rel="stylesheet" href="/meanings.css?v={_asset_v('meanings.css')}" />
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
