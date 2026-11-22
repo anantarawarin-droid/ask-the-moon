@@ -55,13 +55,38 @@ def card_description(th: str, en: str) -> str:
     )
 
 
+def _webp_size(path: Path) -> tuple[int, int]:
+    """Read canvas width/height from a WebP file without Pillow (not installed on Render)."""
+    data = path.read_bytes()
+    if data[:4] != b"RIFF" or data[8:12] != b"WEBP":
+        raise ValueError("not a webp")
+    i, n = 12, len(data)
+    while i + 8 <= n:
+        tag = data[i:i + 4]
+        size = int.from_bytes(data[i + 4:i + 8], "little")
+        payload = data[i + 8:i + 8 + size]
+        if tag == b"VP8X" and len(payload) >= 10:
+            return (1 + int.from_bytes(payload[4:7], "little"),
+                    1 + int.from_bytes(payload[7:10], "little"))
+        if tag == b"VP8 " and len(payload) >= 10:
+            start = 3 if payload[3:6] == b"\x9d\x01\x2a" else 0
+            if payload[start:start + 3] != b"\x9d\x01\x2a":
+                raise ValueError("bad VP8 frame")
+            w = int.from_bytes(payload[start + 3:start + 5], "little") & 0x3FFF
+            h = int.from_bytes(payload[start + 5:start + 7], "little") & 0x3FFF
+            return w, h
+        if tag == b"VP8L" and len(payload) >= 5 and payload[0] == 0x2F:
+            bits = int.from_bytes(payload[1:5], "little")
+            return (bits & 0x3FFF) + 1, ((bits >> 14) & 0x3FFF) + 1
+        i = i + 8 + size + (size & 1)
+    raise ValueError("no VP8 chunk")
+
+
 def card_image_size(card_id: str) -> tuple[int, int]:
     if card_id not in _IMG_SIZE:
         path = STATIC / "tarot" / f"{card_id}.webp"
         try:
-            from PIL import Image
-            with Image.open(path) as im:
-                _IMG_SIZE[card_id] = im.size
+            _IMG_SIZE[card_id] = _webp_size(path)
         except Exception:
             _IMG_SIZE[card_id] = (300, 518)
     return _IMG_SIZE[card_id]

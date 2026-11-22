@@ -15,6 +15,14 @@ import tarot_pages  # noqa: E402
 
 
 class MeaningsData(unittest.TestCase):
+    def test_card_image_sizes_match_files(self):
+        from PIL import Image
+        tarot_pages._IMG_SIZE.clear()
+        for card in tarot_pages.CARDS:
+            path = ROOT / "static" / "tarot" / f"{card['id']}.webp"
+            with Image.open(path) as im:
+                self.assertEqual(tarot_pages.card_image_size(card["id"]), im.size, card["id"])
+
     def test_every_card_has_full_thai_meanings(self):
         self.assertEqual(len(tarot.DECK), 78)
         self.assertEqual(set(tarot_meanings.MEANINGS), {c["id"] for c in tarot.DECK})
@@ -83,7 +91,14 @@ class PagesOverHttp(unittest.TestCase):
         for card in tarot_pages.CARDS:
             self.assertIn(tarot.thumb_path(card["id"]), html)
             self.assertNotIn(tarot.image_path(card["id"]), html)
-            self.assertRegex(html, rf'src="{re.escape(tarot.thumb_path(card["id"]))}" alt="ไพ่[^"]+" width="150" height="\d+"')
+            iw, ih = tarot_pages.card_image_size(card["id"])
+            thumb_h = max(1, round(150 * ih / iw)) if iw else 259
+            self.assertRegex(
+                html,
+                rf'src="{re.escape(tarot.thumb_path(card["id"]))}" alt="ไพ่[^"]+" width="150" height="{thumb_h}"',
+            )
+        heights = {tarot_pages.card_image_size(c["id"])[1] for c in tarot_pages.CARDS}
+        self.assertGreater(len(heights), 1)
         self.assertEqual(self._req("/tarot/")[0], 301)
 
     def test_card_pages(self):
