@@ -41,6 +41,15 @@ class Deck(unittest.TestCase):
                 for k in ("upEn", "revEn", "upTh", "revTh", "nameTh"):
                     self.assertTrue(c[k].strip())
                 self.assertEqual(sources[c["id"]]["license"], "Public domain")
+                thumb = ROOT / "static" / tarot.thumb_path(c["id"]).split("?")[0].lstrip("/")
+                self.assertTrue(thumb.is_file())
+                head = thumb.read_bytes()[:12]
+                self.assertTrue(head[:4] == b"RIFF" and head[8:12] == b"WEBP")
+                self.assertGreaterEqual(thumb.stat().st_size, 5_000)
+                self.assertLessEqual(thumb.stat().st_size, 10_240)
+                from PIL import Image
+                with Image.open(thumb) as im:
+                    self.assertLessEqual(im.size[1], 300)
 
     def test_draw_three_distinct_without_positions(self):
         for _ in range(200):

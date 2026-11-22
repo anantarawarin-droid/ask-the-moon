@@ -199,7 +199,7 @@ def render_index() -> bytes:
             s = slugify(c["nameEn"])
             iw, ih = card_image_size(c["id"])
             thumb_h = max(1, round(150 * ih / iw)) if iw else 259
-            out.append(f'        <li><a href="/tarot/{s}"><img src="{tarot.image_path(c["id"])}" alt="ไพ่{_e(short_th(c))} ({_e(c["nameEn"])})" width="150" height="{thumb_h}" loading="lazy" /><b>{_e(short_th(c))}</b><small>{_e(c["nameEn"])}</small></a></li>\n')
+            out.append(f'        <li><a href="/tarot/{s}"><img src="{tarot.thumb_path(c["id"])}" alt="ไพ่{_e(short_th(c))} ({_e(c["nameEn"])})" width="150" height="{thumb_h}" loading="lazy" /><b>{_e(short_th(c))}</b><small>{_e(c["nameEn"])}</small></a></li>\n')
         out.append("      </ul>\n    </section>\n")
     out.append(_cta("อยากรู้ว่าไพ่จะตอบคำถามของคุณว่าอย่างไร?"))
     out.append(FOOT)

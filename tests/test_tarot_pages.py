@@ -80,6 +80,10 @@ class PagesOverHttp(unittest.TestCase):
         self.assertIn("สำรับเดียวกันทั้ง 78 ใบ", html)
         self.assertEqual(len(set(re.findall(r'href="/tarot/([a-z0-9-]+)"', html))), 78)
         self.assertIn('href="/#oracle"', html)
+        for card in tarot_pages.CARDS:
+            self.assertIn(tarot.thumb_path(card["id"]), html)
+            self.assertNotIn(tarot.image_path(card["id"]), html)
+            self.assertRegex(html, rf'src="{re.escape(tarot.thumb_path(card["id"]))}" alt="ไพ่[^"]+" width="150" height="\d+"')
         self.assertEqual(self._req("/tarot/")[0], 301)
 
     def test_card_pages(self):
@@ -104,9 +108,13 @@ class PagesOverHttp(unittest.TestCase):
             self.assertIn("application/ld+json", html)
             card = tarot_pages.BY_SLUG[slug]
             self.assertIn(tarot.image_path(card["id"]), html)
+            self.assertNotIn(tarot.thumb_path(card["id"]), html)
 
     def test_card_images_and_unknown_slugs_still_static(self):
         status, ctype, _ = self._req("/tarot/major-00.webp")
+        self.assertEqual(status, 200)
+        self.assertIn("image/webp", ctype)
+        status, ctype, _ = self._req("/tarot/major-00-thumb.webp")
         self.assertEqual(status, 200)
         self.assertIn("image/webp", ctype)
         self.assertEqual(self._req("/tarot/not-a-card")[0], 404)

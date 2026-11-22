@@ -79,6 +79,7 @@ class Validation(unittest.TestCase):
         self.assertEqual(groups, {"major": 22, "wands": 14, "cups": 14, "swords": 14, "pentacles": 14})
         for c in deck:  # names only, no meanings leaked into the picker list
             self.assertEqual(set(c), {"id", "nameEn", "nameTh", "group", "image"})
+            self.assertEqual(c["image"], tarot.thumb_path(c["id"]))
 
     def test_scaled_verdict_matches_three_card_verdict(self):
         for _ in range(200):
@@ -405,6 +406,7 @@ class Http(unittest.TestCase):
         code, data, _ = self.req("GET", "/api/deck")
         self.assertEqual(code, 200)
         self.assertEqual((data["min"], data["max"], len(data["cards"])), (1, 5, 78))
+        self.assertTrue(all(c["image"] == tarot.thumb_path(c["id"]) for c in data["cards"]))
 
     def test_login_required(self):
         code, data, _ = self.req("POST", "/api/reading/own", body())
@@ -422,6 +424,7 @@ class Http(unittest.TestCase):
             self.assertEqual((data["mode"], data["tarot"]["drawnBy"]), ("own", "self"))
             self.assertEqual(data["charge"], {"kind": "free", "charged": True})
             self.assertEqual([c["id"] for c in data["tarot"]["cards"]], [c["id"] for c in THREE])
+            self.assertTrue(all(c["image"] == tarot.image_path(c["id"]) for c in data["tarot"]["cards"]))
             self.assertEqual(data["tarot"]["headingTh"], app.OWN_HEADING_TH)
             code, data, _ = self.req("POST", "/api/reading/own", body())
             self.assertEqual((code, data["code"]), (402, "no_credits"))

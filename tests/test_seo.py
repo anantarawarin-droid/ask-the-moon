@@ -215,6 +215,7 @@ class CacheHeaders(unittest.TestCase):
             "/vendor/qrcode.js?v=79ec86f828",
             "/vendor/jsQR.js?v=bc40c8a151",
             "/tarot/major-00.webp?v=3",
+            "/tarot/major-00-thumb.webp?v=1",
             "/og-image.jpg",
             "/meanings.css?v=05c85a878e",
             "/favicon.svg",

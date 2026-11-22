@@ -242,10 +242,16 @@ _RNG = secrets.SystemRandom()
 
 
 IMAGE_VERSION = "3"  # bump when the card art changes, so browsers fetch the new files
+THUMB_VERSION = "1"  # bump when the thumbnail files are regenerated
 
 
 def image_path(card_id: str) -> str:
     return f"/tarot/{card_id}.webp?v={IMAGE_VERSION}"
+
+
+def thumb_path(card_id: str) -> str:
+    """Small webp for the /tarot index grid and the own-cards picker."""
+    return f"/tarot/{card_id}-thumb.webp?v={THUMB_VERSION}"
 
 
 def draw(count: int = DRAW_COUNT) -> list[dict[str, Any]]:
@@ -309,7 +315,7 @@ def picker_deck() -> list[dict[str, Any]]:
     """Public card list for the own-cards picker (names and images only)."""
     return [{"id": c["id"], "nameEn": c["nameEn"], "nameTh": c["nameTh"],
              "group": "major" if c["arcana"] == "major" else c["id"].split("-")[0],
-             "image": image_path(c["id"])} for c in DECK]
+             "image": thumb_path(c["id"])} for c in DECK]
 
 
 def prompt_lines(cards: list[dict[str, Any]]) -> str:
