@@ -508,8 +508,30 @@ function visitorId() {
   return id;
 }
 
+function preferredLang() {
+  try {
+    const saved = localStorage.getItem("duang-lang");
+    if (saved === "en" || saved === "th") return saved;
+  } catch (_) { /* private mode */ }
+  try {
+    const param = String(new URLSearchParams(location.search).get("lang") || "").toLowerCase();
+    if (param === "en" || param === "th") {
+      try { localStorage.setItem("duang-lang", param); } catch (_) { /* private mode */ }
+      return param;
+    }
+  } catch (_) { /* ignore bad URL */ }
+  try {
+    const list = [
+      ...(Array.isArray(navigator.languages) ? navigator.languages : []),
+      navigator.language,
+    ];
+    if (list.some((code) => String(code || "").toLowerCase().startsWith("th"))) return "th";
+  } catch (_) { /* ignore */ }
+  return "en";
+}
+
 const state = {
-  lang: localStorage.getItem("duang-lang") || "th",
+  lang: preferredLang(),
   last: null,
   visitor: visitorId(),
   balance: { credits: 0, freeAvailable: false },
@@ -553,6 +575,7 @@ function t() {
 
 function applyLang() {
   const dict = t();
+  document.documentElement.removeAttribute("data-boot-lang");
   document.documentElement.lang = state.lang;
   document.body.dataset.lang = state.lang;
   document.title = dict.docTitle;
