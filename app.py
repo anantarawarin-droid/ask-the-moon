@@ -691,7 +691,7 @@ def index_html() -> bytes:
 def cache_control_for(route: str, query: str = "") -> str | None:
     """HTML stays no-cache; versioned CSS/JS and static images get a long immutable cache."""
     if route in REVALIDATE_PATHS:
-        return "no-cache"
+        return "no-cache, must-revalidate"
     if route in SHORT_CACHE_PATHS or (route.startswith("/tarot/") and Path(route).suffix == ""):
         return "public, max-age=600"
     if route.startswith("/api/") or route == "/admin":

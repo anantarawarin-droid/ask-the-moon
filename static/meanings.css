@@ -17,8 +17,8 @@ a { color:var(--gold-soft); }
 .m-main { max-width:62rem; margin:0 auto; padding:0 5vw 2rem; }
 .m-crumb { font-size:.85rem; color:var(--muted); margin:.4rem 0 1rem; }
 .m-crumb a { color:var(--lilac); text-decoration:none; }
-h1, h2, h3 { font-family:"Noto Serif Thai",serif; color:var(--gold-soft); line-height:1.35; }
-h1 { font-size:clamp(1.7rem,5vw,2.4rem); margin:.2rem 0 .6rem; }
+h1, h2, h3 { font-family:"Noto Serif Thai",serif; color:var(--gold-soft); line-height:1.5; overflow:visible; }
+h1 { font-size:clamp(1.7rem,5vw,2.4rem); margin:.2rem 0 .6rem; padding-block:.15em .08em; }
 h1 small { display:block; font:500 1.2rem "Cormorant Garamond",serif; color:var(--lilac); letter-spacing:.06em; margin-top:.2rem; }
 h2 { font-size:1.3rem; margin:1.6rem 0 .5rem; }
 h3 { font-size:1.08rem; margin:0 0 .35rem; }
@@ -31,7 +31,7 @@ h3 { font-size:1.08rem; margin:0 0 .35rem; }
 .m-grid a { display:grid; justify-items:center; text-align:center; text-decoration:none; color:var(--text); }
 .m-grid img { width:100%; height:auto; border-radius:8px; box-shadow:0 8px 22px rgba(0,0,0,.45), 0 0 0 1px rgba(212,175,55,.5); transition:transform .15s ease; }
 .m-grid a:hover img { transform:translateY(-3px); }
-.m-grid b { font-weight:600; color:var(--gold-soft); font-size:.93rem; margin-top:.45rem; line-height:1.35; }
+.m-grid b { font-weight:600; color:var(--gold-soft); font-size:.93rem; margin-top:.45rem; line-height:1.45; }
 .m-grid small { color:var(--muted); font-size:.74rem; }
 .m-card { background:var(--card); border:1px solid var(--line); border-radius:22px; padding:1.4rem 1.3rem 1.6rem; box-shadow:0 24px 60px rgba(0,0,0,.45); }
 .m-hero { display:grid; grid-template-columns:minmax(8rem,13rem) 1fr; gap:1.4rem; align-items:center; }
@@ -46,7 +46,7 @@ h3 { font-size:1.08rem; margin:0 0 .35rem; }
 .m-topics section { background:rgba(10,6,20,.45); border:1px solid var(--line); border-radius:16px; padding:.9rem 1rem; }
 .m-cta { text-align:center; margin:2rem 0 1rem; padding:1.6rem 1.2rem; border-radius:22px; border:1px solid rgba(212,175,55,.45);
   background:linear-gradient(180deg, rgba(107,63,160,.35), rgba(22,12,40,.85)); }
-.m-cta-title { font:600 1.2rem "Noto Serif Thai",serif; color:var(--gold-soft); margin:0 0 .3rem; }
+.m-cta-title { font:600 1.2rem/1.45 "Noto Serif Thai",serif; color:var(--gold-soft); margin:0 0 .3rem; padding-block:.08em; overflow:visible; }
 .m-cta p { color:var(--lilac); margin:.2rem 0 .8rem; }
 .m-pager { display:flex; justify-content:space-between; gap:.6rem; flex-wrap:wrap; margin:1.2rem 0; font-size:.92rem; }
 .m-pager a { text-decoration:none; color:var(--lilac); }

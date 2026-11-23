@@ -39,6 +39,16 @@ class HomepageSeo(unittest.TestCase):
         hero = HTML[HTML.index('class="hero"'):HTML.index('id="oracle"')]
         self.assertNotIn("eyebrow", hero)
         self.assertNotIn("ไพ่ยิปซี", hero)
+        # applyLang must not restore the old long hero (Safari would look "unfixed")
+        self.assertNotIn("ปีนักษัตร เลขวันเกิด ราศี", JS[JS.index("heroLede:"):JS.index("navMeanings:")])
+        css = (ROOT / "static" / "styles.css").read_text()
+        hero_css = css[css.index(".hero h1"):css.index(".lede")]
+        self.assertIn("line-height: 1.5", hero_css)
+        self.assertIn("padding-block", hero_css)
+        self.assertIn("overflow: visible", hero_css)
+        self.assertIn("-webkit-background-clip: text", hero_css)
+        meanings = (ROOT / "static" / "meanings.css").read_text()
+        self.assertIn('line-height:1.5', meanings)
 
     def test_og_image_is_compressed_jpeg(self):
         from PIL import Image
@@ -198,7 +208,7 @@ class CacheHeaders(unittest.TestCase):
         for path in ("/",):
             r = self._get(path)
             self.assertEqual(r["status"], 200, path)
-            self.assertEqual(r["cache"], "no-cache", path)
+            self.assertEqual(r["cache"], "no-cache, must-revalidate", path)
             self.assertTrue(r["etag"])
 
     def test_html_supports_304(self):
@@ -207,7 +217,7 @@ class CacheHeaders(unittest.TestCase):
         again = self._get("/", {"If-None-Match": first["etag"]})
         self.assertEqual(again["status"], 304)
         self.assertEqual(again["body"], b"")
-        self.assertEqual(again["cache"], "no-cache")
+        self.assertEqual(again["cache"], "no-cache, must-revalidate")
 
     def test_versioned_css_js_and_images_are_immutable(self):
         long = "public, max-age=31536000, immutable"
