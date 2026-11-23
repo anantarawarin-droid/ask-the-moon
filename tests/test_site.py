@@ -68,8 +68,13 @@ class PageLayout(unittest.TestCase):
                 self.assertIn(term, d)
         self.assertIn("ไพ่ทาโรต์", re.search(r'<meta property="og:title" content="([^"]+)"', HTML).group(1))
         lede = re.search(r'data-i18n="heroLede">(.*?)</p>', HTML).group(1)
-        self.assertTrue(lede.startswith(POSITIONING))
+        self.assertEqual(lede, "พิมพ์คำถาม จันทร์เปิดไพ่ 3 ใบ ตอบตรง ๆ พร้อมเหตุผลและคำแนะนำ")
+        intro = re.search(r'data-i18n="faqIntro">(.*?)</p>', HTML).group(1)
+        self.assertIn(POSITIONING, intro)
+        self.assertIn("ไพ่ยิปซี", intro)
+        self.assertIn("สำรับเดียวกันทั้ง 78 ใบ", intro)
         self.assertIn(POSITIONING, JS)
+        self.assertGreater(HTML.index('id="faq"'), HTML.index('id="oracle"'))
         self.assertNotIn("อ่านดวง · ราศี · นักษัตร · เลขศาสตร์", HTML)
 
     def test_ad_after_form_and_gate_before_form(self):

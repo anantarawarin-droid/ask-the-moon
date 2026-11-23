@@ -33,7 +33,12 @@ class HomepageSeo(unittest.TestCase):
         self.assertIn("สำรับเดียวกันทั้ง 78 ใบ", HTML)
         self.assertIn('href="/tarot"', HTML)
         self.assertIn("class=\"meanings-nav\"", HTML)
-        self.assertIn("class=\"hero-meanings\"", HTML)
+        self.assertIn("class=\"hero-links\"", HTML)
+        self.assertIn('id="hero-own-link"', HTML)
+        self.assertIn('class="faq-intro"', HTML)
+        hero = HTML[HTML.index('class="hero"'):HTML.index('id="oracle"')]
+        self.assertNotIn("eyebrow", hero)
+        self.assertNotIn("ไพ่ยิปซี", hero)
 
     def test_og_image_is_compressed_jpeg(self):
         from PIL import Image
