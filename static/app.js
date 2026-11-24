@@ -17,7 +17,7 @@ const I18N = {
     faqQ3: "เปิดไพ่กี่ใบ?",
     faqA3: "โหมดหลักให้แตะเลือกไพ่คว่ำหน้า 3 ใบ แล้วจันทร์สุ่มไพ่จริงให้ตอนเปิดคำทำนาย ถ้ามีไพ่ทาโรต์อยู่แล้วจากสำรับที่บ้าน เลือกบนเว็บได้ 1–5 ใบ",
     faqQOracle: "ไพ่ออราเคิล 37 ใบคืออะไร?",
-    faqAOracle: "เป็นสำรับของถามจันทร์เอง 37 ใบ แบ่งเป็นชุดเวลา อารมณ์ และคำพูด ชื่อบนไพ่เป็นภาษาอังกฤษ ความหมายอยู่ที่หน้าความหมายไพ่ และในคำทำนายด้านล่าง แต่ละคำถามสุ่มหนึ่งใบต่อชุด รวม 3 ใบ ใช้เครดิตเหมือนการถามไพ่ทาโรต์",
+    faqAOracle: "เป็นสำรับของถามจันทร์เอง 37 ใบ แบ่งเป็นชุดเวลา อารมณ์ และคำพูด ชื่อบนไพ่เป็นภาษาอังกฤษ ความหมายอธิบายในคำทำนายหลังจั่วไพ่ แต่ละคำถามสุ่มหนึ่งใบต่อชุด รวม 3 ใบ ใช้เครดิตเหมือนการถามไพ่ทาโรต์",
     faqQ4: "คำตอบจากไพ่ใช้ตัดสินใจเรื่องสำคัญได้ไหม?",
     faqA4: "คำตอบจากไพ่มีไว้เป็นแนวทาง เพื่อความบันเทิง ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย หรือการเงิน การตัดสินใจสุดท้ายเป็นของคุณ",
     faqQ5: "จ่ายเงินอย่างไร?",
@@ -219,7 +219,6 @@ const I18N = {
     compat: "ขั้นต่อไปที่ควรทำ",
     forecast: "ช่วงเวลาที่ไพ่ชี้",
     heroOwn: "เปิดไพ่เอง",
-    heroOracle: "ไพ่ออราเคิล",
     deckLabel: "สำรับไพ่",
     deckTarot: "ไพ่ทาโรต์",
     deckTarotSub: "สำรับ 78 ใบ",
@@ -281,7 +280,7 @@ const I18N = {
     faqQ3: "How many cards are drawn?",
     faqA3: "The main mode lets you tap 3 facedown cards; the Moon draws the actual cards when the reading opens. If you already drew tarot at home, you can enter 1–5 of those cards here.",
     faqQOracle: "What is the 37-card oracle?",
-    faqAOracle: "It is Ask the Moon’s own 37-card oracle: Timing, Feeling, and Counsel. English titles are on the cards; a short name sits under them in the reading, and the full meaning is in the reading itself and on the meanings page. Each question draws one card from each group (3 in all) and uses the same question credits as tarot.",
+    faqAOracle: "It is Ask the Moon’s own 37-card oracle: Timing, Feeling, and Counsel. English titles are on the cards; a short name sits under them in the reading, and the meaning is explained in the reading itself. Each question draws one card from each group (3 in all) and uses the same question credits as tarot.",
     faqQ4: "Can I use a reading to make important decisions?",
     faqA4: "Readings are for guidance and entertainment only. They are not medical, legal, or financial advice. The final decision is yours.",
     faqQ5: "How does payment work?",
@@ -483,7 +482,6 @@ const I18N = {
     compat: "Your next step",
     forecast: "Timing the cards show",
     heroOwn: "Draw your own",
-    heroOracle: "Oracle deck",
     deckLabel: "Which deck",
     deckTarot: "Tarot",
     deckTarotSub: "78-card deck",
@@ -735,7 +733,7 @@ function renderTarot(tarot) {
       const oracleCard = String(c.id || "").startsWith("oracle-");
       const slug = oracleCard ? "" : cardMeaningSlug(c);
       const nameHtml = oracleCard
-        ? `<a class="tcard-link" href="/oracle#${encodeURIComponent(c.id)}" target="_blank" rel="noopener">${escapeHtml(name)}</a>`
+        ? escapeHtml(name)
         : slug
         ? `<a class="tcard-link" href="/tarot/${escapeHtml(slug)}" target="_blank" rel="noopener">${escapeHtml(name)}</a>`
         : escapeHtml(name);
@@ -920,8 +918,6 @@ function setupPick() {
   document.querySelectorAll(".deck-btn").forEach((btn) => {
     btn.addEventListener("click", () => setDeck(btn.dataset.deck));
   });
-  const oracleLink = document.querySelector('a[href="/oracle"]');
-  // hero oracle meanings stay on /oracle; a home ask link can use ?deck=oracle
 }
 
 function ownToggle(id) {

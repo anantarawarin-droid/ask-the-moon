@@ -34,7 +34,6 @@ import slips
 import tarot
 import tarot_pages
 import oracle
-import oracle_pages
 import accounts
 import birthprofile
 import google_auth
@@ -47,7 +46,7 @@ CANONICAL_HOST = "foolmoon.lol"
 # Render healthCheckPath is empty (TCP bind only). If a path is added later,
 # /api/health on a non-canonical host must still return 200, not a 301.
 HEALTH_EXEMPT_PATHS = frozenset({"/api/health"})
-PUBLIC_PAGES = ("/", "/privacy", "/terms", *tarot_pages.PATHS, *oracle_pages.PATHS)
+PUBLIC_PAGES = ("/", "/privacy", "/terms", *tarot_pages.PATHS)
 PORT = int(os.environ.get("PORT", "5050"))
 HOST = os.environ.get("HOST", "0.0.0.0")
 DATA_DIR = os.environ.get("DATA_DIR") or str(ROOT / "data")
@@ -737,6 +736,7 @@ def robots_txt() -> bytes:
         "Allow: /\n"
         "Disallow: /admin\n"
         "Disallow: /api/\n"
+        "Disallow: /oracle\n"
         f"Sitemap: {SITE_ORIGIN}/sitemap.xml\n"
     ).encode("utf-8")
 
@@ -750,8 +750,6 @@ def sitemap_lastmod() -> str:
         STATIC / "terms.html",
         ROOT / "tarot_pages.py",
         ROOT / "tarot_meanings.py",
-        ROOT / "oracle.py",
-        ROOT / "oracle_pages.py",
     ):
         try:
             newest = max(newest, path.stat().st_mtime)
@@ -778,7 +776,7 @@ def sitemap_xml() -> bytes:
 
 
 REVALIDATE_PATHS = frozenset({"/index.html", "/"})
-SHORT_CACHE_PATHS = frozenset({"/robots.txt", "/sitemap.xml", "/privacy", "/terms", "/tarot", "/oracle"})
+SHORT_CACHE_PATHS = frozenset({"/robots.txt", "/sitemap.xml", "/privacy", "/terms", "/tarot"})
 LONG_CACHE = "public, max-age=31536000, immutable"
 LONG_CACHE_EXT = frozenset({
     ".webp", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
@@ -952,6 +950,11 @@ class Handler(SimpleHTTPRequestHandler):
             self._serve_404()
             return
         super().send_error(code, message, explain)
+
+    def list_directory(self, path):
+        # Never expose static folder listings (especially /oracle card files).
+        self._serve_404()
+        return None
 
     def _visitor(self) -> str | None:
         vid = (self.headers.get("X-Visitor-Id") or "").strip()
@@ -1130,7 +1133,7 @@ class Handler(SimpleHTTPRequestHandler):
             self._serve_bytes(tarot_pages.render_card(route[7:]), "text/html; charset=utf-8")
             return
         if route == "/oracle":
-            self._serve_bytes(oracle_pages.render_index(), "text/html; charset=utf-8")
+            self._serve_404()
             return
         if route == "/admin.html":
             self._send(404, {"ok": False, "error": "Not found."})
@@ -1155,8 +1158,7 @@ class Handler(SimpleHTTPRequestHandler):
             self._send(200, {"ok": True, "min": tarot.OWN_MIN, "max": tarot.OWN_MAX, "cards": tarot.picker_deck()})
             return
         if route == "/api/oracle":
-            self._send(200, {"ok": True, "count": len(oracle.DECK), "pick": 3,
-                             "back": oracle.back_path(), "cards": oracle.catalog()})
+            self._send(200, {"ok": True, "back": oracle.back_path()})
             return
         if route == "/api/contacts":
             self._send(200, {"ok": True, "contacts": contacts_payload()})

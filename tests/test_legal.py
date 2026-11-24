@@ -93,6 +93,7 @@ class SearchConsole(unittest.TestCase):
         self.assertIn("Allow: /", body)
         self.assertIn("Disallow: /admin", body)
         self.assertIn("Disallow: /api/", body)
+        self.assertIn("Disallow: /oracle", body)
         self.assertIn("Sitemap: https://foolmoon.lol/sitemap.xml", body)
 
     def test_sitemap_lists_public_pages_on_canonical_host(self):
@@ -103,11 +104,11 @@ class SearchConsole(unittest.TestCase):
         for url in ("https://foolmoon.lol/", "https://foolmoon.lol/privacy", "https://foolmoon.lol/terms"):
             self.assertIn(f"<loc>{url}</loc>", body)
         self.assertNotIn("onrender.com", body)
-        # 3 site pages + the /tarot index + 78 card pages + the /oracle index
-        self.assertEqual(body.count("<url>"), 3 + 1 + 78 + 1)
-        self.assertEqual(body.count("<lastmod>"), 3 + 1 + 78 + 1)
+        # 3 site pages + the /tarot index + 78 card pages (oracle catalog is private)
+        self.assertEqual(body.count("<url>"), 3 + 1 + 78)
+        self.assertEqual(body.count("<lastmod>"), 3 + 1 + 78)
         self.assertIn("<loc>https://foolmoon.lol/tarot</loc>", body)
-        self.assertIn("<loc>https://foolmoon.lol/oracle</loc>", body)
+        self.assertNotIn("<loc>https://foolmoon.lol/oracle</loc>", body)
         self.assertIn("<loc>https://foolmoon.lol/tarot/the-fool</loc>", body)
         self.assertRegex(body, r"<lastmod>\d{4}-\d{2}-\d{2}</lastmod>")
 

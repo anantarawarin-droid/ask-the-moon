@@ -18,7 +18,6 @@ os.environ.setdefault("DATA_DIR", tempfile.mkdtemp(prefix="moon-test-"))
 import app  # noqa: E402
 import credits as billing  # noqa: E402
 import oracle  # noqa: E402
-import oracle_pages  # noqa: E402
 import tarot  # noqa: E402
 
 VISITOR = "o" * 32
@@ -233,35 +232,30 @@ class Http(unittest.TestCase):
         self.assertEqual(code, 201)
         self.cookie = headers.get("Set-Cookie").split(";")[0]
 
-    def test_oracle_catalog_and_page(self):
+    def test_oracle_catalog_is_not_public(self):
         code, data, _ = self.req("GET", "/api/oracle")
         self.assertEqual(code, 200)
-        self.assertEqual((data["ok"], data["count"], data["pick"]), (True, 37, 3))
-        self.assertEqual(data["back"], oracle.back_path())
-        self.assertEqual(len(data["cards"]), 37)
-        self.assertTrue(all(c["image"] == oracle.thumb_path(c["id"]) for c in data["cards"]))
+        self.assertEqual(data.get("ok"), True)
+        self.assertEqual(data.get("back"), oracle.back_path())
+        self.assertNotIn("cards", data)
+        self.assertNotIn("count", data)
+        blob = json.dumps(data, ensure_ascii=False)
+        for card in oracle.DECK:
+            self.assertNotIn(card["id"], blob)
+            self.assertNotIn(card["nameTh"], blob)
+            self.assertNotIn(card["nameEn"], blob)
         status, body, headers = self.req("GET", "/oracle", raw=True)
         html = body.decode()
-        self.assertEqual(status, 200)
+        self.assertEqual(status, 404)
         self.assertIn("text/html", headers.get("Content-Type", ""))
-        self.assertEqual(headers.get("Cache-Control"), "public, max-age=600")
-        self.assertIn("ไพ่ออราเคิลถามจันทร์ 37 ใบ", html)
-        self.assertIn("น้ำเงินดำคือเวลา", html)
-        self.assertIn(">อารมณ์<", html)
-        self.assertIn(">คำพูด<", html)
-        self.assertNotIn("จังหวะเวลา", html)
-        self.assertNotIn("คำบอก", html)
-        self.assertNotIn("ใต้ไพ่ตอนอ่าน", html)
-        self.assertNotIn("คุยทับ", html)
-        self.assertNotIn("ความจริงที่จืดกว่า", html)
-        self.assertIn("CeGm1Qc04OUh2c-3fS746cp97VAdIWcOUM2xhsbnaEk", (ROOT / "static" / "index.html").read_text(encoding="utf-8"))
-        import html as _html
+        self.assertIn("Page not found", html)
+        self.assertNotIn("ไพ่ออราเคิลถามจันทร์ 37 ใบ", html)
         for card in oracle.DECK:
-            self.assertIn(f'id="{card["id"]}"', html)
-            self.assertIn(oracle.thumb_path(card["id"]), html)
-            self.assertNotIn(oracle.image_path(card["id"]), html)
-            self.assertIn(card["nameTh"], html)
-            self.assertIn(_html.escape(card["nameEn"], quote=True), html)
+            self.assertNotIn(card["nameTh"], html)
+            self.assertNotIn(f'id="{card["id"]}"', html)
+        # Directory must not list the card files.
+        self.assertNotIn(".webp", html)
+        self.assertIn("CeGm1Qc04OUh2c-3fS746cp97VAdIWcOUM2xhsbnaEk", (ROOT / "static" / "index.html").read_text(encoding="utf-8"))
 
     def test_assets_are_immutable(self):
         for path in (oracle.image_path("oracle-01"), oracle.thumb_path("oracle-01"), oracle.back_path()):
@@ -304,6 +298,9 @@ class Http(unittest.TestCase):
         self.assertIn('deck: ownMode ? "tarot" : state.deckKind', js)
         self.assertIn("the Moon draws the actual cards", js)
         self.assertNotIn("heroLede: \"ดูดวงไพ่ทาโรต์ 3 ใบ ตอบตรง ๆ + โปรไฟล์", js)
+        self.assertNotIn('href="/oracle"', html)
+        self.assertNotIn('href="/oracle#', js)
+        self.assertIn('cardBack: "/oracle/card-back.webp?v=1"', js)
 
 
 if __name__ == "__main__":
