@@ -17,7 +17,7 @@ const I18N = {
     faqQ3: "เปิดไพ่กี่ใบ?",
     faqA3: "โหมดหลักให้แตะเลือกไพ่คว่ำหน้า 3 ใบ แล้วจันทร์สุ่มไพ่จริงให้ตอนเปิดคำทำนาย ถ้ามีไพ่ทาโรต์อยู่แล้วจากสำรับที่บ้าน เลือกบนเว็บได้ 1–5 ใบ",
     faqQOracle: "ไพ่ออราเคิล 37 ใบคืออะไร?",
-    faqAOracle: "เป็นสำรับของถามจันทร์เอง 37 ใบ แบ่งเป็นชุดเวลา ความรู้สึก และคำบอก ชื่อบนไพ่เป็นภาษาอังกฤษ ความหมายภาษาไทยอยู่ใต้ไพ่ตอนอ่าน แต่ละคำถามสุ่มหนึ่งใบต่อชุด รวม 3 ใบ ใช้เครดิตเหมือนการถามไพ่ทาโรต์",
+    faqAOracle: "เป็นสำรับของถามจันทร์เอง 37 ใบ แบ่งเป็นชุดเวลา อารมณ์ และคำพูด ชื่อบนไพ่เป็นภาษาอังกฤษ ความหมายอยู่ที่หน้าความหมายไพ่ และในคำทำนายด้านล่าง แต่ละคำถามสุ่มหนึ่งใบต่อชุด รวม 3 ใบ ใช้เครดิตเหมือนการถามไพ่ทาโรต์",
     faqQ4: "คำตอบจากไพ่ใช้ตัดสินใจเรื่องสำคัญได้ไหม?",
     faqA4: "คำตอบจากไพ่มีไว้เป็นแนวทาง เพื่อความบันเทิง ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย หรือการเงิน การตัดสินใจสุดท้ายเป็นของคุณ",
     faqQ5: "จ่ายเงินอย่างไร?",
@@ -224,7 +224,7 @@ const I18N = {
     deckTarot: "ไพ่ทาโรต์",
     deckTarotSub: "สำรับ 78 ใบ",
     deckOracle: "ไพ่ออราเคิล 37 ใบ",
-    deckOracleSub: "เวลา · ความรู้สึก · คำบอก",
+    deckOracleSub: "เวลา · อารมณ์ · คำพูด",
     modeLabel: "วิธีเปิดไพ่",
     modeDraw: "เลือกไพ่คว่ำหน้า",
     modeDrawSub: "แตะเลือก 3 ใบ จันทร์สุ่มไพ่ให้ตอนเปิด",
@@ -237,7 +237,7 @@ const I18N = {
     pickNeed: "กรุณาแตะเลือกไพ่คว่ำหน้าให้ครบ 3 ใบก่อนถาม",
     pickFull: "เลือกได้ 3 ใบ เอาใบเดิมออกก่อนถ้าจะเปลี่ยน",
     shareOracleEyebrow: "ไพ่ออราเคิล",
-    oracleCounsel: "คำบอกจากไพ่",
+    oracleCounsel: "คำพูดจากไพ่",
     ownTitle: "ไพ่ที่คุณเปิดได้",
     ownHint: "สับไพ่และเปิดไพ่จากสำรับของคุณเอง แล้วแตะเลือกไพ่ตามลำดับที่เปิดได้ 1–5 ใบ ถ้าไพ่ใบไหนออกกลับหัว กดปุ่ม “กลับหัว” ที่ใบนั้น",
     ownCount: (n, max) => n ? `เลือกแล้ว ${n}/${max} ใบ` : `ยังไม่ได้เลือกไพ่ (เลือกได้ 1–${max} ใบ)`,
@@ -281,7 +281,7 @@ const I18N = {
     faqQ3: "How many cards are drawn?",
     faqA3: "The main mode lets you tap 3 facedown cards; the Moon draws the actual cards when the reading opens. If you already drew tarot at home, you can enter 1–5 of those cards here.",
     faqQOracle: "What is the 37-card oracle?",
-    faqAOracle: "It is Ask the Moon’s own 37-card oracle: Timing, Feeling, and Counsel. English titles are on the cards; Thai meanings sit under them in the reading. Each question draws one card from each group (3 in all) and uses the same question credits as tarot.",
+    faqAOracle: "It is Ask the Moon’s own 37-card oracle: Timing, Feeling, and Counsel. English titles are on the cards; a short name sits under them in the reading, and the full meaning is in the reading itself and on the meanings page. Each question draws one card from each group (3 in all) and uses the same question credits as tarot.",
     faqQ4: "Can I use a reading to make important decisions?",
     faqA4: "Readings are for guidance and entertainment only. They are not medical, legal, or financial advice. The final decision is yours.",
     faqQ5: "How does payment work?",
@@ -743,16 +743,16 @@ function renderTarot(tarot) {
       const back = `<span class="tcard-face tcard-back" aria-hidden="true"><img src="${escapeHtml(state.cardBack)}" alt="" /></span>`;
       return `
       <figure class="tcard${c.reversed ? " is-reversed" : ""}${oracleCard || isOracle ? " is-oracle" : ""}${already ? " is-flipped no-anim" : ""}" style="--i:${i}">
-        <button type="button" class="tcard-inner" aria-label="${escapeHtml(name)}" title="${escapeHtml(meaning)}">
+        <button type="button" class="tcard-inner" aria-label="${escapeHtml(name)}" title="${escapeHtml(oracleCard ? name : meaning)}">
           ${back}
           <span class="tcard-face tcard-front"><img src="${escapeHtml(c.image)}" alt="${escapeHtml(c.nameEn)}" decoding="async" /></span>
         </button>
         <figcaption>
           ${pos ? `<span class="tcard-pos">${escapeHtml(pos)}</span>` : ""}
           <b class="tcard-name">${nameHtml}</b>
-          <small class="tcard-sub">${escapeHtml(sub)}</small>
+          ${oracleCard ? "" : `<small class="tcard-sub">${escapeHtml(sub)}</small>`}
           ${c.reversed ? `<span class="tcard-rev">${escapeHtml(dict.tarotReversed)}</span>` : ""}
-          <span class="tcard-meaning">${escapeHtml(meaning)}</span>
+          ${oracleCard ? "" : `<span class="tcard-meaning">${escapeHtml(meaning)}</span>`}
         </figcaption>
       </figure>`;
     })

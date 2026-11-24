@@ -41,6 +41,18 @@ class Catalog(unittest.TestCase):
             self.assertGreaterEqual(len(card["textEn"]), 40)
             self.assertNotIn("الخطوة", card["textTh"])
             self.assertNotIn("swearing", card["textTh"])
+            banned = (
+                "คุยทับ", "ความจริงที่จืดกว่า",
+                "เรื่องนี้เป็นทางยาว ไกลกว่าหนึ่งปี",
+                "อยู่บนนาฬิกาที่ยาวกว่า", "คลี่คลายเป็นฤดูกาล",
+                "การรั่วของเวลา", "การไร้เกราะ", "เดินหลับ",
+                "เรื่องที่ยืมมา", "เมื่อพื้นจริง ๆ", "วางเท้าใต้ฝัน",
+                "ความซื่อจะเจ็บ", "งานที่ซื่อ", "จิตกำลังซ้อม",
+                "ระบบประสาท", "ตกผล", "จุดโหวง",
+            )
+            blob = " ".join(card[k] for k in ("nameTh", "meaningTh", "textTh"))
+            for phrase in banned:
+                self.assertNotIn(phrase, blob, f"{card['id']} still has {phrase!r}")
 
     def test_assets_exist_and_are_lightweight(self):
         static = ROOT / "static" / "oracle"
@@ -95,6 +107,18 @@ class Catalog(unittest.TestCase):
         self.assertEqual(oracle.verdict(cards), "not_yet")
 
 
+    def test_result_cards_omit_oracle_meanings(self):
+        js = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('${oracleCard ? "" : `<span class="tcard-meaning">${escapeHtml(meaning)}</span>`}', js)
+        self.assertIn('${oracleCard ? "" : `<small class="tcard-sub">${escapeHtml(sub)}</small>`}', js)
+
+    def test_category_labels_are_short_thai(self):
+        self.assertEqual(oracle.HEADING_TH, "เวลา · อารมณ์ · คำพูด")
+        self.assertEqual(oracle.CATEGORIES["time"]["th"], "เวลา")
+        self.assertEqual(oracle.CATEGORIES["emotion"]["th"], "อารมณ์")
+        self.assertEqual(oracle.CATEGORIES["words"]["th"], "คำพูด")
+
+
 class Reading(unittest.TestCase):
     def setUp(self):
         self.old = app.SERVICE
@@ -112,7 +136,7 @@ class Reading(unittest.TestCase):
         self.assertEqual(len(cards), 3)
         self.assertEqual([c["category"] for c in cards], ["time", "emotion", "words"])
         self.assertNotEqual([c["id"] for c in cards], ["oracle-01", "major-00"])
-        self.assertIn("จังหวะเวลา", result["tarot"]["headingTh"])
+        self.assertEqual(result["tarot"]["headingTh"], "เวลา · อารมณ์ · คำพูด")
         self.assertIn(result["reading"], [result["reading"]])  # non-empty
         self.assertTrue(result["reading"])
         self.assertEqual(result["premium"]["kind"], "oracle")
@@ -222,6 +246,14 @@ class Http(unittest.TestCase):
         self.assertIn("text/html", headers.get("Content-Type", ""))
         self.assertEqual(headers.get("Cache-Control"), "public, max-age=600")
         self.assertIn("ไพ่ออราเคิลถามจันทร์ 37 ใบ", html)
+        self.assertIn("น้ำเงินดำคือเวลา", html)
+        self.assertIn(">อารมณ์<", html)
+        self.assertIn(">คำพูด<", html)
+        self.assertNotIn("จังหวะเวลา", html)
+        self.assertNotIn("คำบอก", html)
+        self.assertNotIn("ใต้ไพ่ตอนอ่าน", html)
+        self.assertNotIn("คุยทับ", html)
+        self.assertNotIn("ความจริงที่จืดกว่า", html)
         self.assertIn("CeGm1Qc04OUh2c-3fS746cp97VAdIWcOUM2xhsbnaEk", (ROOT / "static" / "index.html").read_text(encoding="utf-8"))
         import html as _html
         for card in oracle.DECK:
