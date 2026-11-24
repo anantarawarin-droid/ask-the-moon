@@ -18,8 +18,6 @@ TABLE = {15: 1, 30: 2, 45: 3, 60: 4, 75: 5, 90: 7, 105: 8, 120: 10, 135: 12, 150
 SPLIT = {90: (6, 1), 105: (7, 1), 120: (8, 2), 135: (9, 3), 150: (10, 5)}
 HTML = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
 JS = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
-POSITIONING = "ดูดวงไพ่ทาโรต์ 3 ใบ ตอบตรง ๆ + โปรไฟล์ดวงจากวันเกิด (ปีนักษัตร เลขวันเกิด ราศี)"
-
 
 class PricingConsistency(unittest.TestCase):
     def test_every_number_fits_the_total(self):
@@ -69,11 +67,12 @@ class PageLayout(unittest.TestCase):
         self.assertIn("ไพ่ทาโรต์", re.search(r'<meta property="og:title" content="([^"]+)"', HTML).group(1))
         lede = re.search(r'data-i18n="heroLede">(.*?)</p>', HTML).group(1)
         self.assertEqual(lede, "พิมพ์คำถาม จันทร์เปิดไพ่ 3 ใบ ตอบตรง ๆ พร้อมเหตุผลและคำแนะนำ")
-        intro = re.search(r'data-i18n="faqIntro">(.*?)</p>', HTML).group(1)
-        self.assertIn(POSITIONING, intro)
-        self.assertIn("ไพ่ยิปซี", intro)
-        self.assertIn("สำรับเดียวกันทั้ง 78 ใบ", intro)
-        self.assertIn(POSITIONING, JS)
+        self.assertIn('data-i18n="faqTitle">คำถามที่พบบ่อย<', HTML)
+        self.assertNotIn("faqIntro", HTML)
+        self.assertNotIn("faq-intro", HTML)
+        self.assertNotIn("faqIntro", JS)
+        self.assertIn("ไพ่ยิปซี", HTML)
+        self.assertIn("สำรับเดียวกันทั้ง 78 ใบ", HTML)
         self.assertGreater(HTML.index('id="faq"'), HTML.index('id="oracle"'))
         self.assertNotIn("อ่านดวง · ราศี · นักษัตร · เลขศาสตร์", HTML)
 

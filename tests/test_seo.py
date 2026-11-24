@@ -35,7 +35,9 @@ class HomepageSeo(unittest.TestCase):
         self.assertIn("class=\"meanings-nav\"", HTML)
         self.assertIn("class=\"hero-links\"", HTML)
         self.assertIn('id="hero-own-link"', HTML)
-        self.assertIn('class="faq-intro"', HTML)
+        self.assertNotIn('class="faq-intro"', HTML)
+        self.assertNotIn('faqIntro', HTML)
+        self.assertIn('data-i18n="faqTitle">คำถามที่พบบ่อย<', HTML)
         hero = HTML[HTML.index('class="hero"'):HTML.index('id="oracle"')]
         self.assertNotIn("eyebrow", hero)
         self.assertNotIn("ไพ่ยิปซี", hero)

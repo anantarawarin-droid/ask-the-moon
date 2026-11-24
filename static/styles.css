@@ -1204,15 +1204,7 @@ input[type="search"].own-search { width: 100%; border-radius: 12px; border: 1px 
   overflow: visible;
   color: var(--gold-soft);
   text-align: center;
-  margin: 0 0 0.8rem;
-}
-.faq-intro {
-  margin: 0 auto 1.2rem;
-  max-width: 40rem;
-  color: var(--lilac);
-  font-size: 0.95rem;
-  line-height: 1.7;
-  text-align: center;
+  margin: 0 0 1.2rem;
 }
 .faq details {
   border: 1px solid var(--card-border);
