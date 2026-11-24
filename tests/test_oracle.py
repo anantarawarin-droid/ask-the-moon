@@ -332,6 +332,14 @@ class Http(unittest.TestCase):
             self.assertNotIn(phrase, js)
         self.assertIn("จั่ว 3 ใบจากทั้งสำรับ", html)
         self.assertIn("draws 3 cards from the whole deck", js)
+        self.assertIn('id="oracle-theme"', html)
+        self.assertIn("ธีม Feeling Time · ถึง 15 ธ.ค. นี้", html)
+        self.assertIn("ไพ่ออราเคิลธีม “Feeling Time” · ถึง 15 ธันวาคมนี้เท่านั้น", html)
+        self.assertIn('deckOracleSub: "ธีม Feeling Time · ถึง 15 ธ.ค. นี้"', js)
+        self.assertIn('oracleTheme: "ไพ่ออราเคิลธีม “Feeling Time” · ถึง 15 ธันวาคมนี้เท่านั้น"', js)
+        self.assertIn('deckOracleSub: "Feeling Time · Until Dec 15"', js)
+        self.assertIn('oracleTheme: "“Feeling Time” theme · Until Dec 15 only"', js)
+        self.assertIn("theme.hidden = state.deckKind !== \"oracle\"", js)
 
 
 if __name__ == "__main__":

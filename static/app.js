@@ -224,7 +224,8 @@ const I18N = {
     deckTarot: "ไพ่ทาโรต์",
     deckTarotSub: "สำรับ 78 ใบ",
     deckOracle: "ไพ่ออราเคิล 37 ใบ",
-    deckOracleSub: "เวลา · อารมณ์ · คำพูด",
+    deckOracleSub: "ธีม Feeling Time · ถึง 15 ธ.ค. นี้",
+    oracleTheme: "ไพ่ออราเคิลธีม “Feeling Time” · ถึง 15 ธันวาคมนี้เท่านั้น",
     modeLabel: "วิธีเปิดไพ่",
     modeDraw: "เลือกไพ่",
     modeDrawSub: "แตะเลือก 3 ใบ",
@@ -488,7 +489,8 @@ const I18N = {
     deckTarot: "Tarot",
     deckTarotSub: "78-card deck",
     deckOracle: "Oracle · 37 cards",
-    deckOracleSub: "Time · Emotion · Words",
+    deckOracleSub: "Feeling Time · Until Dec 15",
+    oracleTheme: "“Feeling Time” theme · Until Dec 15 only",
     modeLabel: "How to draw",
     modeDraw: "Pick cards",
     modeDrawSub: "Tap 3 cards",
@@ -801,6 +803,8 @@ function setMode(mode) {
     btn.classList.toggle("is-on", on);
     btn.setAttribute("aria-checked", on ? "true" : "false");
   });
+  const theme = document.getElementById("oracle-theme");
+  if (theme) theme.hidden = state.deckKind !== "oracle";
   document.getElementById("own-picker").hidden = state.mode !== "own";
   const pick = document.getElementById("pick-table");
   if (pick) pick.hidden = state.mode !== "draw";
