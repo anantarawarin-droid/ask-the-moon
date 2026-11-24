@@ -17,10 +17,12 @@ class LegalContent(unittest.TestCase):
         html = (STATIC / "privacy.html").read_text()
         th, en = html.split('<section lang="en">')
         self.assertLess(html.index('lang="th"'), html.index('lang="en"'))  # Thai first
-        for word in ("อีเมล", "รหัสบัญชี Google", "วันเกิด", "SlipOK", "ไม่เก็บรูปสลิป", "Google Gemini", "คุกกี้", "ไม่ขาย", "ivymoonask"):
+        for word in ("อีเมล", "รหัสบัญชี Google", "วันเกิด", "SlipOK", "ไม่เก็บรูปสลิป", "Google Gemini", "คุกกี้", "ไม่ขาย", "ivymoonask",
+                     "เราไม่เก็บคำถาม ไพ่ที่จั่วได้ หรือคำทำนาย"):
             self.assertIn(word, th)
         for word in ("email", "Google account ID", "Birth date", "Slip images are not stored", "Gemini", "session cookie",
-                     "do not sell", "ivymoonask", "foolmoon.lol"):
+                     "do not sell", "ivymoonask", "foolmoon.lol",
+                     "Questions, drawn cards, and readings are not stored"):
             self.assertIn(word, en)
 
     def test_terms_covers_required_points(self):
@@ -40,7 +42,11 @@ class LegalContent(unittest.TestCase):
         footer = re.search(r"<footer>.*?</footer>", index, re.S).group(0)
         self.assertIn('href="/privacy"', footer)
         self.assertIn('href="/terms"', footer)
+        self.assertIn('data-i18n="noHistory">ไม่มีการเก็บประวัติการใช้งาน<', footer)
+        self.assertIn('data-i18n="noHistoryResult">ไม่มีการเก็บประวัติการดูดวง · แคปเก็บไว้ได้เอง<', index)
         js = (STATIC / "app.js").read_text()
+        self.assertIn('noHistoryResult: "Reading history is not saved · Screenshot to keep"', js)
+        self.assertIn('noHistory: "No reading history is stored"', js)
         self.assertIn('<a href="/privacy"', js)
         self.assertIn('<a href="/terms"', js)
 
