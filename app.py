@@ -37,6 +37,7 @@ import oracle
 import accounts
 import birthprofile
 import google_auth
+import feedback as moon_feedback
 
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
@@ -633,6 +634,7 @@ def paid_reading(body: dict[str, Any], visitor_id: Any, own: bool = False) -> di
 
 
 ORDER_PATH = re.compile(r"^/api/admin/orders/([A-Za-z0-9]{4,12})/(approve|reject|revoke)$")
+FEEDBACK_DEL_PATH = re.compile(r"^/api/admin/feedback/(fb_[A-Za-z0-9_-]{4,40})/delete$")
 SLIP_PATH = re.compile(r"^/api/orders/([A-Za-z0-9]{4,12})/slip$")
 
 
@@ -1199,6 +1201,14 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send(200, {"ok": True, "orders": SERVICE.list_orders(status)})
             self._handle(run)
             return
+        if route == "/api/admin/feedback":
+            def run() -> None:
+                if not self._admin_check():
+                    return
+                items = [moon_feedback.public_item(x) for x in SERVICE.list_feedback()]
+                self._send(200, {"ok": True, "items": items})
+            self._handle(run)
+            return
         if route.startswith("/api/"):
             self._send(404, {"ok": False, "error": "Not found."})
             return
@@ -1289,6 +1299,33 @@ class Handler(SimpleHTTPRequestHandler):
                 status, payload = verify_slip(slip_match.group(1), vid, image,
                                               slips.clean_qr(self.headers.get("X-Slip-QR")))
                 self._send(status, payload)
+            self._handle(run)
+            return
+        if route == "/api/feedback":
+            def run() -> None:
+                body = self._json_body()
+                ip = self._client_ip()
+                if not moon_feedback.BY_IP.allow(ip):
+                    lang = "en" if str(body.get("lang") or "").lower().startswith("en") else "th"
+                    raise billing.PaymentError(
+                        "That's a little too soon — please try again in a moment." if lang == "en"
+                        else "ส่งถี่ไปหน่อย รอสักครู่แล้วส่งใหม่นะ",
+                        429, "rate_limited")
+                if moon_feedback.honeypot_filled(body):
+                    self._send(200, {"ok": True})
+                    return
+                item = moon_feedback.normalize(body)
+                SERVICE.add_feedback(item["message"], item["lang"], item["page"])
+                self._send(200, {"ok": True})
+            self._handle(run)
+            return
+        fb_del = FEEDBACK_DEL_PATH.match(route)
+        if fb_del:
+            def run() -> None:
+                if not self._admin_check():
+                    return
+                result = SERVICE.delete_feedback(fb_del.group(1))
+                self._send(200, {"ok": True, **result})
             self._handle(run)
             return
         match = ORDER_PATH.match(route)

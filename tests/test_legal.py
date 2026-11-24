@@ -18,11 +18,13 @@ class LegalContent(unittest.TestCase):
         th, en = html.split('<section lang="en">')
         self.assertLess(html.index('lang="th"'), html.index('lang="en"'))  # Thai first
         for word in ("อีเมล", "รหัสบัญชี Google", "วันเกิด", "SlipOK", "ไม่เก็บรูปสลิป", "Google Gemini", "คุกกี้", "ไม่ขาย", "ivymoonask",
-                     "เราไม่เก็บคำถาม ไพ่ที่จั่วได้ หรือคำทำนาย"):
+                     "เราไม่เก็บคำถาม ไพ่ที่จั่วได้ หรือคำทำนาย",
+                     "ข้อความจากกล่องความรู้สึกหรือคำแนะนำ", "ไม่ต้องบอกชื่อ"):
             self.assertIn(word, th)
         for word in ("email", "Google account ID", "Birth date", "Slip images are not stored", "Gemini", "session cookie",
                      "do not sell", "ivymoonask", "foolmoon.lol",
-                     "Questions, drawn cards, and readings are not stored"):
+                     "Questions, drawn cards, and readings are not stored",
+                     "Notes sent through the feedback box", "No name is required"):
             self.assertIn(word, en)
 
     def test_terms_covers_required_points(self):

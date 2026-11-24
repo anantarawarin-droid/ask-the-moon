@@ -531,6 +531,68 @@ body[data-lang="en"] .reading-body { font-family: var(--font-serif); font-size: 
   overflow: visible;
 }
 
+.feedback {
+  max-width: 28rem;
+  margin: 2.2rem auto 0;
+  padding: 1.1rem 1.15rem 1.15rem;
+  border-radius: 18px;
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  background: rgba(16, 10, 28, 0.55);
+}
+.feedback h2 {
+  font-family: "Noto Serif Thai", var(--font-display), serif;
+  font-weight: 600;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  padding-block: 0.1em;
+  overflow: visible;
+  color: var(--gold-soft);
+  margin: 0 0 0.75rem;
+  text-align: center;
+}
+.feedback textarea {
+  min-height: 4.4rem;
+  margin: 0;
+}
+.feedback-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-top: 0.65rem;
+}
+.feedback-count { font-size: 0.72rem; color: var(--muted); }
+.feedback .btn { width: auto; padding: 0.45rem 1.15rem; font-size: 0.88rem; }
+.feedback-ok {
+  margin: 0.65rem 0 0;
+  text-align: center;
+  color: var(--gold-soft);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  padding-block: 0.08em;
+  overflow: visible;
+}
+.feedback-err {
+  margin: 0.55rem 0 0;
+  text-align: center;
+  color: var(--danger);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  padding-block: 0.08em;
+  overflow: visible;
+}
+.hp {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+@media (max-width: 480px) {
+  .feedback { margin: 1.7rem 0 0; padding: 1rem 0.9rem 1.05rem; }
+  .feedback h2 { font-size: 0.98rem; }
+}
+
 footer {
   max-width: 40rem;
   margin: 0 auto;

@@ -200,6 +200,13 @@ const I18N = {
     disclaimer: "คำตอบจากไพ่ทาโรต์มีไว้เป็นแนวทาง ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย หรือการเงิน การตัดสินใจสุดท้ายเป็นของคุณ",
     noHistoryResult: "ไม่มีการเก็บประวัติการดูดวง · แคปเก็บไว้ได้เอง",
     noHistory: "ไม่มีการเก็บประวัติการใช้งาน",
+    fbTitle: "ฝากความรู้สึกหรือคำแนะนำถึงจันทร์",
+    fbPlaceholder: "อยากบอกอะไรกับจันทร์ก็ได้ค่ะ",
+    fbSend: "ส่ง",
+    fbOk: "ได้รับแล้ว ขอบคุณนะ 🌙",
+    fbEmpty: "พิมพ์ข้อความก่อนส่งนะ",
+    fbWait: "ส่งถี่ไปหน่อย รอสักครู่แล้วส่งใหม่นะ",
+    fbErr: "ส่งไม่สำเร็จ ลองอีกครั้งนะ",
     badgeZodiac: "ราศีตะวันตก",
     badgeChinese: "ปีนักษัตร",
     badgePath: "เลขเส้นทางชีวิต",
@@ -465,6 +472,13 @@ const I18N = {
     disclaimer: "Tarot answers are guidance, not medical, legal, or financial advice. The final decision is yours.",
     noHistoryResult: "Reading history is not saved · Screenshot to keep",
     noHistory: "No reading history is stored",
+    fbTitle: "Leave a feeling or a suggestion for the Moon",
+    fbPlaceholder: "Write a note here…",
+    fbSend: "Send",
+    fbOk: "Received — thank you 🌙",
+    fbEmpty: "Please write a short message first",
+    fbWait: "That's a little too soon — please try again in a moment",
+    fbErr: "Couldn't send just now. Please try again.",
     badgeZodiac: "Western zodiac",
     badgeChinese: "Chinese zodiac",
     badgePath: "Life path number",
@@ -2532,11 +2546,66 @@ function setup() {
   setupShare();
   setupOwn();
   setupPick();
+  setupFeedback();
   loadAuthConfig().then(maybeResumeLogin);
   applyLang();
   paintStars();
   loadPackages();
   checkOrders();
+}
+
+function setupFeedback() {
+  const form = document.getElementById("feedback-form");
+  const box = document.getElementById("feedback-text");
+  const hp = document.getElementById("feedback-hp");
+  const ok = document.getElementById("feedback-ok");
+  const err = document.getElementById("feedback-err");
+  const count = document.getElementById("feedback-count");
+  const send = document.getElementById("feedback-send");
+  if (!form || !box) return;
+  const syncCount = () => { if (count) count.textContent = `${box.value.length}/500`; };
+  box.addEventListener("input", syncCount);
+  syncCount();
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    ok.hidden = true;
+    err.hidden = true;
+    const message = box.value.trim();
+    const dict = t();
+    if (!message) {
+      err.textContent = dict.fbEmpty;
+      err.hidden = false;
+      box.focus();
+      return;
+    }
+    send.disabled = true;
+    try {
+      const { response, data } = await api("/api/feedback", {
+        method: "POST",
+        body: JSON.stringify({
+          message,
+          lang: state.lang,
+          page: "home",
+          website: hp ? hp.value : "",
+        }),
+      });
+      if (response.ok && data && data.ok) {
+        box.value = "";
+        syncCount();
+        ok.hidden = false;
+        return;
+      }
+      if (response.status === 429) err.textContent = dict.fbWait;
+      else if (response.status === 400) err.textContent = data && data.error ? data.error : dict.fbEmpty;
+      else err.textContent = dict.fbErr;
+      err.hidden = false;
+    } catch (_) {
+      err.textContent = dict.fbErr;
+      err.hidden = false;
+    } finally {
+      send.disabled = false;
+    }
+  });
 }
 
 setup();

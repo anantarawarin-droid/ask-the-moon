@@ -208,6 +208,7 @@ class JsonStore:
         data.setdefault("orders", {})
         data.setdefault("users", {})
         data.setdefault("sessions", {})
+        data.setdefault("feedback", {})
         return data
 
     def _save(self) -> None:
@@ -528,6 +529,35 @@ class CreditService:
             o["username"] = u["username"] if u else None
             o["email"] = u.get("email") if u else None
 
+    # -- visitor notes (no IP, account, question, or reading) -----------------
+    def add_feedback(self, message: str, lang: str, page: str) -> dict[str, Any]:
+        import feedback as moon_feedback
+        item = {
+            "id": moon_feedback.new_id(),
+            "message": message,
+            "lang": lang,
+            "page": page,
+            "createdAt": datetime.now(timezone.utc).isoformat(timespec="microseconds"),
+        }
+        with self.store.transaction() as data:
+            data.setdefault("feedback", {})
+            data["feedback"][item["id"]] = item
+        return dict(item)
+
+    def list_feedback(self, limit: int = 200) -> list[dict[str, Any]]:
+        with self.store.read() as data:
+            items = [dict(x) for x in data.get("feedback", {}).values()]
+        items.sort(key=lambda x: x.get("createdAt") or "", reverse=True)
+        return items[:limit]
+
+    def delete_feedback(self, fid: str) -> dict[str, Any]:
+        with self.store.transaction() as data:
+            data.setdefault("feedback", {})
+            item = data["feedback"].pop(str(fid), None)
+            if item is None:
+                raise PaymentError("Message not found.", 404, "not_found")
+            return {"id": item["id"]}
+
     # -- slips ----------------------------------------------------------------
     def begin_slip_check(self, code: str, visitor_id: str, max_attempts: int) -> dict[str, Any]:
         with self.store.transaction() as data:
@@ -780,6 +810,14 @@ ALTER TABLE moon_orders ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ;
 ALTER TABLE moon_orders ADD COLUMN IF NOT EXISTS revoked_credits INTEGER;
 ALTER TABLE moon_orders DROP CONSTRAINT IF EXISTS moon_orders_status_check;
 ALTER TABLE moon_orders ADD CONSTRAINT moon_orders_status_check CHECK (status IN ('pending', 'approved', 'rejected', 'expired'));
+CREATE TABLE IF NOT EXISTS moon_feedback (
+    id          TEXT PRIMARY KEY,
+    message     TEXT NOT NULL,
+    lang        TEXT NOT NULL DEFAULT 'th',
+    page        TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS moon_feedback_created_idx ON moon_feedback (created_at DESC);
 """
 
 
@@ -1329,6 +1367,48 @@ class PostgresCreditService:
                 (trans_ref, json.dumps(summary, ensure_ascii=False), order["code"]),
             )
             return {"order": self._order(cur.fetchone()), "alreadyApproved": False, "credits": credits_now}
+        return self._run(fn)
+
+    # -- visitor notes (no IP, account, question, or reading) -----------------
+    def _feedback(self, row: tuple) -> dict[str, Any]:
+        return {
+            "id": row[0],
+            "message": row[1],
+            "lang": row[2] or "th",
+            "page": row[3] or "home",
+            "createdAt": _iso(row[4]),
+        }
+
+    def add_feedback(self, message: str, lang: str, page: str) -> dict[str, Any]:
+        import feedback as moon_feedback
+
+        def fn(cur):
+            fid = moon_feedback.new_id()
+            cur.execute(
+                "INSERT INTO moon_feedback (id, message, lang, page) VALUES (%s, %s, %s, %s) "
+                "RETURNING id, message, lang, page, created_at",
+                (fid, message, lang, page),
+            )
+            return self._feedback(cur.fetchone())
+        return self._run(fn)
+
+    def list_feedback(self, limit: int = 200) -> list[dict[str, Any]]:
+        def fn(cur):
+            cur.execute(
+                "SELECT id, message, lang, page, created_at FROM moon_feedback "
+                "ORDER BY created_at DESC LIMIT %s",
+                (int(limit),),
+            )
+            return [self._feedback(row) for row in cur.fetchall()]
+        return self._run(fn)
+
+    def delete_feedback(self, fid: str) -> dict[str, Any]:
+        def fn(cur):
+            cur.execute("DELETE FROM moon_feedback WHERE id = %s RETURNING id", (str(fid),))
+            row = cur.fetchone()
+            if row is None:
+                raise PaymentError("Message not found.", 404, "not_found")
+            return {"id": row[0]}
         return self._run(fn)
 
 

@@ -48,6 +48,10 @@
     #notice.ok { background: linear-gradient(90deg,#2f7a4a,#3f9a60); color:#fff; }
     #notice.bad { background: linear-gradient(90deg,#8a2a3a,#b0405a); color:#fff; }
     #notice.info { background: linear-gradient(90deg,#6b3fa0,#b0498f); color:#fff; }
+    .fb-item { border-bottom: 1px solid var(--line); padding: .85rem 0; }
+    .fb-item:last-child { border-bottom: 0; }
+    .fb-meta { display:flex; justify-content:space-between; align-items:center; gap:.6rem; flex-wrap:wrap; color:var(--muted); font-size:.78rem; }
+    .fb-msg { margin:.4rem 0 0; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.55; }
     @media (max-width: 640px) {
       table, thead, tbody, tr, td { display:block; } thead { display:none; }
       tr { border-bottom: 1px solid var(--line); padding: .5rem 0; } td { border:0; padding: .2rem 0; }
@@ -120,6 +124,11 @@
         <button class="ghost" type="button" id="reset-copy">คัดลอก</button></div>
         <p class="sub" style="margin:.4rem 0 0">ส่งให้ลูกค้าทาง LINE แล้วแนะนำให้เปลี่ยนรหัสหลังเข้าสู่ระบบ (รหัสนี้จะไม่แสดงอีก)</p>
       </div>
+    </div>
+    <div class="card" id="feedback-card" style="margin-top:1rem">
+      <h3 style="margin:0 0 .4rem">ข้อความจากผู้เข้าชม · Notes <small id="fb-count" style="color:var(--muted)"></small></h3>
+      <p class="sub" style="margin:0 0 .6rem">เรียงจากใหม่ไปเก่า · ไม่มีชื่อหรือข้อมูลติดต่อ</p>
+      <div id="fb-list"></div>
     </div>
   </section>
 </main>
@@ -208,6 +217,21 @@
     ? `<span class="flag">↩️ ดึงเครดิตคืนแล้ว (−${esc(o.revokedCredits || 0)}) · ${esc(fmt(o.revokedAt))}</span>` : "";
 
   let googleMode = false;
+  const PAGE_TH = { home: "หน้าแรก", reading: "คำทำนาย", pricing: "แพ็กเกจ", faq: "คำถามที่พบบ่อย" };
+  async function loadFeedback() {
+    const data = await call("/api/admin/feedback");
+    const items = data.items || [];
+    $("fb-count").textContent = `(${items.length})`;
+    $("fb-list").innerHTML = items.map((it) => `
+      <div class="fb-item">
+        <div class="fb-meta">
+          <span>${esc(fmt(it.createdAt))}${it.lang === "en" ? " · English" : " · ไทย"}${it.page ? " · " + esc(PAGE_TH[it.page] || it.page) : ""}</span>
+          <button class="no mini" data-fb-del="${esc(it.id)}">ลบ</button>
+        </div>
+        <p class="fb-msg">${esc(it.message)}</p>
+      </div>`).join("") || `<p class="empty">ยังไม่มีข้อความ</p>`;
+  }
+
   async function loadUsers() {
     const data = await call("/api/admin/users");
     googleMode = data.mode === "google";
@@ -229,6 +253,7 @@
   let loadSeq = 0;
   async function load() {
     loadUsers().catch(() => {});
+    loadFeedback().catch(() => {});
     const seq = ++loadSeq;
     $("panel-err").hidden = true;
     const data = await call("/api/admin/orders" + (status ? "?status=" + status : ""));
@@ -377,6 +402,31 @@
     document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x === b));
     status = b.dataset.status; load().catch(showErr);
   }));
+  $("fb-list").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-fb-del]");
+    if (!b || b.disabled) return;
+    const id = b.dataset.fbDel;
+    if (!armed || armed.btn !== b) {
+      disarm();
+      armed = { btn: b, label: b.textContent, timer: setTimeout(disarm, 5000) };
+      b.classList.add("armed");
+      b.textContent = "แตะอีกครั้งเพื่อลบ";
+      notice("แตะอีกครั้งเพื่อลบข้อความนี้", "info", 5000);
+      return;
+    }
+    disarm();
+    b.disabled = true;
+    b.textContent = "กำลังลบ…";
+    try {
+      await call(`/api/admin/feedback/${encodeURIComponent(id)}/delete`, "POST");
+      notice("ลบข้อความแล้ว", "ok");
+      await loadFeedback();
+    } catch (err) {
+      notice(`ลบไม่สำเร็จ: ${err.message}`, "bad", 9000);
+      b.disabled = false;
+      b.textContent = "ลบ";
+    }
+  });
   $("refresh").addEventListener("click", () => load().catch(showErr));
   $("logout").addEventListener("click", () => logout());
   if (localStorage.getItem(KEY)) load().catch(showErr);

@@ -338,6 +338,22 @@
         <p data-i18n="faqA5">เลือกแพ็กเกจ แล้วสแกน QR พร้อมเพย์ด้วยแอปธนาคาร จากนั้นอัปโหลดสลิปบนหน้านี้ ระบบตรวจอัตโนมัติ เครดิตเข้าบัญชีหลังตรวจผ่าน เครดิตที่ซื้อแล้วโดยทั่วไปคืนเงินไม่ได้ ยกเว้นกรณีความผิดพลาดในการชำระเงิน</p>
       </details>
     </section>
+
+    <section class="feedback" id="feedback" aria-labelledby="feedback-title">
+      <h2 id="feedback-title" data-i18n="fbTitle">ฝากความรู้สึกหรือคำแนะนำถึงจันทร์</h2>
+      <form id="feedback-form">
+        <label class="hp" aria-hidden="true">
+          <input type="text" name="website" id="feedback-hp" tabindex="-1" autocomplete="off">
+        </label>
+        <textarea id="feedback-text" name="message" rows="3" maxlength="500" data-i18n-placeholder="fbPlaceholder" placeholder="อยากบอกอะไรกับจันทร์ก็ได้ค่ะ"></textarea>
+        <div class="feedback-row">
+          <span class="feedback-count" id="feedback-count" aria-hidden="true">0/500</span>
+          <button type="submit" class="btn soft" id="feedback-send" data-i18n="fbSend">ส่ง</button>
+        </div>
+        <p class="feedback-ok" id="feedback-ok" hidden data-i18n="fbOk">ได้รับแล้ว ขอบคุณนะ 🌙</p>
+        <p class="feedback-err" id="feedback-err" hidden></p>
+      </form>
+    </section>
     </main>
 
   <div id="account-modal" class="modal" hidden>
