@@ -296,7 +296,15 @@ class Http(unittest.TestCase):
         self.assertIn('modeDraw: "Pick cards"', js)
         self.assertIn('modeDrawSub: "Tap 3 cards"', js)
         self.assertIn('deck: ownMode ? "tarot" : state.deckKind', js)
-        self.assertIn("the Moon draws the actual cards", js)
+        self.assertIn('pickTitle: "เลือกไพ่ 3 ใบ"', js)
+        self.assertIn('pickHint: "แตะเลือกไพ่ 3 ใบ"', js)
+        self.assertIn('pickTitle: "Pick 3 cards"', js)
+        self.assertIn('pickHint: "Tap 3 cards"', js)
+        for phrase in ("สุ่มไพ่จริง", "ไม่ใช่ใบที่เห็นตอนคว่ำ", "คว่ำหน้า", "สุ่มไพ่ให้ตอนเปิด",
+                       "the Moon draws the actual cards", "not the backs you see now",
+                       "facedown cards", "Pick 3 facedown"):
+            self.assertNotIn(phrase, html)
+            self.assertNotIn(phrase, js)
         self.assertNotIn("heroLede: \"ดูดวงไพ่ทาโรต์ 3 ใบ ตอบตรง ๆ + โปรไฟล์", js)
         self.assertNotIn('href="/oracle"', html)
         self.assertNotIn('href="/oracle#', js)
