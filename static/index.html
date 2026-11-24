@@ -121,6 +121,8 @@
       <p class="hero-links">
         <a href="/tarot" data-i18n="heroMeanings">ความหมายไพ่</a>
         <span class="hero-links-dot" aria-hidden="true">·</span>
+        <a href="/oracle" data-i18n="heroOracle">ไพ่ออราเคิล</a>
+        <span class="hero-links-dot" aria-hidden="true">·</span>
         <a href="#oracle" id="hero-own-link" data-i18n="heroOwn">เปิดไพ่เอง</a>
       </p>
       <p class="hero-offer" id="hero-offer" hidden><button type="button" class="offer-pill is-in" id="hero-signup"></button></p>
@@ -138,16 +140,35 @@
           </div>
         </div>
         <fieldset class="form-fields" id="form-fields" disabled>
-        <div class="mode-switch" role="radiogroup" data-i18n-label="modeLabel" aria-label="วิธีเปิดไพ่">
-          <button type="button" class="mode-btn is-on" id="mode-draw" role="radio" aria-checked="true" data-mode="draw">
-            <b data-i18n="modeDraw">ให้จันทร์สุ่มไพ่</b>
-            <small data-i18n="modeDrawSub">ระบบสุ่มไพ่ 3 ใบให้</small>
+        <div class="deck-switch" role="radiogroup" data-i18n-label="deckLabel" aria-label="สำรับไพ่">
+          <button type="button" class="deck-btn is-on" id="deck-tarot" role="radio" aria-checked="true" data-deck="tarot">
+            <b data-i18n="deckTarot">ไพ่ทาโรต์</b>
+            <small data-i18n="deckTarotSub">สำรับ 78 ใบ</small>
           </button>
-          <button type="button" class="mode-btn" id="mode-own" role="radio" aria-checked="false" data-mode="own">
-            <b data-i18n="modeOwn">เปิดไพ่เอง</b>
-            <small data-i18n="modeOwnSub">เลือกไพ่ที่คุณเปิดจากสำรับของคุณ 1–5 ใบ</small>
+          <button type="button" class="deck-btn" id="deck-oracle" role="radio" aria-checked="false" data-deck="oracle">
+            <b data-i18n="deckOracle">ไพ่ออราเคิล 37 ใบ</b>
+            <small data-i18n="deckOracleSub">เวลา · ความรู้สึก · คำบอก</small>
           </button>
         </div>
+        <div class="mode-switch" role="radiogroup" data-i18n-label="modeLabel" aria-label="วิธีเปิดไพ่">
+          <button type="button" class="mode-btn is-on" id="mode-draw" role="radio" aria-checked="true" data-mode="draw">
+            <b data-i18n="modeDraw">เลือกไพ่คว่ำหน้า</b>
+            <small data-i18n="modeDrawSub">แตะเลือก 3 ใบ จันทร์สุ่มไพ่ให้ตอนเปิด</small>
+          </button>
+          <button type="button" class="mode-btn" id="mode-own" role="radio" aria-checked="false" data-mode="own">
+            <b data-i18n="modeOwn">มีไพ่อยู่แล้ว</b>
+            <small data-i18n="modeOwnSub">เลือกไพ่ทาโรต์ที่คุณเปิดจากสำรับของคุณ 1–5 ใบ</small>
+          </button>
+        </div>
+        <section class="pick-table" id="pick-table" aria-labelledby="pick-title">
+          <h3 class="pick-title" id="pick-title" data-i18n="pickTitle">เลือกไพ่คว่ำหน้า 3 ใบ</h3>
+          <p class="pick-hint" id="pick-hint" data-i18n="pickHint">แตะไพ่คว่ำหน้า 3 ใบ — จันทร์จะสุ่มไพ่จริงให้ตอนเปิดคำทำนาย ไม่ใช่ใบที่เห็นตอนคว่ำ</p>
+          <div class="pick-toolbar">
+            <span id="pick-count" aria-live="polite"></span>
+            <button type="button" class="pick-shuffle" id="pick-shuffle" data-i18n="pickShuffle">สับไพ่ใหม่</button>
+          </div>
+          <div class="pick-fan" id="pick-fan"></div>
+        </section>
         <section class="own-picker" id="own-picker" hidden aria-labelledby="own-title">
           <h3 class="own-title" id="own-title" data-i18n="ownTitle">ไพ่ที่คุณเปิดได้</h3>
           <p class="own-hint" data-i18n="ownHint">สับไพ่และเปิดไพ่จากสำรับของคุณเอง แล้วแตะเลือกไพ่ตามลำดับที่เปิดได้ 1–5 ใบ ถ้าไพ่ใบไหนออกกลับหัว กดปุ่ม “กลับหัว” ที่ใบนั้น</p>
@@ -302,7 +323,11 @@
       </details>
       <details>
         <summary data-i18n="faqQ3">เปิดไพ่กี่ใบ?</summary>
-        <p data-i18n="faqA3">โหมดหลักให้จันทร์สุ่มไพ่ 3 ใบ หรือจะเปิดไพ่เองจากสำรับที่บ้านแล้วเลือกบนเว็บได้ 1–5 ใบ</p>
+        <p data-i18n="faqA3">โหมดหลักให้แตะเลือกไพ่คว่ำหน้า 3 ใบ แล้วจันทร์สุ่มไพ่จริงให้ตอนเปิดคำทำนาย ถ้ามีไพ่ทาโรต์อยู่แล้วจากสำรับที่บ้าน เลือกบนเว็บได้ 1–5 ใบ</p>
+      </details>
+      <details>
+        <summary data-i18n="faqQOracle">ไพ่ออราเคิล 37 ใบคืออะไร?</summary>
+        <p data-i18n="faqAOracle">เป็นสำรับของถามจันทร์เอง 37 ใบ แบ่งเป็นชุดเวลา ความรู้สึก และคำบอก ชื่อบนไพ่เป็นภาษาอังกฤษ ความหมายภาษาไทยอยู่ใต้ไพ่ตอนอ่าน แต่ละคำถามสุ่มหนึ่งใบต่อชุด รวม 3 ใบ ใช้เครดิตเหมือนการถามไพ่ทาโรต์</p>
       </details>
       <details>
         <summary data-i18n="faqQ4">คำตอบจากไพ่ใช้ตัดสินใจเรื่องสำคัญได้ไหม?</summary>
@@ -349,7 +374,7 @@
     <p data-i18n="disclaimer">คำตอบจากไพ่ทาโรต์มีไว้เป็นแนวทาง ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย หรือการเงิน การตัดสินใจสุดท้ายเป็นของคุณ</p>
     <p class="foot-credit" data-i18n="tarotCredit">ภาพไพ่ทาโรต์: สำรับ Rider-Waite-Smith (ค.ศ. 1909) วาดโดย Pamela Colman Smith · สาธารณสมบัติ จาก Wikimedia Commons</p>
     <p class="foot-legal"><a href="/privacy">นโยบายความเป็นส่วนตัว · Privacy</a> · <a href="/terms">ข้อกำหนดการใช้งาน · Terms</a></p>
-    <p class="foot-legal"><a href="/tarot">ความหมายไพ่ทาโรต์ทั้ง 78 ใบ · Tarot meanings</a></p>
+    <p class="foot-legal"><a href="/oracle">ไพ่ออราเคิล 37 ใบ · Oracle meanings</a> · <a href="/tarot">ความหมายไพ่ทาโรต์ทั้ง 78 ใบ · Tarot meanings</a></p>
     <p class="foot-brand" data-i18n="footBrand">ถามจันทร์</p>
   </footer>
 

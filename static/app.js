@@ -15,7 +15,9 @@ const I18N = {
     faqQ2: "ไพ่ยิปซีกับไพ่ทาโรต์ต่างกันไหม?",
     faqA2: "บนเว็บนี้ไพ่ยิปซีกับไพ่ทาโรต์หมายถึงสำรับเดียวกันทั้ง 78 ใบ (Rider-Waite-Smith) คนไทยมักเรียกว่าไพ่ยิปซี",
     faqQ3: "เปิดไพ่กี่ใบ?",
-    faqA3: "โหมดหลักให้จันทร์สุ่มไพ่ 3 ใบ หรือจะเปิดไพ่เองจากสำรับที่บ้านแล้วเลือกบนเว็บได้ 1–5 ใบ",
+    faqA3: "โหมดหลักให้แตะเลือกไพ่คว่ำหน้า 3 ใบ แล้วจันทร์สุ่มไพ่จริงให้ตอนเปิดคำทำนาย ถ้ามีไพ่ทาโรต์อยู่แล้วจากสำรับที่บ้าน เลือกบนเว็บได้ 1–5 ใบ",
+    faqQOracle: "ไพ่ออราเคิล 37 ใบคืออะไร?",
+    faqAOracle: "เป็นสำรับของถามจันทร์เอง 37 ใบ แบ่งเป็นชุดเวลา ความรู้สึก และคำบอก ชื่อบนไพ่เป็นภาษาอังกฤษ ความหมายภาษาไทยอยู่ใต้ไพ่ตอนอ่าน แต่ละคำถามสุ่มหนึ่งใบต่อชุด รวม 3 ใบ ใช้เครดิตเหมือนการถามไพ่ทาโรต์",
     faqQ4: "คำตอบจากไพ่ใช้ตัดสินใจเรื่องสำคัญได้ไหม?",
     faqA4: "คำตอบจากไพ่มีไว้เป็นแนวทาง เพื่อความบันเทิง ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย หรือการเงิน การตัดสินใจสุดท้ายเป็นของคุณ",
     faqQ5: "จ่ายเงินอย่างไร?",
@@ -217,11 +219,25 @@ const I18N = {
     compat: "ขั้นต่อไปที่ควรทำ",
     forecast: "ช่วงเวลาที่ไพ่ชี้",
     heroOwn: "เปิดไพ่เอง",
+    heroOracle: "ไพ่ออราเคิล",
+    deckLabel: "สำรับไพ่",
+    deckTarot: "ไพ่ทาโรต์",
+    deckTarotSub: "สำรับ 78 ใบ",
+    deckOracle: "ไพ่ออราเคิล 37 ใบ",
+    deckOracleSub: "เวลา · ความรู้สึก · คำบอก",
     modeLabel: "วิธีเปิดไพ่",
-    modeDraw: "ให้จันทร์สุ่มไพ่",
-    modeDrawSub: "ระบบสุ่มไพ่ 3 ใบให้",
-    modeOwn: "เปิดไพ่เอง",
-    modeOwnSub: "เลือกไพ่ที่คุณเปิดจากสำรับของคุณ 1–5 ใบ",
+    modeDraw: "เลือกไพ่คว่ำหน้า",
+    modeDrawSub: "แตะเลือก 3 ใบ จันทร์สุ่มไพ่ให้ตอนเปิด",
+    modeOwn: "มีไพ่อยู่แล้ว",
+    modeOwnSub: "เลือกไพ่ทาโรต์ที่คุณเปิดจากสำรับของคุณ 1–5 ใบ",
+    pickTitle: "เลือกไพ่คว่ำหน้า 3 ใบ",
+    pickHint: "แตะไพ่คว่ำหน้า 3 ใบ — จันทร์จะสุ่มไพ่จริงให้ตอนเปิดคำทำนาย ไม่ใช่ใบที่เห็นตอนคว่ำ",
+    pickShuffle: "สับไพ่ใหม่",
+    pickCount: (n) => n ? `เลือกแล้ว ${n}/3 ใบ` : "ยังไม่ได้เลือกไพ่ (เลือก 3 ใบ)",
+    pickNeed: "กรุณาแตะเลือกไพ่คว่ำหน้าให้ครบ 3 ใบก่อนถาม",
+    pickFull: "เลือกได้ 3 ใบ เอาใบเดิมออกก่อนถ้าจะเปลี่ยน",
+    shareOracleEyebrow: "ไพ่ออราเคิล",
+    oracleCounsel: "คำบอกจากไพ่",
     ownTitle: "ไพ่ที่คุณเปิดได้",
     ownHint: "สับไพ่และเปิดไพ่จากสำรับของคุณเอง แล้วแตะเลือกไพ่ตามลำดับที่เปิดได้ 1–5 ใบ ถ้าไพ่ใบไหนออกกลับหัว กดปุ่ม “กลับหัว” ที่ใบนั้น",
     ownCount: (n, max) => n ? `เลือกแล้ว ${n}/${max} ใบ` : `ยังไม่ได้เลือกไพ่ (เลือกได้ 1–${max} ใบ)`,
@@ -257,13 +273,15 @@ const I18N = {
     navMeanings: "Card meanings",
     heroMeanings: "Card meanings",
     faqTitle: "Frequently asked questions",
-    faqIntro: "3-card tarot with a straight answer, plus a birth profile (Chinese zodiac, birth number, and star sign). Type what you want to know. The Moon draws three cards, leads with the answer, then the reasons in the cards and advice you can act on. In Thai this deck is often called ไพ่ยิปซี — here that means the same 78-card tarot deck.",
+    faqIntro: "3-card tarot or the 37-card Ask the Moon oracle, with a straight answer, plus a birth profile (Chinese zodiac, birth number, and star sign). Type what you want to know. The Moon opens three cards, leads with the answer, then the reasons in the cards and advice you can act on. In Thai the tarot deck is often called ไพ่ยิปซี — here that means the same 78-card tarot deck.",
     faqQ1: "Can I ask a free question?",
     faqA1: "Yes. Sign up or log in for free and you get 1 free question per account. After that, questions are sold in packages starting at 15 baht each. The deeper reading unlocks when you use a purchased credit, not the free question.",
     faqQ2: "Are ไพ่ยิปซี and tarot different?",
     faqA2: "On this site they mean the same 78-card Rider-Waite-Smith deck. In Thai people often call it ไพ่ยิปซี.",
     faqQ3: "How many cards are drawn?",
-    faqA3: "The main mode draws 3 cards for you. Or you can draw from your own deck at home and pick 1–5 cards here.",
+    faqA3: "The main mode lets you tap 3 facedown cards; the Moon draws the actual cards when the reading opens. If you already drew tarot at home, you can enter 1–5 of those cards here.",
+    faqQOracle: "What is the 37-card oracle?",
+    faqAOracle: "It is Ask the Moon’s own 37-card oracle: Timing, Feeling, and Counsel. English titles are on the cards; Thai meanings sit under them in the reading. Each question draws one card from each group (3 in all) and uses the same question credits as tarot.",
     faqQ4: "Can I use a reading to make important decisions?",
     faqA4: "Readings are for guidance and entertainment only. They are not medical, legal, or financial advice. The final decision is yours.",
     faqQ5: "How does payment work?",
@@ -465,11 +483,25 @@ const I18N = {
     compat: "Your next step",
     forecast: "Timing the cards show",
     heroOwn: "Draw your own",
+    heroOracle: "Oracle deck",
+    deckLabel: "Which deck",
+    deckTarot: "Tarot",
+    deckTarotSub: "78-card deck",
+    deckOracle: "Oracle · 37 cards",
+    deckOracleSub: "Timing · Feeling · Counsel",
     modeLabel: "How to draw",
-    modeDraw: "The Moon draws",
-    modeDrawSub: "We draw 3 cards for you",
-    modeOwn: "I drew my own",
-    modeOwnSub: "Pick the 1–5 cards you drew from your deck",
+    modeDraw: "Pick facedown cards",
+    modeDrawSub: "Tap 3 cards; the Moon draws them when you ask",
+    modeOwn: "I already drew",
+    modeOwnSub: "Enter the 1–5 tarot cards you drew from your deck",
+    pickTitle: "Pick 3 facedown cards",
+    pickHint: "Tap 3 facedown cards — the Moon draws the actual cards when the reading opens, not the backs you see now.",
+    pickShuffle: "Shuffle again",
+    pickCount: (n) => n ? `${n}/3 cards chosen` : "No cards chosen yet (pick 3)",
+    pickNeed: "Please tap 3 facedown cards before asking.",
+    pickFull: "You can pick 3 cards. Remove one first to change.",
+    shareOracleEyebrow: "ORACLE",
+    oracleCounsel: "The card's counsel",
     ownTitle: "The cards you drew",
     ownHint: "Shuffle and draw from your own deck, then tap the 1–5 cards in the order you drew them. If a card came out upside down, tap “Reversed” on it.",
     ownCount: (n, max) => n ? `${n}/${max} cards chosen` : `No cards chosen yet (pick 1–${max})`,
@@ -551,12 +583,17 @@ const state = {
   afterLogin: null,
   authMode: "password",
   googleClientId: null,
-  mode: "draw", // "draw" = the site draws 3 random cards; "own" = the person drew their own cards
+  mode: "draw", // "draw" = facedown pick + server draw; "own" = the person entered their own tarot
+  deckKind: "tarot", // "tarot" | "oracle"
   deck: [],
   deckMax: 5,
   own: [], // [{ id, reversed }] in the order the person drew them
   ownGroup: "major",
   ownQuery: "",
+  pick: [], // indexes into the facedown table, in tap order (max 3)
+  pickOrder: [], // visual permutation of the table slots
+  pickTilts: [],
+  cardBack: "/oracle/card-back.webp?v=1",
 };
 
 function api(path, options = {}) {
@@ -596,6 +633,7 @@ function applyLang() {
   renderBalance();
   renderPricing();
   renderOwn();
+  renderPick();
   if (state.order) renderPayModal();
   if (state.last) renderResult(state.last);
   renderAccountButton();
@@ -687,23 +725,30 @@ function renderTarot(tarot) {
   const own = tarot.drawnBy === "self";
   banner.hidden = !own;
   banner.textContent = own ? dict.ownBanner(cards.length) : "";
+  const isOracle = (cards[0] && String(cards[0].id).startsWith("oracle-")) || (tarot && tarot.headingEn === "Timing · Feeling · Counsel");
   row.classList.toggle("is-flex", cards.length !== 3);
   row.innerHTML = cards
     .map((c, i) => {
       const name = th ? c.nameTh.replace(/\s*\(.*\)$/, "") : c.nameEn;
       const sub = th ? c.nameEn : c.nameTh.replace(/\s*\(.*\)$/, "");
       const meaning = th ? c.meaningTh : c.meaningEn;
-      const slug = cardMeaningSlug(c);
-      const nameHtml = slug
+      const oracleCard = String(c.id || "").startsWith("oracle-");
+      const slug = oracleCard ? "" : cardMeaningSlug(c);
+      const nameHtml = oracleCard
+        ? `<a class="tcard-link" href="/oracle#${encodeURIComponent(c.id)}" target="_blank" rel="noopener">${escapeHtml(name)}</a>`
+        : slug
         ? `<a class="tcard-link" href="/tarot/${escapeHtml(slug)}" target="_blank" rel="noopener">${escapeHtml(name)}</a>`
         : escapeHtml(name);
+      const pos = th ? (c.positionTh || "") : (c.positionEn || "");
+      const back = `<span class="tcard-face tcard-back" aria-hidden="true"><img src="${escapeHtml(state.cardBack)}" alt="" /></span>`;
       return `
-      <figure class="tcard${c.reversed ? " is-reversed" : ""}${already ? " is-flipped no-anim" : ""}" style="--i:${i}">
+      <figure class="tcard${c.reversed ? " is-reversed" : ""}${oracleCard || isOracle ? " is-oracle" : ""}${already ? " is-flipped no-anim" : ""}" style="--i:${i}">
         <button type="button" class="tcard-inner" aria-label="${escapeHtml(name)}" title="${escapeHtml(meaning)}">
-          <span class="tcard-face tcard-back" aria-hidden="true"><span class="tcard-moon">☾</span></span>
+          ${back}
           <span class="tcard-face tcard-front"><img src="${escapeHtml(c.image)}" alt="${escapeHtml(c.nameEn)}" decoding="async" /></span>
         </button>
         <figcaption>
+          ${pos ? `<span class="tcard-pos">${escapeHtml(pos)}</span>` : ""}
           <b class="tcard-name">${nameHtml}</b>
           <small class="tcard-sub">${escapeHtml(sub)}</small>
           ${c.reversed ? `<span class="tcard-rev">${escapeHtml(dict.tarotReversed)}</span>` : ""}
@@ -747,6 +792,9 @@ function loadDeck() {
 }
 
 function setMode(mode) {
+  if (mode === "own" && state.deckKind === "oracle") {
+    setDeck("tarot");
+  }
   state.mode = mode === "own" ? "own" : "draw";
   document.querySelectorAll(".mode-btn").forEach((btn) => {
     const on = btn.dataset.mode === state.mode;
@@ -754,6 +802,8 @@ function setMode(mode) {
     btn.setAttribute("aria-checked", on ? "true" : "false");
   });
   document.getElementById("own-picker").hidden = state.mode !== "own";
+  const pick = document.getElementById("pick-table");
+  if (pick) pick.hidden = state.mode !== "draw";
   document.getElementById("form-error").hidden = true;
   if (state.mode === "own") {
     loadDeck().catch(() => {
@@ -763,6 +813,115 @@ function setMode(mode) {
     });
   }
   renderOwn();
+  renderPick();
+}
+
+const PICK_N = 18;
+const PICK_NEED = 3;
+
+function shufflePick() {
+  const ids = [...Array(PICK_N).keys()];
+  for (let i = ids.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  state.pickOrder = ids;
+  state.pickTilts = ids.map(() => (Math.random() * 8 - 4).toFixed(1));
+  state.pick = [];
+  renderPick();
+}
+
+function preferredDeck() {
+  try {
+    const param = String(new URLSearchParams(location.search).get("deck") || "").toLowerCase();
+    if (param === "oracle" || param === "tarot") return param;
+  } catch (_) { /* ignore */ }
+  if ((location.hash || "").toLowerCase().includes("oracle-deck")) return "oracle";
+  return "tarot";
+}
+
+function setDeck(kind) {
+  state.deckKind = kind === "oracle" ? "oracle" : "tarot";
+  document.querySelectorAll(".deck-btn").forEach((btn) => {
+    const on = btn.dataset.deck === state.deckKind;
+    btn.classList.toggle("is-on", on);
+    btn.setAttribute("aria-checked", on ? "true" : "false");
+  });
+  const ownBtn = document.getElementById("mode-own");
+  if (ownBtn) ownBtn.hidden = state.deckKind === "oracle";
+  if (state.deckKind === "oracle" && state.mode === "own") {
+    state.mode = "draw";
+  }
+  // Re-apply mode chrome without recursing into setDeck.
+  document.querySelectorAll(".mode-btn").forEach((btn) => {
+    const on = btn.dataset.mode === state.mode;
+    btn.classList.toggle("is-on", on);
+    btn.setAttribute("aria-checked", on ? "true" : "false");
+  });
+  document.getElementById("own-picker").hidden = state.mode !== "own";
+  const pick = document.getElementById("pick-table");
+  if (pick) pick.hidden = state.mode !== "draw";
+  renderOwn();
+  renderPick();
+}
+
+function pickToggle(slot) {
+  const at = state.pick.indexOf(slot);
+  if (at >= 0) {
+    state.pick.splice(at, 1);
+  } else if (state.pick.length >= PICK_NEED) {
+    toast(t().pickFull);
+    return;
+  } else {
+    state.pick.push(slot);
+  }
+  renderPick();
+}
+
+function renderPick() {
+  const table = document.getElementById("pick-table");
+  const fan = document.getElementById("pick-fan");
+  if (!table || !fan) return;
+  const dict = t();
+  table.hidden = state.mode !== "draw";
+  if (state.mode !== "draw") return;
+  if (!state.pickOrder.length) {
+    shufflePick();
+    return;
+  }
+  const count = document.getElementById("pick-count");
+  if (count) count.textContent = dict.pickCount(state.pick.length);
+  fan.innerHTML = state.pickOrder.map((slot, i) => {
+    const pos = state.pick.indexOf(slot);
+    const on = pos >= 0;
+    const tilt = state.pickTilts[i] || 0;
+    const label = on ? (dict.pickCount(pos + 1)) : dict.pickTitle;
+    return `<button type="button" class="pick-card${on ? " is-on" : ""}" data-slot="${slot}" style="--tilt:${tilt}deg" aria-pressed="${on}" aria-label="${escapeHtml(label)}">
+      <img src="${escapeHtml(state.cardBack)}" alt="" width="480" height="654" decoding="async" />
+      ${on ? `<span class="pick-badge">${pos + 1}</span>` : ""}
+    </button>`;
+  }).join("");
+}
+
+function setupPick() {
+  setDeck(preferredDeck());
+  api("/api/oracle").then(({ response, data }) => {
+    if (response.ok && data && data.back) {
+      state.cardBack = data.back;
+      renderPick();
+    }
+  }).catch(() => { /* keep the built-in back path */ });
+  const fan = document.getElementById("pick-fan");
+  fan.addEventListener("click", (event) => {
+    const card = event.target.closest(".pick-card");
+    if (card) pickToggle(Number(card.dataset.slot));
+  });
+  document.getElementById("pick-shuffle").addEventListener("click", () => shufflePick());
+  document.querySelectorAll(".deck-btn").forEach((btn) => {
+    btn.addEventListener("click", () => setDeck(btn.dataset.deck));
+  });
+  const oracleLink = document.querySelector('a[href="/oracle"]');
+  // hero oracle meanings stay on /oracle; a home ask link can use ?deck=oracle
 }
 
 function ownToggle(id) {
@@ -840,6 +999,7 @@ function setupOwn() {
   document.querySelectorAll(".mode-btn").forEach((btn) => btn.addEventListener("click", () => setMode(btn.dataset.mode)));
   document.getElementById("hero-own-link").addEventListener("click", (event) => {
     event.preventDefault();
+    setDeck("tarot");
     setMode("own");
     document.getElementById("oracle").scrollIntoView({ behavior: "smooth", block: "start" });
   });
@@ -1049,7 +1209,8 @@ async function buildShareCard(data, lang) {
   ctx.font = `400 24px ${DISPLAY}`;
   ctx.fillStyle = "#b7a8c9";
   const topic = (dict.topics && dict.topics[data.topic]) || "";
-  const lead = ownDraw ? dict.shareOwnEyebrow : (th ? "ไพ่ทาโรต์" : "TAROT");
+  const isOracle = data.deck === "oracle" || (cards[0] && String(cards[0].id).startsWith("oracle-"));
+  const lead = ownDraw ? dict.shareOwnEyebrow : (isOracle ? dict.shareOracleEyebrow : (th ? "ไพ่ทาโรต์" : "TAROT"));
   const eyebrow = th ? `${lead}${topic ? " · " + topic : ""}` : `${lead}${topic ? " · " + topic.toUpperCase() : ""}`;
   ctx.font = `500 28px ${th ? SANS : DISPLAY}`;
   ctx.fillStyle = "#c9b6ff";
@@ -1058,7 +1219,8 @@ async function buildShareCard(data, lang) {
   // Cards.
   const n = Math.max(cards.length, 1);
   const cw = n === 1 ? 330 : n === 2 ? 290 : n === 3 ? 272 : n === 4 ? 214 : 172;
-  const ch = Math.round(cw * 518 / 300);
+  const isOracleShare = data.deck === "oracle" || (cards[0] && String(cards[0].id).startsWith("oracle-"));
+  const ch = Math.round(cw * (isOracleShare ? 654 / 480 : 518 / 300));
   const gap = n === 1 ? 0 : n >= 4 ? 22 : 44;
   const rowW = n * cw + (n - 1) * gap;
   const top = 236;
@@ -1067,7 +1229,7 @@ async function buildShareCard(data, lang) {
     ctx.save();
     ctx.shadowColor = "rgba(245, 163, 208, 0.35)";
     ctx.shadowBlur = 36;
-    ctx.fillStyle = "#f4ead2";
+    ctx.fillStyle = isOracleShare ? "#0a0614" : "#f4ead2";
     shareRoundRect(ctx, x, top, cw, ch, 16);
     ctx.fill();
     ctx.restore();
@@ -1075,12 +1237,22 @@ async function buildShareCard(data, lang) {
     shareRoundRect(ctx, x, top, cw, ch, 16);
     ctx.clip();
     if (imgs[i]) {
+      const img = imgs[i];
+      const draw = (dx, dy, dw, dh) => {
+        if (isOracleShare) {
+          const r = Math.min(dw / img.width, dh / img.height);
+          const rw = img.width * r, rh = img.height * r;
+          ctx.drawImage(img, dx + (dw - rw) / 2, dy + (dh - rh) / 2, rw, rh);
+        } else {
+          ctx.drawImage(img, dx, dy, dw, dh);
+        }
+      };
       if (c.reversed) {
         ctx.translate(x + cw / 2, top + ch / 2);
         ctx.rotate(Math.PI);
-        ctx.drawImage(imgs[i], -cw / 2, -ch / 2, cw, ch);
+        draw(-cw / 2, -ch / 2, cw, ch);
       } else {
-        ctx.drawImage(imgs[i], x, top, cw, ch);
+        draw(x, top, cw, ch);
       }
     }
     ctx.restore();
@@ -1287,24 +1459,29 @@ function renderResult(data) {
   document.querySelector(".tag.free").textContent = data.premiumUnlocked ? dict.paidTag : dict.freeTag;
 
   const prem = data.premium || {};
+  const isOracle = data.deck === "oracle" || prem.kind === "oracle";
   const colors = (prem.colors || [])
     .map((c) => {
       const name = state.lang === "th" ? c.th : c.en;
       return `<span class="swatch" title="${escapeHtml(name)}" style="background:${escapeHtml(c.hex)}"></span> ${escapeHtml(name)}`;
     })
     .join(" · ");
+  const numbersHtml = (prem.numbers && prem.numbers.length)
+    ? `<h4>${escapeHtml(dict.luckNumbers)}</h4><p>${escapeHtml(prem.numbers.join(" · "))}</p>` : "";
+  const dayHtml = prem.day
+    ? `<h4>${escapeHtml(dict.luckDay)}</h4><p>${escapeHtml(prem.day)}</p>` : "";
+  const colorsHtml = colors
+    ? `<h4>${escapeHtml(dict.luckColors)}</h4><p class="swatches">${colors}</p>` : "";
+  const counsel = isOracle ? dict.oracleCounsel : dict.compat;
   document.getElementById("premium-body").innerHTML = `
-    <h4>${escapeHtml(dict.luckNumbers)}</h4>
-    <p>${escapeHtml((prem.numbers || []).join(" · "))}</p>
-    <h4>${escapeHtml(dict.luckColors)}</h4>
-    <p class="swatches">${colors}</p>
-    <h4>${escapeHtml(dict.luckDay)}</h4>
-    <p>${escapeHtml(prem.day || "")}</p>
+    ${numbersHtml}
+    ${colorsHtml}
+    ${dayHtml}
     <h4>${escapeHtml(dict.gift)}</h4>
     <p>${escapeHtml(prem.gift || "")}</p>
     <h4>${escapeHtml(dict.shadow)}</h4>
     <p>${escapeHtml(prem.shadow || "")}</p>
-    <h4>${escapeHtml(dict.compat)}</h4>
+    <h4>${escapeHtml(counsel)}</h4>
     <p>${escapeHtml(prem.compatibility || "")}</p>
     <h4>${escapeHtml(dict.forecast)}</h4>
     <p>${escapeHtml(prem.forecast || "")}</p>
@@ -1347,6 +1524,12 @@ async function onSubmit(event) {
     document.getElementById("own-picker").scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
+  if (!ownMode && state.pick.length !== 3) {
+    error.textContent = dict.pickNeed;
+    error.hidden = false;
+    document.getElementById("pick-table").scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
 
   if (!state.account) {
     // Every question (the free one too) needs an account.
@@ -1376,6 +1559,7 @@ async function onSubmit(event) {
         question,
         details,
         lang: state.lang,
+        deck: ownMode ? "tarot" : state.deckKind,
         ...ownCards,
       }),
     });
@@ -2345,6 +2529,7 @@ function setup() {
   setupAccount();
   setupShare();
   setupOwn();
+  setupPick();
   loadAuthConfig().then(maybeResumeLogin);
   applyLang();
   paintStars();

@@ -71,10 +71,11 @@ class ProfileHttp(tc.Http):
         self.assertEqual(code, 200)
         self.assertEqual(data["profile"]["chinese"]["key"], "dog")
         self.assertEqual(data["profile"]["number"]["value"], 22)
-        # The AI receives only name, topic, question, language and the cards.
+        # The AI receives only name, topic, question, language, the cards, and the deck (never birth data).
         self.assertEqual(seen["args"], ("น้ำเพชร", "love", "เขาจะกลับมาไหม", "th"))
-        self.assertEqual(set(seen["kwargs"]), {"cards", "details"})
+        self.assertEqual(set(seen["kwargs"]), {"cards", "details", "deck"})
         self.assertEqual(seen["kwargs"]["details"], "")
+        self.assertEqual(seen["kwargs"]["deck"], "tarot")
         self.assertNotIn("2006", json.dumps(seen, ensure_ascii=False, default=str))
         # Saved on the account for next time.
         me = self.req("GET", "/api/auth/me", headers=h)[1]
