@@ -3,8 +3,8 @@
 Background color marks the category:
   black-blue = Time (8 cards), brown = Emotion (19 cards), green = Words (10 cards).
 English titles are printed on the cards; Thai names and meanings are shown on the site.
-A reading draws one card from each category (Timing, Feeling, Counsel). Cards are not
-reversed. The server always draws; the face-down pick UI never chooses identities.
+A reading draws 3 distinct cards at random from the full 37-card deck (categories may
+repeat). Cards are not reversed. The server always draws; the pick UI never chooses identities.
 """
 
 from __future__ import annotations
@@ -12,23 +12,24 @@ from __future__ import annotations
 import secrets
 from typing import Any
 
-HEADING_TH = "เวลา · อารมณ์ · คำพูด"
-HEADING_EN = "Timing · Feeling · Counsel"
+HEADING_TH = "ไพ่ออราเคิล 3 ใบ"
+HEADING_EN = "3 oracle cards"
 DRAW_COUNT = 3
 IMAGE_VERSION = "1"
 THUMB_VERSION = "1"
 BACK_VERSION = "1"
 
 CATEGORIES = {
-    "time": {"en": "Timing", "th": "เวลา"},
-    "emotion": {"en": "Feeling", "th": "อารมณ์"},
-    "words": {"en": "Counsel", "th": "คำพูด"},
+    "time": {"en": "Time", "th": "เวลา"},
+    "emotion": {"en": "Emotion", "th": "อารมณ์"},
+    "words": {"en": "Words", "th": "คำพูด"},
 }
 
+# Category metadata only — draws are not one-per-category.
 POSITIONS = [
-    {"id": "time", "nameEn": "Timing", "nameTh": "เวลา"},
-    {"id": "emotion", "nameEn": "Feeling", "nameTh": "อารมณ์"},
-    {"id": "words", "nameEn": "Counsel", "nameTh": "คำพูด"},
+    {"id": "time", "nameEn": "Time", "nameTh": "เวลา"},
+    {"id": "emotion", "nameEn": "Emotion", "nameTh": "อารมณ์"},
+    {"id": "words", "nameEn": "Words", "nameTh": "คำพูด"},
 ]
 
 # id, category, English name, Thai name, short EN, short TH, long EN, long TH, lean score
@@ -320,24 +321,22 @@ def public_card(card: dict[str, Any], *, thumb: bool = False) -> dict[str, Any]:
     }
 
 
-def _drawn(card: dict[str, Any], position: dict[str, str]) -> dict[str, Any]:
+def _drawn(card: dict[str, Any]) -> dict[str, Any]:
+    """Attach the card's own category as its display label (not a fixed seat)."""
     out = public_card(card, thumb=False)
-    out["position"] = position["id"]
-    out["positionEn"] = position["nameEn"]
-    out["positionTh"] = position["nameTh"]
+    cat = CATEGORIES[card["category"]]
+    out["position"] = card["category"]
+    out["positionEn"] = cat["en"]
+    out["positionTh"] = cat["th"]
     return out
 
 
 def draw() -> list[dict[str, Any]]:
-    """One random card from each category, in Timing / Feeling / Counsel order.
+    """Three distinct cards from the full 37-card deck, without replacement.
 
-    OS randomness; no reversals; the client cannot choose identities.
+    Categories may repeat. OS randomness; no reversals; the client cannot choose identities.
     """
-    out = []
-    for pos in POSITIONS:
-        card = _RNG.choice(BY_CATEGORY[pos["id"]])
-        out.append(_drawn(card, pos))
-    return out
+    return [_drawn(card) for card in _RNG.sample(DECK, DRAW_COUNT)]
 
 
 def catalog() -> list[dict[str, Any]]:
@@ -354,10 +353,9 @@ def catalog() -> list[dict[str, Any]]:
 
 def prompt_lines(cards: list[dict[str, Any]]) -> str:
     lines = []
-    for c in cards:
-        pos = f"{c.get('positionEn', '')} / {c.get('positionTh', '')}".strip(" /")
+    for i, c in enumerate(cards, 1):
         cat = f"{c.get('categoryEn', '')} / {c.get('categoryTh', '')}".strip(" /")
-        prefix = f"{pos} ({cat}): " if pos else ""
+        prefix = f"{i}. {cat}: " if cat else f"{i}. "
         lines.append(
             f"- {prefix}{c['nameEn']} — {c['nameTh']}. "
             f"Meaning: {c['meaningEn']} / {c['meaningTh']}"
@@ -377,7 +375,7 @@ LIKELY_AT = 1.0
 
 def verdict(cards: list[dict[str, Any]]) -> str:
     score = sum(card_score(c) for c in cards)
-    # "Not Yet Time" in the timing seat should not be talked past as a clear yes.
+    # "Not Yet Time" in the spread should not be talked past as a clear yes.
     if any(c["id"] == "oracle-08" for c in cards) and score >= LIKELY_AT:
         return "not_yet"
     if score >= YES_AT:
@@ -412,8 +410,6 @@ def fallback_reading(name: str, question: str, topic_th: str, topic_en: str,
     """A direct three-paragraph reading when the AI is unavailable."""
     lean = verdict(cards)
     th = lang == "th"
-    by_pos = {c.get("position"): c for c in cards}
-    time_c, feel_c, word_c = by_pos.get("time") or cards[0], by_pos.get("emotion") or cards[1], by_pos.get("words") or cards[2]
     q = (question or "").strip()
     if th:
         lead = ANSWER_TH[lean]
@@ -421,14 +417,11 @@ def fallback_reading(name: str, question: str, topic_th: str, topic_en: str,
             p1 = f"{name}ค่ะ {lead} สำหรับคำถามที่ว่า «{q}»"
         else:
             p1 = f"{name}ค่ะ {lead} ในเรื่อง{topic_th}"
-        p2 = (
-            f"เวลาคือ «{time_c['nameTh']}»: {time_c['meaningTh']} "
-            f"อารมณ์ที่ไพ่ชี้คือ «{feel_c['nameTh']}»: {feel_c['meaningTh']} "
-            f"คำพูดจากไพ่คือ «{word_c['nameTh']}»: {word_c['meaningTh']}"
-        )
+        bits = [f"«{c['nameTh']}» ({c['categoryTh']}) — {c['meaningTh']}" for c in cards]
+        p2 = "ไพ่ทั้งสามใบคือ " + " ".join(bits)
         p3 = (
-            f"คำแนะนำที่ใช้ได้เลย: รับความหมายของไพ่ «{word_c['nameTh']}» ไปลงมือ "
-            f"และให้จังหวะ «{time_c['nameTh']}» เป็นกรอบ อย่าฝืนเรื่องที่ยังไม่สุก และอย่าทิ้งสิ่งที่ไพ่ชี้ชัดแล้ว"
+            f"คำแนะนำที่ใช้ได้เลย: ถือความหมายของไพ่ทั้งสามใบไปลงมือ "
+            f"โดยเฉพาะ «{cards[-1]['nameTh']}» อย่าฝืนเรื่องที่ยังไม่สุก และอย่าทิ้งสิ่งที่ไพ่ชี้ชัดแล้ว"
         )
         return "\n\n".join([p1, p2, p3])
     lead = ANSWER_EN[lean]
@@ -438,14 +431,11 @@ def fallback_reading(name: str, question: str, topic_th: str, topic_en: str,
             p1 += "."
     else:
         p1 = f"{name}, {lead} About your {topic_en}."
-    p2 = (
-        f"The timing is “{time_c['nameEn']}”: {time_c['meaningEn']} "
-        f"The feeling the cards show is “{feel_c['nameEn']}”: {feel_c['meaningEn']} "
-        f"The counsel is “{word_c['nameEn']}”: {word_c['meaningEn']}"
-    )
+    bits = [f"“{c['nameEn']}” ({c['categoryEn']}) — {c['meaningEn']}" for c in cards]
+    p2 = "The three cards are " + " ".join(bits)
     p3 = (
-        f"Advice you can use now: act on “{word_c['nameEn']}”, "
-        f"and let “{time_c['nameEn']}” be the timeframe. Do not force what is not ripe, "
+        f"Advice you can use now: act on what these three cards show, "
+        f"especially “{cards[-1]['nameEn']}”. Do not force what is not ripe, "
         f"and do not ignore what the cards have already made clear."
     )
     return "\n\n".join([p1, p2, p3])
@@ -454,10 +444,10 @@ def fallback_reading(name: str, question: str, topic_th: str, topic_en: str,
 def premium_from_cards(cards: list[dict[str, Any]], lang: str) -> dict[str, Any]:
     """Paid deep section built only from the three oracle cards (no invented lucky numbers)."""
     th = lang == "th"
-    by_pos = {c.get("position"): c for c in cards}
-    time_c = by_pos.get("time") or cards[0]
-    feel_c = by_pos.get("emotion") or cards[1]
-    word_c = by_pos.get("words") or cards[2]
+    def first_of(category: str) -> dict[str, Any] | None:
+        return next((c for c in cards if c.get("category") == category), None)
+    time_c = first_of("time") or cards[0]
+    word_c = first_of("words") or cards[-1]
     scored = sorted(cards, key=lambda c: card_score(c))
     low, high = scored[0], scored[-1]
     colors = [

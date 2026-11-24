@@ -73,23 +73,32 @@ class Catalog(unittest.TestCase):
             self.assertTrue(path.is_file(), path)
             self.assertLess(path.stat().st_size, 40 * 1024)
 
-    def test_draw_is_one_of_each_category_and_ignores_client_ids(self):
-        seen = {cat: set() for cat in oracle.CATEGORIES}
+    def test_draw_is_three_distinct_cards_from_the_full_deck(self):
+        seen = set()
         leans = set()
+        same_category = False
         for _ in range(400):
             cards = oracle.draw()
             self.assertEqual(len(cards), 3)
-            self.assertEqual([c["category"] for c in cards], ["time", "emotion", "words"])
-            self.assertEqual([c["position"] for c in cards], ["time", "emotion", "words"])
+            ids = [c["id"] for c in cards]
+            self.assertEqual(len(set(ids)), 3)
+            self.assertTrue(all(i in oracle.BY_ID for i in ids))
             self.assertTrue(all(c["reversed"] is False for c in cards))
             self.assertTrue(all(c["image"] == oracle.image_path(c["id"]) for c in cards))
-            self.assertEqual(len({c["id"] for c in cards}), 3)
+            cats = [c["category"] for c in cards]
+            self.assertTrue(all(cat in oracle.CATEGORIES for cat in cats))
+            if len(set(cats)) < 3:
+                same_category = True
             for c in cards:
-                seen[c["category"]].add(c["id"])
+                self.assertEqual(c["position"], c["category"])
+                self.assertEqual(c["positionTh"], oracle.CATEGORIES[c["category"]]["th"])
+                self.assertEqual(c["positionEn"], oracle.CATEGORIES[c["category"]]["en"])
+                self.assertEqual(c["categoryTh"], oracle.CATEGORIES[c["category"]]["th"])
+                self.assertEqual(c["categoryEn"], oracle.CATEGORIES[c["category"]]["en"])
+            seen.update(ids)
             leans.add(oracle.verdict(cards))
-        # Every card in every category should appear over 80 structured draws.
-        for cat, ids in seen.items():
-            self.assertEqual(ids, {c["id"] for c in oracle.BY_CATEGORY[cat]}, cat)
+        self.assertEqual(seen, {c["id"] for c in oracle.DECK})
+        self.assertTrue(same_category)
         self.assertTrue(leans <= {"yes", "likely", "not_yet", "unlikely", "no"})
         self.assertGreaterEqual(len(leans), 2)
 
@@ -112,10 +121,14 @@ class Catalog(unittest.TestCase):
         self.assertIn('${oracleCard ? "" : `<small class="tcard-sub">${escapeHtml(sub)}</small>`}', js)
 
     def test_category_labels_are_short_thai(self):
-        self.assertEqual(oracle.HEADING_TH, "เวลา · อารมณ์ · คำพูด")
+        self.assertEqual(oracle.HEADING_TH, "ไพ่ออราเคิล 3 ใบ")
+        self.assertEqual(oracle.HEADING_EN, "3 oracle cards")
         self.assertEqual(oracle.CATEGORIES["time"]["th"], "เวลา")
         self.assertEqual(oracle.CATEGORIES["emotion"]["th"], "อารมณ์")
         self.assertEqual(oracle.CATEGORIES["words"]["th"], "คำพูด")
+        self.assertEqual(oracle.CATEGORIES["time"]["en"], "Time")
+        self.assertEqual(oracle.CATEGORIES["emotion"]["en"], "Emotion")
+        self.assertEqual(oracle.CATEGORIES["words"]["en"], "Words")
 
 
 class Reading(unittest.TestCase):
@@ -133,9 +146,13 @@ class Reading(unittest.TestCase):
         self.assertEqual(result["deck"], "oracle")
         cards = result["tarot"]["cards"]
         self.assertEqual(len(cards), 3)
-        self.assertEqual([c["category"] for c in cards], ["time", "emotion", "words"])
-        self.assertNotEqual([c["id"] for c in cards], ["oracle-01", "major-00"])
-        self.assertEqual(result["tarot"]["headingTh"], "เวลา · อารมณ์ · คำพูด")
+        ids = [c["id"] for c in cards]
+        self.assertEqual(len(set(ids)), 3)
+        self.assertTrue(all(i.startswith("oracle-") and i in oracle.BY_ID for i in ids))
+        self.assertNotEqual(ids, ["oracle-01", "major-00"])
+        self.assertTrue(all(c["category"] in oracle.CATEGORIES for c in cards))
+        self.assertEqual(result["tarot"]["headingTh"], "ไพ่ออราเคิล 3 ใบ")
+        self.assertEqual(result["tarot"]["headingEn"], "3 oracle cards")
         self.assertIn(result["reading"], [result["reading"]])  # non-empty
         self.assertTrue(result["reading"])
         self.assertEqual(result["premium"]["kind"], "oracle")
@@ -275,8 +292,9 @@ class Http(unittest.TestCase):
         ids = [c["id"] for c in data["tarot"]["cards"]]
         self.assertEqual(len(ids), 3)
         # Server randomization: planted identities must not be trusted.
-        # They may coincide rarely; the draw is still 1-per-category.
-        self.assertEqual([c["category"] for c in data["tarot"]["cards"]], ["time", "emotion", "words"])
+        self.assertEqual(len(set(ids)), 3)
+        self.assertTrue(all(i.startswith("oracle-") and i in oracle.BY_ID for i in ids))
+        self.assertTrue(all(c["category"] in oracle.CATEGORIES for c in data["tarot"]["cards"]))
         self.assertTrue(all(c["image"] == oracle.image_path(c["id"]) for c in data["tarot"]["cards"]))
         self.assertEqual(data["charge"]["kind"], "free")
 
@@ -309,6 +327,11 @@ class Http(unittest.TestCase):
         self.assertNotIn('href="/oracle"', html)
         self.assertNotIn('href="/oracle#', js)
         self.assertIn('cardBack: "/oracle/card-back.webp?v=1"', js)
+        for phrase in ("จั่วหนึ่งใบต่อชุด", "หมวดละ 1 ใบ", "อย่างละใบ", "one from each group", "one card from each"):
+            self.assertNotIn(phrase, html)
+            self.assertNotIn(phrase, js)
+        self.assertIn("จั่ว 3 ใบจากทั้งสำรับ", html)
+        self.assertIn("draws 3 cards from the whole deck", js)
 
 
 if __name__ == "__main__":

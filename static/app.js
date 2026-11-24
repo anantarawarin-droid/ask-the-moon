@@ -16,7 +16,7 @@ const I18N = {
     faqQ3: "เปิดไพ่กี่ใบ?",
     faqA3: "โหมดหลักให้แตะเลือกไพ่ 3 ใบ ถ้ามีไพ่ทาโรต์อยู่แล้วจากสำรับที่บ้าน เลือกบนเว็บได้ 1–5 ใบ",
     faqQOracle: "ไพ่ออราเคิล 37 ใบคืออะไร?",
-    faqAOracle: "เป็นสำรับของถามจันทร์เอง 37 ใบ แบ่งเป็นชุดเวลา อารมณ์ และคำพูด ชื่อบนไพ่เป็นภาษาอังกฤษ ความหมายอธิบายในคำทำนายหลังจั่วไพ่ แต่ละคำถามจั่วหนึ่งใบต่อชุด รวม 3 ใบ ใช้เครดิตเหมือนการถามไพ่ทาโรต์",
+    faqAOracle: "เป็นสำรับของถามจันทร์เอง 37 ใบ แบ่งเป็นชุดเวลา อารมณ์ และคำพูด ชื่อบนไพ่เป็นภาษาอังกฤษ ความหมายอธิบายในคำทำนายหลังจั่วไพ่ แต่ละคำถามจั่ว 3 ใบจากทั้งสำรับ ใช้เครดิตเหมือนการถามไพ่ทาโรต์",
     faqQ4: "คำตอบจากไพ่ใช้ตัดสินใจเรื่องสำคัญได้ไหม?",
     faqA4: "คำตอบจากไพ่มีไว้เป็นแนวทาง เพื่อความบันเทิง ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย หรือการเงิน การตัดสินใจสุดท้ายเป็นของคุณ",
     faqQ5: "จ่ายเงินอย่างไร?",
@@ -280,7 +280,7 @@ const I18N = {
     faqQ3: "How many cards are drawn?",
     faqA3: "The main mode lets you tap 3 cards. If you already drew tarot at home, you can enter 1–5 of those cards here.",
     faqQOracle: "What is the 37-card oracle?",
-    faqAOracle: "It is Ask the Moon’s own 37-card oracle: Timing, Feeling, and Counsel. English titles are on the cards; a short name sits under them in the reading, and the meaning is explained in the reading itself. Each question draws one card from each group (3 in all) and uses the same question credits as tarot.",
+    faqAOracle: "It is Ask the Moon’s own 37-card oracle: Time, Emotion, and Words. English titles are on the cards; a short name sits under them in the reading, and the meaning is explained in the reading itself. Each question draws 3 cards from the whole deck and uses the same question credits as tarot.",
     faqQ4: "Can I use a reading to make important decisions?",
     faqA4: "Readings are for guidance and entertainment only. They are not medical, legal, or financial advice. The final decision is yours.",
     faqQ5: "How does payment work?",
@@ -488,7 +488,7 @@ const I18N = {
     deckTarot: "Tarot",
     deckTarotSub: "78-card deck",
     deckOracle: "Oracle · 37 cards",
-    deckOracleSub: "Timing · Feeling · Counsel",
+    deckOracleSub: "Time · Emotion · Words",
     modeLabel: "How to draw",
     modeDraw: "Pick cards",
     modeDrawSub: "Tap 3 cards",
@@ -725,7 +725,7 @@ function renderTarot(tarot) {
   const own = tarot.drawnBy === "self";
   banner.hidden = !own;
   banner.textContent = own ? dict.ownBanner(cards.length) : "";
-  const isOracle = (cards[0] && String(cards[0].id).startsWith("oracle-")) || (tarot && tarot.headingEn === "Timing · Feeling · Counsel");
+  const isOracle = (cards[0] && String(cards[0].id).startsWith("oracle-")) || (tarot && tarot.headingEn === "3 oracle cards");
   row.classList.toggle("is-flex", cards.length !== 3);
   row.innerHTML = cards
     .map((c, i) => {
@@ -739,7 +739,7 @@ function renderTarot(tarot) {
         : slug
         ? `<a class="tcard-link" href="/tarot/${escapeHtml(slug)}" target="_blank" rel="noopener">${escapeHtml(name)}</a>`
         : escapeHtml(name);
-      const pos = th ? (c.positionTh || "") : (c.positionEn || "");
+      const pos = th ? (c.positionTh || c.categoryTh || "") : (c.positionEn || c.categoryEn || "");
       const back = `<span class="tcard-face tcard-back" aria-hidden="true"><img src="${escapeHtml(state.cardBack)}" alt="" /></span>`;
       return `
       <figure class="tcard${c.reversed ? " is-reversed" : ""}${oracleCard || isOracle ? " is-oracle" : ""}${already ? " is-flipped no-anim" : ""}" style="--i:${i}">
