@@ -136,6 +136,41 @@
           </div>
         </div>
         <fieldset class="form-fields" id="form-fields" disabled>
+        <div class="grid-2">
+          <label>
+            <span data-i18n="nameLabel">ชื่อ</span>
+            <input type="text" name="name" id="name" maxlength="80" required autocomplete="given-name" data-i18n-placeholder="namePh" placeholder="เช่น น้ำเพชร" />
+          </label>
+          <label>
+            <span data-i18n="dateLabel">วันเกิด</span>
+            <input type="date" name="birthDate" id="birthDate" required min="1900-01-01" />
+          </label>
+        </div>
+        <div class="grid-2">
+          <label>
+            <span><span data-i18n="timeLabel">เวลาเกิด</span> <em data-i18n="optional">(ไม่บังคับ)</em></span>
+            <input type="time" name="birthTime" id="birthTime" />
+          </label>
+          <fieldset class="topic-field">
+            <legend data-i18n="topicLabel">หัวข้อที่อยากรู้</legend>
+            <div class="topics" id="topics">
+              <label class="chip"><input type="radio" name="topic" value="love" /><span data-i18n="topicLove">ความรัก</span></label>
+              <label class="chip"><input type="radio" name="topic" value="career" /><span data-i18n="topicCareer">การงาน</span></label>
+              <label class="chip"><input type="radio" name="topic" value="money" /><span data-i18n="topicMoney">การเงิน</span></label>
+              <label class="chip"><input type="radio" name="topic" value="life_path" checked /><span data-i18n="topicPath">เส้นทางชีวิต</span></label>
+            </div>
+          </fieldset>
+        </div>
+        <label>
+          <span><span data-i18n="qLabel">คำถามถึงดาว</span> <em data-i18n="optional">(ไม่บังคับ)</em></span>
+          <textarea name="question" id="question" rows="3" maxlength="280" data-i18n-placeholder="qPh" placeholder="เช่น ปีนี้ฉันควรกล้าเริ่มสิ่งใหม่ไหม?"></textarea>
+        </label>
+        <label class="details-field">
+          <span><span data-i18n="detailsLabel">เล่าเพิ่มเติม</span> <em data-i18n="optional">(ไม่บังคับ)</em></span>
+          <small class="field-hint" id="details-hint" data-i18n="detailsHint">บอกสถานการณ์ตอนนี้ให้จันทร์เข้าใจ เช่น เขาเป็นใครกับคุณ เกิดอะไรขึ้น เพื่อให้คำตอบตรงกับเรื่องของคุณมากขึ้น</small>
+          <textarea name="details" id="details" rows="3" maxlength="500" aria-describedby="details-hint" data-i18n-placeholder="detailsPh" placeholder="เช่น คุยกับเขามา 3 เดือน ช่วงนี้เขาตอบช้าลง"></textarea>
+          <small class="char-count" id="details-count" aria-live="polite">0/500</small>
+        </label>
         <div class="choice-grid" role="radiogroup" data-i18n-label="deckLabel" aria-label="สำรับไพ่">
           <button type="button" class="deck-btn is-on" id="deck-tarot" role="radio" aria-checked="true" data-choice="tarot">
             <b data-i18n="deckTarot">ไพ่ทาโรต์</b>
@@ -178,41 +213,6 @@
           <input type="search" class="own-search" id="own-search" autocomplete="off" data-i18n-placeholder="ownSearchPh" placeholder="ค้นหาชื่อไพ่ ไทยหรืออังกฤษ เช่น ถ้วย, Queen" />
           <div class="own-grid" id="own-grid"></div>
         </section>
-        <div class="grid-2">
-          <label>
-            <span data-i18n="nameLabel">ชื่อ</span>
-            <input type="text" name="name" id="name" maxlength="80" required autocomplete="given-name" data-i18n-placeholder="namePh" placeholder="เช่น น้ำเพชร" />
-          </label>
-          <label>
-            <span data-i18n="dateLabel">วันเกิด</span>
-            <input type="date" name="birthDate" id="birthDate" required min="1900-01-01" />
-          </label>
-        </div>
-        <div class="grid-2">
-          <label>
-            <span><span data-i18n="timeLabel">เวลาเกิด</span> <em data-i18n="optional">(ไม่บังคับ)</em></span>
-            <input type="time" name="birthTime" id="birthTime" />
-          </label>
-          <fieldset class="topic-field">
-            <legend data-i18n="topicLabel">หัวข้อที่อยากรู้</legend>
-            <div class="topics" id="topics">
-              <label class="chip"><input type="radio" name="topic" value="love" /><span data-i18n="topicLove">ความรัก</span></label>
-              <label class="chip"><input type="radio" name="topic" value="career" /><span data-i18n="topicCareer">การงาน</span></label>
-              <label class="chip"><input type="radio" name="topic" value="money" /><span data-i18n="topicMoney">การเงิน</span></label>
-              <label class="chip"><input type="radio" name="topic" value="life_path" checked /><span data-i18n="topicPath">เส้นทางชีวิต</span></label>
-            </div>
-          </fieldset>
-        </div>
-        <label>
-          <span><span data-i18n="qLabel">คำถามถึงดาว</span> <em data-i18n="optional">(ไม่บังคับ)</em></span>
-          <textarea name="question" id="question" rows="3" maxlength="280" data-i18n-placeholder="qPh" placeholder="เช่น ปีนี้ฉันควรกล้าเริ่มสิ่งใหม่ไหม?"></textarea>
-        </label>
-        <label class="details-field">
-          <span><span data-i18n="detailsLabel">เล่าเพิ่มเติม</span> <em data-i18n="optional">(ไม่บังคับ)</em></span>
-          <small class="field-hint" id="details-hint" data-i18n="detailsHint">บอกสถานการณ์ตอนนี้ให้จันทร์เข้าใจ เช่น เขาเป็นใครกับคุณ เกิดอะไรขึ้น เพื่อให้คำตอบตรงกับเรื่องของคุณมากขึ้น</small>
-          <textarea name="details" id="details" rows="3" maxlength="500" aria-describedby="details-hint" data-i18n-placeholder="detailsPh" placeholder="เช่น คุยกับเขามา 3 เดือน ช่วงนี้เขาตอบช้าลง"></textarea>
-          <small class="char-count" id="details-count" aria-live="polite">0/500</small>
-        </label>
         <div class="credit-strip" id="credit-strip">
           <p class="credit-text" id="credit-text"></p>
           <a class="credit-link" href="#pricing" data-i18n="topUp">เติมคำถาม</a>
