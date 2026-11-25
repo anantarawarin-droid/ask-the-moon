@@ -359,6 +359,14 @@ class Http(unittest.TestCase):
         self.assertIn("grid-template-columns: 1fr 1fr", grid)
         self.assertIn("grid-column: 1 / -1", css)
         self.assertIn("overflow: visible", css[css.index(".deck-btn b"):css.index(".oracle-theme")])
+        btn = css[css.index(".deck-btn {"):css.index(".deck-btn b")]
+        self.assertIn("text-align: center", btn)
+        self.assertIn("align-content: center", btn)
+        self.assertNotIn("text-align: left", btn)
+        self.assertNotIn("align-content: start", btn)
+        self.assertIn('modeOwnSub: "เลือกไพ่ที่คุณเปิดจากสำรับคุณ 1–5 ใบ"', js)
+        self.assertIn('modeOwnSub: "1–5 cards you drew from your deck"', js)
+        self.assertIn("เลือกไพ่ที่คุณเปิดจากสำรับคุณ 1–5 ใบ", html)
 
 
 if __name__ == "__main__":

@@ -1179,24 +1179,24 @@ body[data-lang="en"] .pricing h2 { font-family: var(--font-display); letter-spac
 .choice-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  margin: 0 0 0.65rem;
+  gap: 0.45rem;
+  margin: 0 0 0.6rem;
   align-items: stretch;
 }
 .choice-grid > .deck-btn-wide { grid-column: 1 / -1; }
 .deck-btn {
   appearance: none; border: 1px solid var(--card-border); background: rgba(8, 4, 16, 0.45);
-  color: var(--text); border-radius: 16px; padding: 0.75rem 0.85rem; text-align: left; cursor: pointer;
-  display: grid; gap: 0.2rem; align-content: start; min-width: 0; height: 100%; overflow: visible;
+  color: var(--text); border-radius: 14px; padding: 0.55rem 0.7rem; text-align: center; cursor: pointer;
+  display: grid; gap: 0.05rem; align-content: center; justify-items: stretch; min-width: 0; height: 100%; overflow: visible;
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
 }
 .deck-btn b {
-  font-family: "Noto Serif Thai", var(--font-display), serif; font-weight: 600; font-size: 0.98rem;
-  line-height: 1.6; padding-block: 0.12em; overflow: visible; overflow-wrap: break-word;
+  font-family: "Noto Serif Thai", var(--font-display), serif; font-weight: 600; font-size: 0.92rem;
+  line-height: 1.45; padding-block: 0.06em; overflow: visible; overflow-wrap: break-word;
 }
 .deck-btn small {
-  font-size: 0.76rem; color: var(--muted); line-height: 1.6; padding-block: 0.12em;
-  overflow: visible; overflow-wrap: break-word; text-wrap: pretty;
+  font-size: 0.74rem; color: var(--muted); line-height: 1.45; padding-block: 0.05em;
+  overflow: visible; overflow-wrap: break-word; text-wrap: balance;
 }
 .oracle-theme {
   margin: -0.15rem 0 0.7rem;
@@ -1256,9 +1256,9 @@ input[type="search"].own-search { width: 100%; border-radius: 12px; border: 1px 
 .tarot-row.is-flex .tcard { flex: 0 0 calc((100% - 2 * clamp(8px, 2.6vw, 18px)) / 3); }
 @media (max-width: 420px) {
   .choice-grid { gap: 0.4rem; }
-  .deck-btn { padding: 0.65rem 0.7rem; }
-  .deck-btn b { font-size: 0.9rem; line-height: 1.6; }
-  .deck-btn small { font-size: 0.72rem; line-height: 1.6; }
+  .deck-btn { padding: 0.5rem 0.55rem; }
+  .deck-btn b { font-size: 0.88rem; line-height: 1.45; }
+  .deck-btn small { font-size: 0.7rem; line-height: 1.45; }
   .oracle-theme { font-size: 0.74rem; margin: -0.05rem 0 0.65rem; }
   .pick-fan { gap: 0.32rem 0.22rem; }
   .pick-table { padding: 0.8rem; }
