@@ -120,8 +120,6 @@
       <p class="lede" data-i18n="heroLede">พิมพ์คำถาม จันทร์เปิดไพ่ 3 ใบ ตอบตรง ๆ พร้อมเหตุผลและคำแนะนำ</p>
       <p class="hero-links">
         <a href="/tarot" data-i18n="heroMeanings">ความหมายไพ่</a>
-        <span class="hero-links-dot" aria-hidden="true">·</span>
-        <a href="#oracle" id="hero-own-link" data-i18n="heroOwn">เปิดไพ่เอง</a>
       </p>
       <p class="hero-offer" id="hero-offer" hidden><button type="button" class="offer-pill is-in" id="hero-signup"></button></p>
     </section>
@@ -138,27 +136,21 @@
           </div>
         </div>
         <fieldset class="form-fields" id="form-fields" disabled>
-        <div class="deck-switch" role="radiogroup" data-i18n-label="deckLabel" aria-label="สำรับไพ่">
-          <button type="button" class="deck-btn is-on" id="deck-tarot" role="radio" aria-checked="true" data-deck="tarot">
+        <div class="choice-grid" role="radiogroup" data-i18n-label="deckLabel" aria-label="สำรับไพ่">
+          <button type="button" class="deck-btn is-on" id="deck-tarot" role="radio" aria-checked="true" data-choice="tarot">
             <b data-i18n="deckTarot">ไพ่ทาโรต์</b>
             <small data-i18n="deckTarotSub">สำรับ 78 ใบ</small>
           </button>
-          <button type="button" class="deck-btn" id="deck-oracle" role="radio" aria-checked="false" data-deck="oracle">
+          <button type="button" class="deck-btn" id="mode-own" role="radio" aria-checked="false" data-choice="own">
+            <b data-i18n="modeOwn">มีไพ่อยู่แล้ว</b>
+            <small data-i18n="modeOwnSub">เลือกไพ่ทาโรต์ที่คุณเปิดจากสำรับของคุณ 1–5 ใบ</small>
+          </button>
+          <button type="button" class="deck-btn deck-btn-wide" id="deck-oracle" role="radio" aria-checked="false" data-choice="oracle">
             <b data-i18n="deckOracle">ไพ่ออราเคิล 37 ใบ</b>
             <small data-i18n="deckOracleSub">ธีม Feeling Time · ถึง 15 ธ.ค. นี้</small>
           </button>
         </div>
         <p class="oracle-theme" id="oracle-theme" hidden data-i18n="oracleTheme">ไพ่ออราเคิลธีม “Feeling Time” · ถึง 15 ธันวาคมนี้เท่านั้น</p>
-        <div class="mode-switch" role="radiogroup" data-i18n-label="modeLabel" aria-label="วิธีเปิดไพ่">
-          <button type="button" class="mode-btn is-on" id="mode-draw" role="radio" aria-checked="true" data-mode="draw">
-            <b data-i18n="modeDraw">เลือกไพ่</b>
-            <small data-i18n="modeDrawSub">แตะเลือก 3 ใบ</small>
-          </button>
-          <button type="button" class="mode-btn" id="mode-own" role="radio" aria-checked="false" data-mode="own">
-            <b data-i18n="modeOwn">มีไพ่อยู่แล้ว</b>
-            <small data-i18n="modeOwnSub">เลือกไพ่ทาโรต์ที่คุณเปิดจากสำรับของคุณ 1–5 ใบ</small>
-          </button>
-        </div>
         <section class="pick-table" id="pick-table" aria-labelledby="pick-title">
           <h3 class="pick-title" id="pick-title" data-i18n="pickTitle">เลือกไพ่ 3 ใบ</h3>
           <p class="pick-hint" id="pick-hint" data-i18n="pickHint">แตะเลือกไพ่ 3 ใบ</p>
