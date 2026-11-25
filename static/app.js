@@ -807,31 +807,58 @@ function loadDeck() {
   return deckPromise;
 }
 
-function setMode(mode) {
-  if (mode === "own" && state.deckKind === "oracle") {
-    setDeck("tarot");
-  }
-  state.mode = mode === "own" ? "own" : "draw";
-  document.querySelectorAll(".mode-btn").forEach((btn) => {
-    const on = btn.dataset.mode === state.mode;
+function choiceKey() {
+  if (state.mode === "own") return "own";
+  return state.deckKind === "oracle" ? "oracle" : "tarot";
+}
+
+function applyChoiceChrome() {
+  const key = choiceKey();
+  document.querySelectorAll("[data-choice]").forEach((btn) => {
+    const on = btn.dataset.choice === key;
     btn.classList.toggle("is-on", on);
     btn.setAttribute("aria-checked", on ? "true" : "false");
   });
   const theme = document.getElementById("oracle-theme");
   if (theme) theme.hidden = state.deckKind !== "oracle";
-  document.getElementById("own-picker").hidden = state.mode !== "own";
+  const ownPicker = document.getElementById("own-picker");
+  if (ownPicker) ownPicker.hidden = state.mode !== "own";
   const pick = document.getElementById("pick-table");
   if (pick) pick.hidden = state.mode !== "draw";
-  document.getElementById("form-error").hidden = true;
-  if (state.mode === "own") {
-    loadDeck().catch(() => {
-      const error = document.getElementById("form-error");
-      error.textContent = t().ownLoadFail;
-      error.hidden = false;
-    });
-  }
   renderOwn();
   renderPick();
+}
+
+function setMode(mode) {
+  if (mode === "own" && state.deckKind === "oracle") {
+    state.deckKind = "tarot";
+  }
+  state.mode = mode === "own" ? "own" : "draw";
+  const error = document.getElementById("form-error");
+  if (error) error.hidden = true;
+  applyChoiceChrome();
+  if (state.mode === "own") {
+    loadDeck().catch(() => {
+      const fail = document.getElementById("form-error");
+      if (!fail) return;
+      fail.textContent = t().ownLoadFail;
+      fail.hidden = false;
+    });
+  }
+}
+
+// Three homepage choices: tarot auto-pick, physical tarot, or the Feeling Time oracle.
+function setChoice(choice) {
+  if (choice === "own") {
+    setMode("own");
+    return;
+  }
+  if (choice === "oracle") {
+    setDeck("oracle");
+    return;
+  }
+  if (state.mode === "own") state.mode = "draw";
+  setDeck("tarot");
 }
 
 const PICK_N = 18;
@@ -860,27 +887,10 @@ function preferredDeck() {
 
 function setDeck(kind) {
   state.deckKind = kind === "oracle" ? "oracle" : "tarot";
-  document.querySelectorAll(".deck-btn").forEach((btn) => {
-    const on = btn.dataset.deck === state.deckKind;
-    btn.classList.toggle("is-on", on);
-    btn.setAttribute("aria-checked", on ? "true" : "false");
-  });
-  const ownBtn = document.getElementById("mode-own");
-  if (ownBtn) ownBtn.hidden = state.deckKind === "oracle";
   if (state.deckKind === "oracle" && state.mode === "own") {
     state.mode = "draw";
   }
-  // Re-apply mode chrome without recursing into setDeck.
-  document.querySelectorAll(".mode-btn").forEach((btn) => {
-    const on = btn.dataset.mode === state.mode;
-    btn.classList.toggle("is-on", on);
-    btn.setAttribute("aria-checked", on ? "true" : "false");
-  });
-  document.getElementById("own-picker").hidden = state.mode !== "own";
-  const pick = document.getElementById("pick-table");
-  if (pick) pick.hidden = state.mode !== "draw";
-  renderOwn();
-  renderPick();
+  applyChoiceChrome();
 }
 
 function pickToggle(slot) {
@@ -935,8 +945,8 @@ function setupPick() {
     if (card) pickToggle(Number(card.dataset.slot));
   });
   document.getElementById("pick-shuffle").addEventListener("click", () => shufflePick());
-  document.querySelectorAll(".deck-btn").forEach((btn) => {
-    btn.addEventListener("click", () => setDeck(btn.dataset.deck));
+  document.querySelectorAll("[data-choice]").forEach((btn) => {
+    btn.addEventListener("click", () => setChoice(btn.dataset.choice));
   });
 }
 
@@ -1012,13 +1022,6 @@ function renderOwn() {
 }
 
 function setupOwn() {
-  document.querySelectorAll(".mode-btn").forEach((btn) => btn.addEventListener("click", () => setMode(btn.dataset.mode)));
-  document.getElementById("hero-own-link").addEventListener("click", (event) => {
-    event.preventDefault();
-    setDeck("tarot");
-    setMode("own");
-    document.getElementById("oracle").scrollIntoView({ behavior: "smooth", block: "start" });
-  });
   document.getElementById("own-tabs").addEventListener("click", (event) => {
     const tab = event.target.closest(".own-tab");
     if (!tab) return;
