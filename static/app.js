@@ -508,7 +508,7 @@ const I18N = {
     modeLabel: "How to draw",
     modeDraw: "Pick cards",
     modeDrawSub: "Tap 3 cards",
-    modeOwn: "I already drew",
+    modeOwn: "Use my own cards",
     modeOwnSub: "1–5 cards you drew from your deck",
     pickTitle: "Pick 3 cards",
     pickHint: "Tap 3 cards",
