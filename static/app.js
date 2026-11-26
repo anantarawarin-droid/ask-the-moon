@@ -101,6 +101,7 @@ const I18N = {
     pricingEyebrow: "แพ็กเกจคำถาม · เติมผ่านพร้อมเพย์",
     pricingTitle: "เติมพลังจันทร์ ถามได้มากขึ้น",
     pricingLede: "คำถามละ 15 บาท ยิ่งเติมมาก ยิ่งได้คำถามโบนัสฟรี — สูงสุด 150 บาทต่อครั้ง ทุกคำถามที่ใช้เครดิตจะได้บทอ่านลึกครบทุกส่วน",
+    promoEnds: "โปรถึง 31 ธ.ค. 2026",
     how1: "เลือกแพ็กเกจ แล้วสแกน QR พร้อมเพย์ด้วยแอปธนาคาร",
     how2: "อัปโหลดสลิปบนหน้านี้ ระบบตรวจสอบให้อัตโนมัติ",
     how3: "เครดิตเข้าบัญชีของคุณทันทีหลังตรวจผ่าน",
@@ -373,6 +374,7 @@ const I18N = {
     pricingEyebrow: "Question packages · PromptPay",
     pricingTitle: "Charge the moon, ask more",
     pricingLede: "15 THB per question, with free bonus questions on bigger packs — up to 150 THB per top-up. Every credited question comes with the full deep reading.",
+    promoEnds: "Promo through 31 Dec 2026",
     how1: "Pick a package and scan the PromptPay QR with your banking app.",
     how2: "Upload your slip on this page and it's verified automatically.",
     how3: "Credits are added to your account right after the slip passes.",
@@ -1688,6 +1690,9 @@ async function loadPackages() {
     const { response, data } = await api("/api/packages");
     if (response.ok && data.ok) {
       state.packages = data.packages;
+      state.promoEndsAt = data.promoEndsAt || null;
+      const promoLine = document.getElementById("promo-ends");
+      if (promoLine) promoLine.hidden = !state.promoEndsAt;
       state.paymentEnabled = Boolean(data.paymentEnabled);
       state.slipEnabled = Boolean(data.slipEnabled);
       if (data.slipMaxBytes) state.slipMaxBytes = data.slipMaxBytes;

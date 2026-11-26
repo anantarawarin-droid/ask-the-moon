@@ -27,6 +27,9 @@ from typing import Any, Iterator
 # ---------------------------------------------------------------------------
 # Pricing — the single source of truth. Do not change without the owner.
 # (price in THB, total questions). Bonus = total - price / 15.
+# PACKAGE_TABLE is the regular menu. PROMO_PACKAGE_TABLE is used through
+# 31 Dec 2026 23:59 Asia/Bangkok, then the regular table returns automatically.
+# Packages are computed at request time; each order snapshots questions+bonus.
 # ---------------------------------------------------------------------------
 BASE_PRICE = 15
 MAX_AMOUNT = 150
@@ -42,7 +45,21 @@ PACKAGE_TABLE: tuple[tuple[int, int], ...] = (
     (135, 12),
     (150, 15),
 )
+PROMO_PACKAGE_TABLE: tuple[tuple[int, int], ...] = (
+    (15, 1),
+    (30, 2),
+    (45, 3),
+    (60, 4),
+    (75, 5),
+    (90, 8),
+    (105, 10),
+    (120, 12),
+    (135, 15),
+    (150, 20),
+)
 BEST_VALUE_PRICE = 150
+BANGKOK = timezone(timedelta(hours=7))
+PROMO_ENDS = datetime(2026, 12, 31, 23, 59, 59, tzinfo=BANGKOK)
 # Google accounts live in moon_users with username_key "google:<sub>" (':' can't appear in a username).
 GOOGLE_KEY_PREFIX = "google:"
 
@@ -51,9 +68,30 @@ def _money(value: Decimal) -> str:
     return str(value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
-def build_packages() -> list[dict[str, Any]]:
+def _when(now: datetime | None = None) -> datetime:
+    when = now if now is not None else datetime.now(BANGKOK)
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    return when.astimezone(BANGKOK)
+
+
+def promo_active(now: datetime | None = None) -> bool:
+    """True through the end of 31 Dec 2026 in Asia/Bangkok."""
+    return _when(now) < datetime(2027, 1, 1, tzinfo=BANGKOK)
+
+
+def promo_ends_at(now: datetime | None = None) -> str | None:
+    """ISO-8601 end instant while the year-end bonus is on, else None."""
+    return PROMO_ENDS.isoformat() if promo_active(now) else None
+
+
+def package_table(now: datetime | None = None) -> tuple[tuple[int, int], ...]:
+    return PROMO_PACKAGE_TABLE if promo_active(now) else PACKAGE_TABLE
+
+
+def build_packages(table: tuple[tuple[int, int], ...] | None = None, now: datetime | None = None) -> list[dict[str, Any]]:
     packages = []
-    for price, questions in PACKAGE_TABLE:
+    for price, questions in (table if table is not None else package_table(now)):
         if price % BASE_PRICE or price > MAX_AMOUNT:
             raise ValueError(f"Invalid package price {price}")
         base = price // BASE_PRICE
@@ -80,21 +118,27 @@ def build_packages() -> list[dict[str, Any]]:
     return packages
 
 
-PACKAGES = build_packages()
-PACKAGES_BY_PRICE = {p["price"]: p for p in PACKAGES}
+def current_packages(now: datetime | None = None) -> list[dict[str, Any]]:
+    """The live package menu for this moment (promo or regular)."""
+    return build_packages(now=now)
 
 
-def package_for_amount(amount: Any) -> dict[str, Any]:
+def packages_by_price(now: datetime | None = None) -> dict[int, dict[str, Any]]:
+    return {p["price"]: p for p in current_packages(now)}
+
+
+def package_for_amount(amount: Any, now: datetime | None = None) -> dict[str, Any]:
     """Return the package for an exact THB amount, or raise ValueError."""
+    by_price = packages_by_price(now)
     if isinstance(amount, bool):
         raise ValueError("Invalid package amount.")
     if isinstance(amount, str) and re.fullmatch(r"\d{1,4}", amount.strip()):
         amount = int(amount.strip())
     if isinstance(amount, float) and amount.is_integer():
         amount = int(amount)
-    if not isinstance(amount, int) or amount not in PACKAGES_BY_PRICE:
+    if not isinstance(amount, int) or amount not in by_price:
         raise ValueError("Invalid package amount.")
-    return PACKAGES_BY_PRICE[amount]
+    return by_price[amount]
 
 
 # ---------------------------------------------------------------------------
@@ -297,7 +341,7 @@ class CreditService:
             pending = [o for o in data["orders"].values() if o["status"] == "pending"]
             mine = [o for o in pending if o["visitor"] == visitor_id]
             for o in mine:  # reuse an identical pending order instead of piling up
-                if o["price"] == pkg["price"]:
+                if o["price"] == pkg["price"] and int(o["questions"]) == int(pkg["questions"]):
                     return dict(o)
             if len(mine) >= MAX_PENDING_PER_VISITOR or len(pending) >= MAX_PENDING_TOTAL:
                 raise PaymentError("Too many pending orders. Please wait for approval.", 429, "too_many")
@@ -1042,7 +1086,7 @@ class PostgresCreditService:
             )
             mine = [self._order(r) for r in cur.fetchall()]
             for o in mine:
-                if o["price"] == pkg["price"]:
+                if o["price"] == pkg["price"] and int(o["questions"]) == int(pkg["questions"]):
                     return o
             cur.execute("SELECT count(*) FROM moon_orders WHERE status = 'pending'")
             total = int(cur.fetchone()[0])

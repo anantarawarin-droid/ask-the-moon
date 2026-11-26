@@ -10,6 +10,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from datetime import datetime
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -22,12 +23,28 @@ os.environ.setdefault("DATA_DIR", tempfile.mkdtemp(prefix="moon-test-"))
 import app  # noqa: E402
 import credits as billing  # noqa: E402
 
-EXPECTED = {  # price: (questions, bonus, avg)
+REGULAR_EXPECTED = {  # price: (questions, bonus, avg)
     15: (1, 0, "15.00"), 30: (2, 0, "15.00"), 45: (3, 0, "15.00"),
     60: (4, 0, "15.00"), 75: (5, 0, "15.00"), 90: (7, 1, "12.86"),
     105: (8, 1, "13.13"), 120: (10, 2, "12.00"), 135: (12, 3, "11.25"),
     150: (15, 5, "10.00"),
 }
+PROMO_EXPECTED = {
+    15: (1, 0, "15.00"), 30: (2, 0, "15.00"), 45: (3, 0, "15.00"),
+    60: (4, 0, "15.00"), 75: (5, 0, "15.00"), 90: (8, 2, "11.25"),
+    105: (10, 3, "10.50"), 120: (12, 4, "10.00"), 135: (15, 6, "9.00"),
+    150: (20, 10, "7.50"),
+}
+PROMO_AT = datetime(2026, 12, 31, 23, 59, 59, tzinfo=billing.BANGKOK)
+AFTER_AT = datetime(2027, 1, 1, 0, 0, 0, tzinfo=billing.BANGKOK)
+
+
+def expected_now():
+    return {p["price"]: (p["questions"], p["bonus"], p["perQuestion"]) for p in billing.current_packages()}
+
+
+def questions_of(price):
+    return billing.package_for_amount(price)["questions"]
 VISITOR = "a" * 32
 OTHER = "b" * 32
 
@@ -52,30 +69,50 @@ def pg_service():
 fresh_service = json_service
 
 
+def _summary(packages):
+    return {p["price"]: (p["questions"], p["bonus"], p["perQuestion"]) for p in packages}
+
+
 class PackageTable(unittest.TestCase):
-    def test_exact_table(self):
-        got = {p["price"]: (p["questions"], p["bonus"], p["perQuestion"]) for p in billing.PACKAGES}
-        self.assertEqual(got, EXPECTED)
-        self.assertEqual([p["price"] for p in billing.PACKAGES], list(range(15, 151, 15)))
+    def test_regular_and_promo_tables(self):
+        self.assertEqual(_summary(billing.build_packages(billing.PACKAGE_TABLE)), REGULAR_EXPECTED)
+        self.assertEqual(_summary(billing.build_packages(billing.PROMO_PACKAGE_TABLE)), PROMO_EXPECTED)
+        self.assertEqual(_summary(billing.current_packages(PROMO_AT)), PROMO_EXPECTED)
+        self.assertEqual(_summary(billing.current_packages(AFTER_AT)), REGULAR_EXPECTED)
+        self.assertEqual([p["price"] for p in billing.current_packages(PROMO_AT)], list(range(15, 151, 15)))
+        self.assertEqual([p["price"] for p in billing.current_packages(AFTER_AT)], list(range(15, 151, 15)))
+
+    def test_promo_ends_at_new_year(self):
+        self.assertTrue(billing.promo_active(PROMO_AT))
+        self.assertFalse(billing.promo_active(AFTER_AT))
+        self.assertEqual(billing.promo_ends_at(PROMO_AT), "2026-12-31T23:59:59+07:00")
+        self.assertIsNone(billing.promo_ends_at(AFTER_AT))
 
     def test_max_and_best_value(self):
         self.assertEqual(billing.MAX_AMOUNT, 150)
-        self.assertTrue(all(p["price"] <= 150 for p in billing.PACKAGES))
-        best = [p for p in billing.PACKAGES if p["bestValue"]]
-        self.assertEqual(len(best), 1)
-        self.assertEqual((best[0]["price"], best[0]["questions"], best[0]["bonus"], best[0]["perQuestion"]),
-                         (150, 15, 5, "10.00"))
+        for pkgs, questions, bonus, avg in (
+            (billing.build_packages(billing.PACKAGE_TABLE), 15, 5, "10.00"),
+            (billing.build_packages(billing.PROMO_PACKAGE_TABLE), 20, 10, "7.50"),
+        ):
+            self.assertTrue(all(p["price"] <= 150 for p in pkgs))
+            best = [p for p in pkgs if p["bestValue"]]
+            self.assertEqual(len(best), 1)
+            self.assertEqual((best[0]["price"], best[0]["questions"], best[0]["bonus"], best[0]["perQuestion"]),
+                             (150, questions, bonus, avg))
 
     def test_bonus_never_decreases(self):
-        bonuses = [p["bonus"] for p in billing.PACKAGES]
-        self.assertEqual(bonuses, sorted(bonuses))
+        for table in (billing.PACKAGE_TABLE, billing.PROMO_PACKAGE_TABLE):
+            bonuses = [p["bonus"] for p in billing.build_packages(table)]
+            self.assertEqual(bonuses, sorted(bonuses), table)
 
     def test_invalid_amounts(self):
         for bad in (0, 1, 14, 16, 100, 165, 300, -15, 15.5, "abc", None, True, [], "", "150.5"):
             with self.assertRaises(ValueError, msg=repr(bad)):
                 billing.package_for_amount(bad)
-        self.assertEqual(billing.package_for_amount("150")["questions"], 15)
-        self.assertEqual(billing.package_for_amount(90.0)["questions"], 7)
+        self.assertEqual(billing.package_for_amount("150", now=AFTER_AT)["questions"], 15)
+        self.assertEqual(billing.package_for_amount(90.0, now=AFTER_AT)["questions"], 7)
+        self.assertEqual(billing.package_for_amount("150", now=PROMO_AT)["questions"], 20)
+        self.assertEqual(billing.package_for_amount(90.0, now=PROMO_AT)["questions"], 8)
 
 
 class PromptPay(unittest.TestCase):
@@ -113,7 +150,7 @@ class Orders(unittest.TestCase):
         self.svc = self.make()
 
     def test_order_approve_balance_and_idempotent(self):
-        for price, (questions, _bonus, _avg) in EXPECTED.items():
+        for price, (questions, _bonus, _avg) in expected_now().items():
             svc = self.make()
             order = svc.create_order(VISITOR, price)
             self.assertEqual(order["status"], "pending")
@@ -272,7 +309,7 @@ class Orders(unittest.TestCase):
         self.svc.reserve_reading(OTHER)  # free question used
         pending = self.svc.create_order(OTHER, 45)
         reopened = self.reopen()
-        self.assertEqual(reopened.balance(VISITOR)["credits"], 15)
+        self.assertEqual(reopened.balance(VISITOR)["credits"], questions_of(150))
         self.assertFalse(reopened.balance(OTHER)["freeAvailable"])
         self.assertEqual([o["code"] for o in reopened.list_orders("pending")], [pending["code"]])
 
@@ -285,6 +322,19 @@ class Orders(unittest.TestCase):
         with self.assertRaises(billing.PaymentError) as ctx:
             self.svc.create_order(VISITOR, 90)
         self.assertEqual(ctx.exception.status, 429)
+
+    def test_pending_reuse_also_matches_questions(self):
+        with mock.patch("credits.promo_active", return_value=False):
+            old = self.svc.create_order(VISITOR, 150)
+        self.assertEqual(old["questions"], 15)
+        with mock.patch("credits.promo_active", return_value=True):
+            fresh = self.svc.create_order(VISITOR, 150)
+        self.assertNotEqual(fresh["code"], old["code"])
+        self.assertEqual(fresh["questions"], 20)
+        self.svc.approve(old["code"])
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], 15)
+        self.svc.approve(fresh["code"])
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], 35)
 
     def test_release_gives_back(self):
         self.assertEqual(self.svc.reserve_reading(VISITOR), "free")
@@ -307,7 +357,7 @@ class Orders(unittest.TestCase):
         threads = [threading.Thread(target=self.svc.approve, args=(order["code"],)) for _ in range(20)]
         [t.start() for t in threads]
         [t.join() for t in threads]
-        self.assertEqual(self.svc.balance(VISITOR)["credits"], 15)
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], questions_of(150))
 
     def test_invalid_amount_rejected(self):
         with self.assertRaises(ValueError):
@@ -436,7 +486,19 @@ class Http(unittest.TestCase):
         code, data = self.req("GET", "/api/packages")
         self.assertEqual(code, 200)
         self.assertTrue(data["paymentEnabled"])
-        self.assertEqual({p["price"]: (p["questions"], p["bonus"], p["perQuestion"]) for p in data["packages"]}, EXPECTED)
+        self.assertEqual({p["price"]: (p["questions"], p["bonus"], p["perQuestion"]) for p in data["packages"]}, expected_now())
+        if billing.promo_active():
+            self.assertEqual(data["promoEndsAt"], "2026-12-31T23:59:59+07:00")
+        else:
+            self.assertIsNone(data["promoEndsAt"])
+        with mock.patch("credits.promo_active", return_value=False):
+            _, off = self.req("GET", "/api/packages")
+        self.assertEqual({p["price"]: (p["questions"], p["bonus"], p["perQuestion"]) for p in off["packages"]}, REGULAR_EXPECTED)
+        self.assertIsNone(off["promoEndsAt"])
+        with mock.patch("credits.promo_active", return_value=True):
+            _, on = self.req("GET", "/api/packages")
+        self.assertEqual({p["price"]: (p["questions"], p["bonus"], p["perQuestion"]) for p in on["packages"]}, PROMO_EXPECTED)
+        self.assertEqual(on["promoEndsAt"], "2026-12-31T23:59:59+07:00")
 
     def test_full_flow(self):
         h = {"X-Visitor-Id": VISITOR}
@@ -456,7 +518,9 @@ class Http(unittest.TestCase):
         code, data = self.req("POST", "/api/orders", {"amount": 90}, h)
         self.assertEqual(code, 200)
         order = data["order"]
-        self.assertEqual((order["price"], order["questions"], order["bonus"]), (90, 7, 1))
+        pkg90 = billing.package_for_amount(90)
+        q90, b90 = pkg90["questions"], pkg90["bonus"]
+        self.assertEqual((order["price"], order["questions"], order["bonus"]), (90, q90, b90))
         self.assertEqual(data["promptpay"]["payload"], billing.promptpay_payload("0812345678", 90))
         self.assertIn("540590.00", data["promptpay"]["payload"])
         # Admin auth.
@@ -465,23 +529,23 @@ class Http(unittest.TestCase):
         self.assertEqual(self.req("POST", f"/api/admin/orders/{order['code']}/approve")[0], 401)
         code, data = self.req("GET", "/api/admin/orders?status=pending", headers=self.ADMIN)
         self.assertEqual([o["code"] for o in data["orders"]], [order["code"]])
-        # Approve -> balance, idempotent.
+        # Approve -> balance, idempotent. Snapshot on the order is what gets granted.
         code, data = self.req("POST", f"/api/admin/orders/{order['code']}/approve", headers=self.ADMIN)
-        self.assertEqual((code, data["credits"], data["alreadyApproved"]), (200, 7, False))
+        self.assertEqual((code, data["credits"], data["alreadyApproved"]), (200, q90, False))
         code, data = self.req("POST", f"/api/admin/orders/{order['code']}/approve", headers=self.ADMIN)
-        self.assertEqual((code, data["credits"], data["alreadyApproved"]), (200, 7, True))
-        self.assertEqual(self.req("GET", "/api/balance", headers=h)[1]["credits"], 7)
+        self.assertEqual((code, data["credits"], data["alreadyApproved"]), (200, q90, True))
+        self.assertEqual(self.req("GET", "/api/balance", headers=h)[1]["credits"], q90)
         # Each reading deducts exactly 1 and unlocks premium.
         code, data = self.reading()
-        self.assertEqual((code, data["balance"]["credits"], data["premiumUnlocked"]), (200, 6, True))
+        self.assertEqual((code, data["balance"]["credits"], data["premiumUnlocked"]), (200, q90 - 1, True))
         # Template fallback (AI down) does not charge.
         with mock.patch.object(app, "llm_generate", return_value=None):
             code, data = self.reading()
-        self.assertEqual((code, data["charge"]["charged"], data["balance"]["credits"]), (200, False, 6))
+        self.assertEqual((code, data["charge"]["charged"], data["balance"]["credits"]), (200, False, q90 - 1))
         # Validation errors do not charge.
         code, _ = self.req("POST", "/api/reading", {"name": "", "birthDate": "2006-07-07"}, h)
         self.assertEqual(code, 400)
-        self.assertEqual(self.req("GET", "/api/balance", headers=h)[1]["credits"], 6)
+        self.assertEqual(self.req("GET", "/api/balance", headers=h)[1]["credits"], q90 - 1)
         # Other visitors are unaffected.
         self.assertEqual(self.req("GET", "/api/balance", headers={"X-Visitor-Id": OTHER})[1]["credits"], 0)
 

@@ -119,7 +119,8 @@ class SlipHttp(tc.Http):
         self.assertEqual(status, 200, data)
         self.assertEqual(data["result"], "success")
         self.assertEqual(data["order"]["status"], "approved")
-        self.assertEqual(data["balance"]["credits"], 7)
+        q90 = tc.questions_of(90)
+        self.assertEqual(data["balance"]["credits"], q90)
         self.assertEqual(self.calls, [("image/jpeg", None)])  # amount is checked locally, not sent
         o = self.admin_order(code)
         self.assertEqual(o["slipStatus"], "verified")
@@ -128,12 +129,12 @@ class SlipHttp(tc.Http):
         # Uploading again after approval doesn't call SlipOK or add credits twice.
         with self.mock_slipok((200, ok_payload("REF-OK", 90))):
             status, data = self.upload(code)
-        self.assertEqual((status, data["result"], data["balance"]["credits"]), (200, "success", 7))
+        self.assertEqual((status, data["result"], data["balance"]["credits"]), (200, "success", q90))
         self.assertEqual(len(self.calls), 1)
         # Admin approve afterwards is idempotent.
         status, data = self.req("POST", f"/api/admin/orders/{code}/approve", {}, self.ADMIN)
         self.assertEqual(status, 200)
-        self.assertEqual(self.credits(), 7)
+        self.assertEqual(self.credits(), q90)
 
     def test_webp_accepted(self):
         code = self.order()

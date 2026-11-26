@@ -14,30 +14,26 @@ sys.path.insert(0, str(ROOT))
 import app  # noqa: E402
 import credits as billing  # noqa: E402
 
-TABLE = {15: 1, 30: 2, 45: 3, 60: 4, 75: 5, 90: 7, 105: 8, 120: 10, 135: 12, 150: 15}
-SPLIT = {90: (6, 1), 105: (7, 1), 120: (8, 2), 135: (9, 3), 150: (10, 5)}
 HTML = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
 JS = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
 
 class PricingConsistency(unittest.TestCase):
     def test_every_number_fits_the_total(self):
-        pkgs = {p["price"]: p for p in billing.PACKAGES}
-        self.assertEqual({k: p["questions"] for k, p in pkgs.items()}, TABLE)
-        for price, p in pkgs.items():
-            # bonus is INSIDE the total, never added on top
-            self.assertEqual(p["baseQuestions"] + p["bonus"], p["questions"], price)
-            self.assertEqual((p["baseQuestions"], p["bonus"]), SPLIT.get(price, (TABLE[price], 0)), price)
-            self.assertEqual(Decimal(p["perQuestion"]), (Decimal(price) / p["questions"]).quantize(Decimal("0.01"), rounding="ROUND_HALF_UP"))
-        self.assertEqual(pkgs[150]["perQuestion"], "10.00")
-        self.assertTrue(pkgs[150]["bestValue"])
+        for pkgs in (billing.current_packages(), billing.build_packages(billing.PACKAGE_TABLE), billing.build_packages(billing.PROMO_PACKAGE_TABLE)):
+            for price, p in {x["price"]: x for x in pkgs}.items():
+                # bonus is INSIDE the total, never added on top
+                self.assertEqual(p["baseQuestions"] + p["bonus"], p["questions"], price)
+                self.assertEqual(Decimal(p["perQuestion"]), (Decimal(price) / p["questions"]).quantize(Decimal("0.01"), rounding="ROUND_HALF_UP"))
+            best = next(x for x in pkgs if x["price"] == 150)
+            self.assertTrue(best["bestValue"])
 
     def test_credits_granted_equal_total(self):
-        for price, total in TABLE.items():
-            svc = billing.CreditService(billing.JsonStore(Path(self.tmp) / f"{price}.json"))
-            order = svc.create_order("v" * 32, price)
-            self.assertEqual(order["questions"], total)
+        for p in billing.current_packages():
+            svc = billing.CreditService(billing.JsonStore(Path(self.tmp) / f"{p['price']}.json"))
+            order = svc.create_order("v" * 32, p["price"])
+            self.assertEqual(order["questions"], p["questions"])
             svc.approve(order["code"])
-            self.assertEqual(svc.balance("v" * 32)["credits"], total, price)
+            self.assertEqual(svc.balance("v" * 32)["credits"], p["questions"], p["price"])
 
     def setUp(self):
         import tempfile
@@ -49,10 +45,12 @@ class PricingConsistency(unittest.TestCase):
             self.assertNotIn(gone, JS, gone)
         self.assertIn("`จ่าย ${pkg.price} บาท ได้ ${pkg.questions} ข้อ (โบนัส ${pkg.bonus} ข้อ) เฉลี่ยข้อละ", JS)
         self.assertIn("`${b} + โบนัส ${x} = รวม ${q} ข้อ`", JS)
-        # Rendered badge text for the ฿150 package
-        p = next(x for x in billing.PACKAGES if x["price"] == 150)
+        self.assertIn('promoEnds: "โปรถึง 31 ธ.ค. 2026"', JS)
+        self.assertIn('data-i18n="promoEnds"', HTML)
+        # Rendered badge text uses the live package totals, never a made-up original price.
+        p = next(x for x in billing.current_packages() if x["price"] == 150)
         badge = f"จ่าย {p['price']} บาท ได้ {p['questions']} ข้อ (โบนัส {p['bonus']} ข้อ) เฉลี่ยข้อละ {p['perQuestion'].replace('.00', '')} บาท"
-        self.assertEqual(badge, "จ่าย 150 บาท ได้ 15 ข้อ (โบนัส 5 ข้อ) เฉลี่ยข้อละ 10 บาท")
+        self.assertEqual(badge, f"จ่าย 150 บาท ได้ {p['questions']} ข้อ (โบนัส {p['bonus']} ข้อ) เฉลี่ยข้อละ {p['perQuestion'].replace('.00', '')} บาท")
 
 
 class PageLayout(unittest.TestCase):

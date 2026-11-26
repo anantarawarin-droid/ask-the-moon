@@ -32,7 +32,9 @@ Optional environment variables:
 
 ## Pricing and credits
 
-The package table lives once in `credits.py` (`PACKAGE_TABLE`) and the page reads it from `GET /api/packages`:
+The package table lives once in `credits.py` (`PACKAGE_TABLE`) and the page reads it from `GET /api/packages`. Through 31 Dec 2026 23:59 Asia/Bangkok a year-end bonus (`PROMO_PACKAGE_TABLE`) is served instead; after that the regular table returns automatically. `GET /api/packages` includes `promoEndsAt` (ISO-8601) while the promo is on, otherwise `null`. Each order snapshots its questions and bonus at creation time.
+
+Regular menu:
 
 | THB | Questions | Bonus | Avg / question |
 | --- | --- | --- | --- |
@@ -46,6 +48,16 @@ The package table lives once in `credits.py` (`PACKAGE_TABLE`) and the page read
 | 120 | 10 | 2 | 12.00 |
 | 135 | 12 | 3 | 11.25 |
 | 150 | 15 | 5 | 10.00 (BEST VALUE) |
+
+Promo (through 31 Dec 2026 23:59 Asia/Bangkok); ฿15–75 unchanged:
+
+| THB | Questions | Bonus | Avg / question |
+| --- | --- | --- | --- |
+| 90 | 8 | 2 | 11.25 |
+| 105 | 10 | 3 | 10.50 |
+| 120 | 12 | 4 | 10.00 |
+| 135 | 15 | 6 | 9.00 |
+| 150 | 20 | 10 | 7.50 (BEST VALUE) |
 
 Flow: the browser keeps an anonymous visitor id in localStorage → `POST /api/orders {amount}` creates a pending order with a short code and a PromptPay QR for that exact amount → the visitor sends the slip and code on LINE `ivymoonask` → the owner approves on `/admin` → the package's questions (bonus included) are added once. `POST /api/reading` takes 1 credit atomically and keeps it only when the AI wrote the reading (a template fallback is free). New visitors get one free preview reading without the deep section. At 0 credits the API answers 402.
 

@@ -699,6 +699,13 @@ a.btn { display: inline-block; text-align: center; text-decoration: none; }
 }
 body[data-lang="en"] .pricing h2 { font-family: var(--font-display); letter-spacing: 0.06em; }
 .pricing-lede { max-width: 40rem; margin: 0 auto 2rem; color: var(--lilac); }
+.promo-ends {
+  margin: -1.4rem auto 1.6rem;
+  max-width: 40rem;
+  color: var(--gold-soft);
+  font-size: 0.95rem;
+}
+.promo-ends[hidden] { display: none; }
 
 .price-grid {
   display: grid;
