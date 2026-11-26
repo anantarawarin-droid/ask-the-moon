@@ -28,7 +28,7 @@ from typing import Any, Iterator
 # Pricing — the single source of truth. Do not change without the owner.
 # (price in THB, total questions). Bonus = total - price / 15.
 # PACKAGE_TABLE is the regular menu. PROMO_PACKAGE_TABLE is used through
-# 31 Dec 2026 23:59 Asia/Bangkok, then the regular table returns automatically.
+# 15 Dec 2026 23:59 Asia/Bangkok, then the regular table returns automatically.
 # Packages are computed at request time; each order snapshots questions+bonus.
 # ---------------------------------------------------------------------------
 BASE_PRICE = 15
@@ -59,7 +59,7 @@ PROMO_PACKAGE_TABLE: tuple[tuple[int, int], ...] = (
 )
 BEST_VALUE_PRICE = 150
 BANGKOK = timezone(timedelta(hours=7))
-PROMO_ENDS = datetime(2026, 12, 31, 23, 59, 59, tzinfo=BANGKOK)
+PROMO_ENDS = datetime(2026, 12, 15, 23, 59, 59, tzinfo=BANGKOK)
 # Google accounts live in moon_users with username_key "google:<sub>" (':' can't appear in a username).
 GOOGLE_KEY_PREFIX = "google:"
 
@@ -76,12 +76,12 @@ def _when(now: datetime | None = None) -> datetime:
 
 
 def promo_active(now: datetime | None = None) -> bool:
-    """True through the end of 31 Dec 2026 in Asia/Bangkok."""
-    return _when(now) < datetime(2027, 1, 1, tzinfo=BANGKOK)
+    """True through the end of 15 Dec 2026 in Asia/Bangkok."""
+    return _when(now) < datetime(2026, 12, 16, tzinfo=BANGKOK)
 
 
 def promo_ends_at(now: datetime | None = None) -> str | None:
-    """ISO-8601 end instant while the year-end bonus is on, else None."""
+    """ISO-8601 end instant while the December bonus is on, else None."""
     return PROMO_ENDS.isoformat() if promo_active(now) else None
 
 

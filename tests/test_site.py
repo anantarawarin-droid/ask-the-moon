@@ -45,7 +45,7 @@ class PricingConsistency(unittest.TestCase):
             self.assertNotIn(gone, JS, gone)
         self.assertIn("`จ่าย ${pkg.price} บาท ได้ ${pkg.questions} ข้อ (โบนัส ${pkg.bonus} ข้อ) เฉลี่ยข้อละ", JS)
         self.assertIn("`${b} + โบนัส ${x} = รวม ${q} ข้อ`", JS)
-        self.assertIn('promoEnds: "โปรถึง 31 ธ.ค. 2026"', JS)
+        self.assertIn('promoEnds: "โปรถึง 15 ธ.ค. 2026"', JS)
         self.assertIn('data-i18n="promoEnds"', HTML)
         # Rendered badge text uses the live package totals, never a made-up original price.
         p = next(x for x in billing.current_packages() if x["price"] == 150)

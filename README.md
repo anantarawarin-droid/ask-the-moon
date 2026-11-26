@@ -32,7 +32,7 @@ Optional environment variables:
 
 ## Pricing and credits
 
-The package table lives once in `credits.py` (`PACKAGE_TABLE`) and the page reads it from `GET /api/packages`. Through 31 Dec 2026 23:59 Asia/Bangkok a year-end bonus (`PROMO_PACKAGE_TABLE`) is served instead; after that the regular table returns automatically. `GET /api/packages` includes `promoEndsAt` (ISO-8601) while the promo is on, otherwise `null`. Each order snapshots its questions and bonus at creation time.
+The package table lives once in `credits.py` (`PACKAGE_TABLE`) and the page reads it from `GET /api/packages`. Through 15 Dec 2026 23:59 Asia/Bangkok a mid-December bonus (`PROMO_PACKAGE_TABLE`) is served instead; after that the regular table returns automatically. `GET /api/packages` includes `promoEndsAt` (ISO-8601) while the promo is on, otherwise `null`. Each order snapshots its questions and bonus at creation time.
 
 Regular menu:
 
@@ -49,7 +49,7 @@ Regular menu:
 | 135 | 12 | 3 | 11.25 |
 | 150 | 15 | 5 | 10.00 (BEST VALUE) |
 
-Promo (through 31 Dec 2026 23:59 Asia/Bangkok); ฿15–75 unchanged:
+Promo (through 15 Dec 2026 23:59 Asia/Bangkok); ฿15–75 unchanged:
 
 | THB | Questions | Bonus | Avg / question |
 | --- | --- | --- | --- |

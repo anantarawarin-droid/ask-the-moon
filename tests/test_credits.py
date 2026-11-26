@@ -35,8 +35,8 @@ PROMO_EXPECTED = {
     105: (10, 3, "10.50"), 120: (12, 4, "10.00"), 135: (15, 6, "9.00"),
     150: (20, 10, "7.50"),
 }
-PROMO_AT = datetime(2026, 12, 31, 23, 59, 59, tzinfo=billing.BANGKOK)
-AFTER_AT = datetime(2027, 1, 1, 0, 0, 0, tzinfo=billing.BANGKOK)
+PROMO_AT = datetime(2026, 12, 15, 23, 59, 59, tzinfo=billing.BANGKOK)
+AFTER_AT = datetime(2026, 12, 16, 0, 0, 0, tzinfo=billing.BANGKOK)
 
 
 def expected_now():
@@ -85,7 +85,7 @@ class PackageTable(unittest.TestCase):
     def test_promo_ends_at_new_year(self):
         self.assertTrue(billing.promo_active(PROMO_AT))
         self.assertFalse(billing.promo_active(AFTER_AT))
-        self.assertEqual(billing.promo_ends_at(PROMO_AT), "2026-12-31T23:59:59+07:00")
+        self.assertEqual(billing.promo_ends_at(PROMO_AT), "2026-12-15T23:59:59+07:00")
         self.assertIsNone(billing.promo_ends_at(AFTER_AT))
 
     def test_max_and_best_value(self):
@@ -488,7 +488,7 @@ class Http(unittest.TestCase):
         self.assertTrue(data["paymentEnabled"])
         self.assertEqual({p["price"]: (p["questions"], p["bonus"], p["perQuestion"]) for p in data["packages"]}, expected_now())
         if billing.promo_active():
-            self.assertEqual(data["promoEndsAt"], "2026-12-31T23:59:59+07:00")
+            self.assertEqual(data["promoEndsAt"], "2026-12-15T23:59:59+07:00")
         else:
             self.assertIsNone(data["promoEndsAt"])
         with mock.patch("credits.promo_active", return_value=False):
@@ -498,7 +498,7 @@ class Http(unittest.TestCase):
         with mock.patch("credits.promo_active", return_value=True):
             _, on = self.req("GET", "/api/packages")
         self.assertEqual({p["price"]: (p["questions"], p["bonus"], p["perQuestion"]) for p in on["packages"]}, PROMO_EXPECTED)
-        self.assertEqual(on["promoEndsAt"], "2026-12-31T23:59:59+07:00")
+        self.assertEqual(on["promoEndsAt"], "2026-12-15T23:59:59+07:00")
 
     def test_full_flow(self):
         h = {"X-Visitor-Id": VISITOR}
