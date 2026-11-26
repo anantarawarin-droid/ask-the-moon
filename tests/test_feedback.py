@@ -137,6 +137,23 @@ class Http(unittest.TestCase):
         self.assertEqual(data, {"ok": True})
         self.assertEqual(app.SERVICE.list_feedback(), [])
 
+    def test_empty_moon_hp_is_stored_but_filled_moon_hp_is_not(self):
+        # The public form sends moon_hp (not website) so browser autofill of
+        # a field named website cannot silently discard a real note.
+        status, data = self.req("POST", "/api/feedback", {
+            "message": "ข้อความจริง", "lang": "th", "page": "home", "moon_hp": "",
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual(data, {"ok": True})
+        self.assertEqual(len(app.SERVICE.list_feedback()), 1)
+
+        status, data = self.req("POST", "/api/feedback", {
+            "message": "should not land", "lang": "en", "moon_hp": "https://foolmoon.lol",
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual(data, {"ok": True})
+        self.assertEqual(len(app.SERVICE.list_feedback()), 1)
+
     def test_rate_limit_and_long_message(self):
         headers = {"X-Forwarded-For": "198.51.100.20"}
         for i in range(3):
@@ -169,6 +186,8 @@ class Http(unittest.TestCase):
         self.assertIn("esc(it.message)", html)
         self.assertIn("/api/admin/feedback", html)
         self.assertIn("data-fb-del", html)
+        self.assertIn("โหลดข้อความไม่สำเร็จ", html)
+        self.assertLess(html.index('id="feedback-card"'), html.index('id="summary"'))
 
     def test_homepage_and_copy(self):
         import http.client
@@ -183,7 +202,12 @@ class Http(unittest.TestCase):
         self.assertIn('data-i18n="fbSend">ส่ง<', html)
         self.assertIn("ได้รับแล้ว ขอบคุณนะ 🌙", html)
         self.assertIn('id="feedback-hp"', html)
+        self.assertIn('name="moon_hp"', html)
+        form = html[html.index('id="feedback"'):html.index("</form>", html.index('id="feedback"'))]
+        self.assertNotIn('name="website"', form)
         js = (STATIC / "app.js").read_text(encoding="utf-8")
+        self.assertIn("moon_hp:", js)
+        self.assertNotIn("website: hp", js)
         self.assertIn('fbTitle: "ฝากความรู้สึกหรือคำแนะนำถึงจันทร์"', js)
         self.assertIn('fbTitle: "Leave a feeling or a suggestion for the Moon"', js)
         self.assertIn('fbOk: "Received — thank you 🌙"', js)

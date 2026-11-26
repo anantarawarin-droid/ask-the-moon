@@ -24,7 +24,9 @@ def new_id() -> str:
 
 
 def honeypot_filled(body: dict[str, Any]) -> bool:
-    for key in ("website", "company", "url"):
+    # "website"/"company"/"url" catch naive bots. The public form uses
+    # moon_hp instead — browsers often autofill a field named website.
+    for key in ("moon_hp", "website", "company", "url"):
         if str(body.get(key) or "").strip():
             return True
     return False
