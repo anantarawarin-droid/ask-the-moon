@@ -146,21 +146,10 @@
             <input type="date" name="birthDate" id="birthDate" required min="1900-01-01" />
           </label>
         </div>
-        <div class="grid-2">
-          <label>
-            <span><span data-i18n="timeLabel">เวลาเกิด</span> <em data-i18n="optional">(ไม่บังคับ)</em></span>
-            <input type="time" name="birthTime" id="birthTime" />
-          </label>
-          <fieldset class="topic-field">
-            <legend data-i18n="topicLabel">หัวข้อที่อยากรู้</legend>
-            <div class="topics" id="topics">
-              <label class="chip"><input type="radio" name="topic" value="love" /><span data-i18n="topicLove">ความรัก</span></label>
-              <label class="chip"><input type="radio" name="topic" value="career" /><span data-i18n="topicCareer">การงาน</span></label>
-              <label class="chip"><input type="radio" name="topic" value="money" /><span data-i18n="topicMoney">การเงิน</span></label>
-              <label class="chip"><input type="radio" name="topic" value="life_path" checked /><span data-i18n="topicPath">เส้นทางชีวิต</span></label>
-            </div>
-          </fieldset>
-        </div>
+        <label>
+          <span><span data-i18n="timeLabel">เวลาเกิด</span> <em data-i18n="optional">(ไม่บังคับ)</em></span>
+          <input type="time" name="birthTime" id="birthTime" />
+        </label>
         <label>
           <span><span data-i18n="qLabel">คำถามถึงดาว</span> <em data-i18n="optional">(ไม่บังคับ)</em></span>
           <textarea name="question" id="question" rows="3" maxlength="280" data-i18n-placeholder="qPh" placeholder="เช่น ปีนี้ฉันควรกล้าเริ่มสิ่งใหม่ไหม?"></textarea>

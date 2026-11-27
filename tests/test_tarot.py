@@ -192,5 +192,34 @@ class TarotHttp(tc.Http):
         self.assertEqual(data["charge"]["kind"], "free")
 
 
+
+class TopicOptional(unittest.TestCase):
+    def test_missing_or_unknown_topic_is_accepted(self):
+        for body in (
+            {"name": "น้ำเพชร", "topic": "career", "question": "ได้งานไหม", "lang": "th"},
+            {"name": "น้ำเพชร", "question": "ได้งานไหม", "lang": "th"},
+            {"name": "น้ำเพชร", "topic": "not-a-topic", "question": "ได้งานไหม", "lang": "th"},
+        ):
+            params = app.parse_reading_request(body)
+            self.assertNotIn("topic", params)
+            data = app.make_reading(body)
+            self.assertTrue(data["ok"])
+            self.assertNotIn("topic", data)
+
+    def test_prompts_infer_topic_and_ignore_a_sent_value(self):
+        cards = tarot.draw()
+        _, user = app.build_prompt("น้ำเพชร", "love", "เขาจะกลับมาไหม", "th", cards)
+        self.assertNotIn("Topic: love", user)
+        self.assertNotIn("ความรัก", user.split("The three Rider-Waite-Smith")[0] if "The three" in user else user[:400])
+        self.assertIn("infer the topic from the question", user)
+        self.assertIn("เขาจะกลับมาไหม", user)
+        _, vague = app.build_prompt("น้ำเพชร", "career", "", "th", cards)
+        self.assertIn("general overall reading", vague)
+        self.assertNotIn("Topic: career", vague)
+        _, oracle_user = app.build_oracle_prompt("น้ำเพชร", "money", "เดือนนี้การเงินจะเป็นยังไง", "th", __import__("oracle").draw())
+        self.assertNotIn("Topic: money", oracle_user)
+        self.assertIn("infer the topic from the question", oracle_user)
+
+
 if __name__ == "__main__":
     unittest.main()

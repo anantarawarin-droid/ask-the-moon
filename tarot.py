@@ -507,7 +507,7 @@ def fallback_reading(name: str, question: str, topic_th: str, topic_en: str,
     act_th, act_en = ACTION[suit_of(best["id"])]
     th = lang == "th"
     if th:
-        about = f"เรื่อง «{question}»" if question else f"เรื่อง{topic_th}ของคุณตอนนี้"
+        about = f"เรื่อง «{question}»" if question else "ในภาพรวมตอนนี้"
         p1 = f"{name}ค่ะ {about} — {ANSWER_TH[yn][v]}"
         cards_txt = " · ".join(f"{_short(c, 'th')}: {c['meaningTh']}" for c in cards)
         if v in ("yes", "likely"):
@@ -524,7 +524,7 @@ def fallback_reading(name: str, question: str, topic_th: str, topic_en: str,
             act_th = "ถ้ายังอยากผลักดันเรื่องนี้ " + act_th + " แต่ควรเตรียมทางเลือกอื่นไว้ด้วย"
         p3 = f"คำแนะนำ: 1) {act_th} 2) {caution}."
         return "\n\n".join([p1, p2, p3])
-    about = f"about “{question}”" if question else f"about your {topic_en} right now"
+    about = f"about “{question}”" if question else "about your life right now"
     p1 = f"{name}, {about}: {ANSWER_EN[yn][v]}"
     cards_txt = " · ".join(f"{_short(c, 'en')}: {c['meaningEn']}" for c in cards)
     if v in ("yes", "likely"):

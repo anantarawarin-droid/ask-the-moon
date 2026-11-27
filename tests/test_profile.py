@@ -71,8 +71,9 @@ class ProfileHttp(tc.Http):
         self.assertEqual(code, 200)
         self.assertEqual(data["profile"]["chinese"]["key"], "dog")
         self.assertEqual(data["profile"]["number"]["value"], 22)
-        # The AI receives only name, topic, question, language, the cards, and the deck (never birth data).
-        self.assertEqual(seen["args"], ("น้ำเพชร", "love", "เขาจะกลับมาไหม", "th"))
+        # The AI receives only name, question, language, the cards, and the deck (never birth data).
+        # The topic argument is kept in the call signature but is always empty: infer from the question.
+        self.assertEqual(seen["args"], ("น้ำเพชร", "", "เขาจะกลับมาไหม", "th"))
         self.assertEqual(set(seen["kwargs"]), {"cards", "details", "deck"})
         self.assertEqual(seen["kwargs"]["details"], "")
         self.assertEqual(seen["kwargs"]["deck"], "tarot")

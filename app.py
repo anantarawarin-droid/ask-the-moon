@@ -216,14 +216,32 @@ def _tarot_explain(n: int) -> str:
             "(in Thai use exactly the Thai card name given in the card list above for each card) and noting reversed cards. Tell it as one story, not card by card.\n")
 
 
+
+def _question_lines(question: str) -> str:
+    """Question block for the AI: infer the subject; no customer-chosen topic is sent."""
+    q = (question or "").strip()
+    if q:
+        return (
+            "Subject: infer the topic from the question (and any background below) and answer that subject. "
+            "If the question is vague, give a general overall reading rather than forcing a narrow topic "
+            "such as only love, career, or money. Do not switch to a different topic the person did not ask about.\n"
+            f"Question: {q}\n"
+        )
+    return (
+        "Subject: none given. Give a general overall reading of their life right now; "
+        "do not force a narrow topic such as only love, career, or money.\n"
+        "Question: (no specific question: give a general overall reading of their situation right now)\n"
+    )
+
+
 def build_prompt(name: str, topic: str, question: str, lang: str, cards: list[dict[str, Any]],
                  details: str = "") -> tuple[str, str]:
-    """System + user prompt. Only the name, topic, question, optional context, and the drawn cards are sent."""
+    """System + user prompt. Only the name, question, optional context, and the drawn cards are sent."""
     language = "Thai" if lang == "th" else "English"
     n = len(cards)
     lean = tarot.verdict_scaled(cards)
     yes_no = tarot.is_yes_no(question)
-    qline = question.strip() if question else f"(no specific question: give a direct reading about their {TOPICS[topic]['en']} right now)"
+    # topic is ignored if an old client still sends one.
     if n == 1:
         length = ("about 70–120 Thai words, at most about 500 Thai characters, in exactly 2 short paragraphs "
                   "(the answer with the card, then the advice); do not add a paragraph that only restates the card"
@@ -256,8 +274,7 @@ def build_prompt(name: str, topic: str, question: str, lang: str, cards: list[di
     user = (
         f"Language: {language}. Person's name (only to address them at the start of the first sentence; "
         f"no 'hello' or other greeting): {name}.\n"
-        f"Topic: {TOPICS[topic]['en']} ({TOPICS[topic]['th']}).\n"
-        f"Question: {qline}\n"
+        f"{_question_lines(question)}"
         f"Question type: {'yes/no' if yes_no else 'open'}.\n\n"
         f"{context_block}"
         f"{_tarot_card_intro(n)}"
@@ -292,7 +309,7 @@ def build_own_prompt(name: str, topic: str, question: str, lang: str, cards: lis
     n = len(cards)
     lean = tarot.verdict_scaled(cards)
     yes_no = tarot.is_yes_no(question)
-    qline = question.strip() if question else f"(no specific question: give a direct reading about their {TOPICS[topic]['en']} right now)"
+    # topic is ignored if an old client still sends one.
     if n == 1:
         length = ("about 70–120 Thai words, at most about 500 Thai characters, in exactly 2 short paragraphs "
                   "(the answer with the card, then the advice); do not add a paragraph that only restates the card"
@@ -347,8 +364,7 @@ def build_own_prompt(name: str, topic: str, question: str, lang: str, cards: lis
     user = (
         f"Language: {language}. Person's name (only to address them at the start of the first sentence; "
         f"no 'hello' or other greeting): {name}.\n"
-        f"Topic: {TOPICS[topic]['en']} ({TOPICS[topic]['th']}).\n"
-        f"Question: {qline}\n"
+        f"{_question_lines(question)}"
         f"Question type: {'yes/no' if yes_no else 'open'}.\n\n"
         f"{context_block}"
         f"{card_intro}"
@@ -444,7 +460,7 @@ def build_oracle_prompt(name: str, topic: str, question: str, lang: str, cards: 
     n = len(cards)
     lean = oracle.verdict_scaled(cards)
     yes_no = tarot.is_yes_no(question)
-    qline = question.strip() if question else f"(no specific question: give a direct reading about their {TOPICS[topic]['en']} right now)"
+    # topic is ignored if an old client still sends one.
     if n == 1:
         length = ("about 70–120 Thai words, at most about 500 Thai characters, in exactly 2 short paragraphs "
                   "(the answer with the card, then the advice); do not add a paragraph that only restates the card"
@@ -502,8 +518,7 @@ def build_oracle_prompt(name: str, topic: str, question: str, lang: str, cards: 
     user = (
         f"Language: {language}. Person's name (only to address them at the start of the first sentence; "
         f"no 'hello' or other greeting): {name}.\n"
-        f"Topic: {TOPICS[topic]['en']} ({TOPICS[topic]['th']}).\n"
-        f"Question: {qline}\n"
+        f"{_question_lines(question)}"
         f"Question type: {'yes/no' if yes_no else 'open'}.\n\n"
         f"{context_block}"
         f"{_oracle_spread_intro(n)}"
@@ -618,9 +633,8 @@ def parse_reading_request(body: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Please enter a name.")
     # Birth date/time feed only the separate profile panel, never the tarot answer.
     birth, birth_time = birthprofile.parse_birth(body.get("birthDate"), body.get("birthTime"))
-    topic = str(body.get("topic") or "life_path").strip()
-    if topic not in TOPICS:
-        raise ValueError("Please choose a topic.")
+    # Topic chips were removed: infer the subject from the question. Ignore any topic
+    # an older client still sends, including unknown values.
     question = str(body.get("question") or "").strip()
     if len(question) > 280:
         raise ValueError("Please keep your question under 280 characters.")
@@ -630,14 +644,14 @@ def parse_reading_request(body: dict[str, Any]) -> dict[str, Any]:
     deck = str(body.get("deck") or "tarot").strip().lower()
     if deck not in ("tarot", "oracle"):
         raise ValueError("Unknown deck.")
-    return {"name": name, "topic": topic, "question": question, "lang": lang,
+    return {"name": name, "question": question, "lang": lang,
             "birth": birth, "birthTime": birth_time, "details": details, "deck": deck,
             "cardCount": parse_card_count(body)}
 
 
 def generate_reading(params: dict[str, Any]) -> dict[str, Any]:
     name, lang = params["name"], params["lang"]
-    topic, question = params["topic"], params["question"]
+    question = params["question"]
     deck = params.get("deck") or "tarot"
     count = params.get("cardCount") or DEFAULT_DRAW_COUNT
     if deck == "oracle":
@@ -645,16 +659,16 @@ def generate_reading(params: dict[str, Any]) -> dict[str, Any]:
         premium = oracle.premium_from_cards(cards, lang)
         lean = oracle.verdict_scaled(cards)
         heading_th, heading_en = oracle.heading_th(count), oracle.heading_en(count)
-        generated = llm_generate(name, topic, question, lang, cards=cards,
+        generated = llm_generate(name, "", question, lang, cards=cards,
                                  details=params.get("details", ""), deck="oracle")
     else:
         cards = tarot.draw(count)
         premium = tarot.premium_from_cards(cards, lang)
         lean = tarot.verdict_scaled(cards)
         heading_th, heading_en = tarot.HEADING_TH, tarot.HEADING_EN
-        generated = llm_generate(name, topic, question, lang, cards=cards,
+        generated = llm_generate(name, "", question, lang, cards=cards,
                                  details=params.get("details", ""), deck="tarot")
-    # The AI only ever sees the name, topic, question, optional context and the drawn cards (never birth data).
+    # The AI only ever sees the name, question, optional context and the drawn cards (never birth data).
     source = "template"
     text = None
     if generated:
@@ -663,15 +677,14 @@ def generate_reading(params: dict[str, Any]) -> dict[str, Any]:
         premium.update(premium_ai)
     if not text:
         if deck == "oracle":
-            text = oracle.fallback_reading(name, question, TOPICS[topic]["th"], TOPICS[topic]["en"], cards, lang)
+            text = oracle.fallback_reading(name, question, "", "", cards, lang)
         else:
-            text = tarot.fallback_reading(name, question, TOPICS[topic]["th"], TOPICS[topic]["en"], cards, lang, lean=lean)
+            text = tarot.fallback_reading(name, question, "", "", cards, lang, lean=lean)
     return {
         "ok": True,
         "deck": deck,
         "source": source,
         "name": name,
-        "topic": topic,
         "question": question,
         "lang": lang,
         "reading": text,
@@ -695,26 +708,25 @@ def parse_own_reading_request(body: dict[str, Any]) -> dict[str, Any]:
 def generate_own_reading(params: dict[str, Any]) -> dict[str, Any]:
     """Reading for cards the person chose (never drawn by the site). Same shape as generate_reading."""
     name, lang = params["name"], params["lang"]
-    topic, question = params["topic"], params["question"]
+    question = params["question"]
     cards = params["cards"]
     lean = tarot.verdict_scaled(cards)
     premium = tarot.premium_from_cards(cards, lang)
     source = "template"
     text = None
-    generated = llm_generate(name, topic, question, lang, cards=cards, details=params.get("details", ""), own=True)
+    generated = llm_generate(name, "", question, lang, cards=cards, details=params.get("details", ""), own=True)
     if generated:
         text, premium_ai = generated
         source = "llm"
         premium.update(premium_ai)
     if not text:
-        text = tarot.fallback_reading(name, question, TOPICS[topic]["th"], TOPICS[topic]["en"], cards, lang, lean=lean)
+        text = tarot.fallback_reading(name, question, "", "", cards, lang, lean=lean)
     return {
         "ok": True,
         "deck": "tarot",
         "mode": "own",
         "source": source,
         "name": name,
-        "topic": topic,
         "question": question,
         "lang": lang,
         "reading": text,

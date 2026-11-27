@@ -452,7 +452,7 @@ def fallback_reading(name: str, question: str, topic_th: str, topic_en: str,
         if q:
             p1 = f"{name}ค่ะ {lead} สำหรับคำถามที่ว่า «{q}»"
         else:
-            p1 = f"{name}ค่ะ {lead} ในเรื่อง{topic_th}"
+            p1 = f"{name}ค่ะ {lead} ในภาพรวมตอนนี้"
         bits = [f"«{c['nameTh']}» ({c['categoryTh']}) — {c['meaningTh']}" for c in cards]
         p2 = th_ref + " " + " ".join(bits)
         p3 = (
@@ -466,7 +466,7 @@ def fallback_reading(name: str, question: str, topic_th: str, topic_en: str,
         if not p1.endswith("."):
             p1 += "."
     else:
-        p1 = f"{name}, {lead} About your {topic_en}."
+        p1 = f"{name}, {lead} About your life right now."
     bits = [f"“{c['nameEn']}” ({c['categoryEn']}) — {c['meaningEn']}" for c in cards]
     p2 = en_ref + " " + " ".join(bits)
     p3 = (

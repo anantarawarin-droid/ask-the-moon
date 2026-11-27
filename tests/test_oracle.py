@@ -379,12 +379,15 @@ class Http(unittest.TestCase):
         self.assertIn("เลือกไพ่ที่คุณเปิดจากสำรับคุณ 1–5 ใบ", html)
         # Personal details and the question come before the card choice in source order.
         order = [
-            'id="name"', 'id="birthDate"', 'id="birthTime"', 'name="topic"',
+            'id="name"', 'id="birthDate"', 'id="birthTime"',
             'id="question"', 'id="details"', 'class="choice-grid"',
             'id="pick-table"', 'id="own-picker"', 'id="submit-btn"',
         ]
         positions = [html.index(token) for token in order]
         self.assertEqual(positions, sorted(positions))
+        self.assertNotIn('name="topic"', html)
+        self.assertNotIn('id="topics"', html)
+        self.assertNotIn("หัวข้อที่อยากรู้", html)
         self.assertIn('id="name" maxlength="80" required', html)
         self.assertIn('id="birthDate" required', html)
         self.assertNotIn('id="birthTime" required', html)

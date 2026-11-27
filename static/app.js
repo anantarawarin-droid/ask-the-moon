@@ -215,7 +215,7 @@ const I18N = {
     master: "เลขปรมาจารย์",
     sourceTemplate: "คำตอบจากความหมายของไพ่ (ระบบสำรอง)",
     sourceLlm: (n) => `เรียบเรียงโดยปัญญาประดิษฐ์ จากไพ่ ${n} ใบของคุณ`,
-    resultFor: (name, topic) => `คำตอบสำหรับ ${name} · ${topic}`,
+    resultFor: (name) => `คำตอบสำหรับ ${name}`,
     needName: "กรุณาใส่ชื่อ",
     needDate: "กรุณาใส่วันเกิด",
     hours: { dawn: "รุ่งสาง", morning: "เช้า", afternoon: "บ่าย", evening: "เย็น", night: "ค่ำคืน" },
@@ -489,7 +489,7 @@ const I18N = {
     master: "Master number",
     sourceTemplate: "Answer from the card meanings (backup mode)",
     sourceLlm: (n) => `Written by AI from your ${n} card${n === 1 ? "" : "s"}`,
-    resultFor: (name, topic) => `An answer for ${name} · ${topic}`,
+    resultFor: (name) => `An answer for ${name}`,
     needName: "Please enter a name.",
     needDate: "Please enter a birth date.",
     hours: { dawn: "Dawn", morning: "Morning", afternoon: "Afternoon", evening: "Evening", night: "Night" },
@@ -1265,10 +1265,9 @@ async function buildShareCard(data, lang) {
   ctx.textAlign = "center";
   ctx.font = `400 24px ${DISPLAY}`;
   ctx.fillStyle = "#b7a8c9";
-  const topic = (dict.topics && dict.topics[data.topic]) || "";
   const isOracle = data.deck === "oracle" || (cards[0] && String(cards[0].id).startsWith("oracle-"));
   const lead = ownDraw ? dict.shareOwnEyebrow : (isOracle ? dict.shareOracleEyebrow : (th ? "ไพ่ทาโรต์" : "TAROT"));
-  const eyebrow = th ? `${lead}${topic ? " · " + topic : ""}` : `${lead}${topic ? " · " + topic.toUpperCase() : ""}`;
+  const eyebrow = lead;
   ctx.font = `500 28px ${th ? SANS : DISPLAY}`;
   ctx.fillStyle = "#c9b6ff";
   ctx.fillText(eyebrow, cx, 190);
@@ -1493,8 +1492,7 @@ function renderProfile(p) {
 function renderResult(data) {
   const dict = t();
   const result = document.getElementById("result");
-  const topicLabel = dict.topics[data.topic] || data.topic;
-  document.getElementById("result-for").textContent = dict.resultFor(data.name, topicLabel);
+  document.getElementById("result-for").textContent = dict.resultFor(data.name);
 
   const badges = data.question ? [badge(dict.qLabel, data.question)] : [];
   document.getElementById("badges").innerHTML = badges.join("");
@@ -1559,7 +1557,6 @@ async function onSubmit(event) {
   const name = document.getElementById("name").value.trim();
   const question = document.getElementById("question").value.trim();
   const details = document.getElementById("details").value.trim().slice(0, 500);
-  const topic = (document.querySelector('input[name="topic"]:checked') || {}).value || "life_path";
 
   const birthDate = document.getElementById("birthDate").value;
   const birthTime = document.getElementById("birthTime").value;
@@ -1612,7 +1609,6 @@ async function onSubmit(event) {
         name,
         birthDate,
         birthTime,
-        topic,
         question,
         details,
         lang: state.lang,

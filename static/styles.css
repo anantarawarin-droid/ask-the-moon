@@ -286,15 +286,12 @@ body[data-lang="en"] .ad-heading {
   color: var(--gold-soft);
 }
 
-label, .topic-field { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+label { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
 label span, legend {
   font-size: 0.86rem;
   color: var(--muted);
 }
 em { font-style: normal; opacity: 0.7; font-size: 0.8em; }
-.topic-field { border: 0; padding: 0; margin: 0 0 1rem; min-width: 0; }
-.topic-field legend { margin-bottom: 0.4rem; padding: 0; }
-
 input[type="text"], input[type="date"], input[type="time"], textarea {
   width: 100%;
   border-radius: 12px;
@@ -318,32 +315,6 @@ input:focus, textarea:focus {
   gap: 0 1rem;
 }
 
-.topics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-.chip {
-  margin: 0;
-  cursor: pointer;
-}
-.chip input { position: absolute; opacity: 0; pointer-events: none; }
-.chip span {
-  display: inline-block;
-  padding: 0.4rem 0.8rem;
-  border-radius: 999px;
-  border: 1px solid rgba(201, 182, 255, 0.28);
-  color: var(--lilac);
-  font-size: 0.88rem;
-  transition: 0.2s ease;
-}
-.chip input:focus-visible + span { box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.25); }
-.chip input:checked + span {
-  background: linear-gradient(180deg, #efe0a0, var(--gold));
-  color: #1a1004;
-  border-color: transparent;
-  font-weight: 600;
-}
 
 .form-error { color: var(--danger); margin: 0 0 0.8rem; font-size: 0.92rem; }
 
