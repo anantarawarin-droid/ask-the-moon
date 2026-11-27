@@ -273,6 +273,7 @@ def draw(count: int = DRAW_COUNT) -> list[dict[str, Any]]:
 
 OWN_MIN = 1
 OWN_MAX = 5
+DEEP_COUNT = 12  # the deep reading: exactly 12 cards (drawn by the site or entered from the person's own deck)
 
 
 def card_from_choice(card_id: str, reversed_: bool) -> dict[str, Any]:
@@ -290,10 +291,10 @@ def card_from_choice(card_id: str, reversed_: bool) -> dict[str, Any]:
 
 
 def parse_own_cards(raw: Any) -> list[dict[str, Any]]:
-    """Validate cards the person drew from their own deck: 1-5 real, unique cards in their
+    """Validate cards the person drew from their own deck: 1-5 (or exactly 12) real, unique cards in their
     drawn order, each {"id": <one of the 78 ids>, "reversed": true|false}. Raises ValueError."""
-    if not isinstance(raw, list) or not OWN_MIN <= len(raw) <= OWN_MAX:
-        raise ValueError(f"Please choose {OWN_MIN} to {OWN_MAX} cards.")
+    if not isinstance(raw, list) or not (OWN_MIN <= len(raw) <= OWN_MAX or len(raw) == DEEP_COUNT):
+        raise ValueError(f"Please choose {OWN_MIN} to {OWN_MAX} cards, or exactly {DEEP_COUNT} for the deep reading.")
     out, seen = [], set()
     for item in raw:
         if not isinstance(item, dict):
@@ -554,7 +555,7 @@ def premium_from_cards(cards: list[dict[str, Any]], lang: str) -> dict[str, Any]
     nums = []
     for c in cards:
         n = card_number(c["id"]) or 22
-        if n not in nums:
+        if n not in nums and len(nums) < 5:  # a 12-card reading still shows a short list
             nums.append(n)
     total = sum(nums)
     while total > 9 and total not in (11, 22):

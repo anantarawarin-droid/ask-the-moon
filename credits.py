@@ -218,6 +218,11 @@ def order_expire_minutes() -> int:
         return 30
 
 
+# The 12-card deep reading costs this many question credits (a normal reading costs 1).
+# Owner decision: 15, so a 150-baht package still leaves 5 questions.
+DEEP_READING_COST = 15
+
+
 class PaymentError(Exception):
     def __init__(self, message: str, status: int = 400, code: str = "error"):
         super().__init__(message)
@@ -313,24 +318,30 @@ class CreditService:
             v = data["visitors"].get(visitor_id) or {"credits": 0, "freeUsed": False}
             return {"credits": int(v["credits"]), "freeAvailable": not v["freeUsed"]}
 
-    def reserve_reading(self, visitor_id: str) -> str:
-        """Atomically take 1 credit (or the one free preview). Returns 'paid' or 'free'."""
+    def reserve_reading(self, visitor_id: str, cost: int = 1) -> str:
+        """Atomically take `cost` credits (or, for a normal 1-credit question, the one free preview).
+        Returns 'paid' or 'free'. A reading that costs more than 1 never uses the free preview and never
+        takes a partial charge: with fewer than `cost` credits nothing changes and 402 is raised."""
+        cost = int(cost)
         with self.store.transaction() as data:
             v = self._visitor(data, visitor_id)
-            if v["credits"] > 0:
-                v["credits"] -= 1
+            if v["credits"] >= cost:
+                v["credits"] -= cost
                 return "paid"
-            if not v["freeUsed"]:
+            if cost == 1 and not v["freeUsed"]:
                 v["freeUsed"] = True
                 return "free"
+            if cost > 1:
+                raise PaymentError(f"This reading needs {cost} question credits.", status=402,
+                                   code="not_enough_credits")
             raise PaymentError("No question credits left.", status=402, code="no_credits")
 
-    def release_reading(self, visitor_id: str, kind: str) -> None:
+    def release_reading(self, visitor_id: str, kind: str, cost: int = 1) -> None:
         """Give back a reservation when the reading failed or was not AI-written."""
         with self.store.transaction() as data:
             v = self._visitor(data, visitor_id)
             if kind == "paid":
-                v["credits"] += 1
+                v["credits"] += int(cost)
             elif kind == "free":
                 v["freeUsed"] = False
 
@@ -1043,14 +1054,19 @@ class PostgresCreditService:
             return {"credits": int(row[0]), "freeAvailable": not row[1]} if row else {"credits": 0, "freeAvailable": True}
         return self._run(fn)
 
-    def reserve_reading(self, visitor_id: str) -> str:
+    def reserve_reading(self, visitor_id: str, cost: int = 1) -> str:
+        cost = int(cost)
+
         def fn(cur):
+            # One conditional UPDATE: all `cost` credits or none (no partial charge, race-free).
             cur.execute(
-                "UPDATE moon_visitors SET credits = credits - 1 WHERE id = %s AND credits > 0 RETURNING credits",
-                (visitor_id,),
+                "UPDATE moon_visitors SET credits = credits - %s WHERE id = %s AND credits >= %s RETURNING credits",
+                (cost, visitor_id, cost),
             )
             if cur.fetchone():
                 return "paid"
+            if cost > 1:
+                return "short"
             cur.execute(
                 "INSERT INTO moon_visitors (id, free_used) VALUES (%s, TRUE) "
                 "ON CONFLICT (id) DO UPDATE SET free_used = TRUE WHERE moon_visitors.free_used = FALSE "
@@ -1061,14 +1077,17 @@ class PostgresCreditService:
                 return "free"
             return None
         kind = self._run(fn)
+        if kind == "short":
+            raise PaymentError(f"This reading needs {cost} question credits.", status=402,
+                               code="not_enough_credits")
         if kind is None:
             raise PaymentError("No question credits left.", status=402, code="no_credits")
         return kind
 
-    def release_reading(self, visitor_id: str, kind: str) -> None:
+    def release_reading(self, visitor_id: str, kind: str, cost: int = 1) -> None:
         def fn(cur):
             if kind == "paid":
-                cur.execute("UPDATE moon_visitors SET credits = credits + 1 WHERE id = %s", (visitor_id,))
+                cur.execute("UPDATE moon_visitors SET credits = credits + %s WHERE id = %s", (int(cost), visitor_id))
             elif kind == "free":
                 cur.execute("UPDATE moon_visitors SET free_used = FALSE WHERE id = %s", (visitor_id,))
         self._run(fn)

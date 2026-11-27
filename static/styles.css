@@ -993,6 +993,9 @@ body[data-lang="en"] .pricing h2 { font-family: var(--font-display); letter-spac
 .card-count-btn:hover, .card-count-btn:focus-visible { border-color: var(--gold); outline: none;
   box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.25); }
 
+.card-count-note { margin: 0.15rem 0 0; font-size: 0.78rem; line-height: 1.5; color: var(--gold-soft); letter-spacing: 0.02em; }
+.card-count-note[hidden], .card-count-btn[hidden] { display: none; }
+
 .pick-table { margin: 0 0 1.2rem; padding: 1rem; border-radius: 16px; border: 1px solid var(--card-border); background: rgba(8, 4, 16, 0.45); }
 .pick-table[hidden] { display: none; }
 .pick-title { font-family: "Noto Serif Thai", var(--font-display), serif; font-weight: 600; font-size: 1.12rem;

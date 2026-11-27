@@ -241,6 +241,9 @@ const I18N = {
     modeOwnSub: "เลือกไพ่ที่คุณเปิดจากสำรับคุณ 1–5 ใบ",
     cardCountLabel: "จำนวนใบ",
     cardCountOpt: (n) => `${n} ใบ`,
+    deepNote: "อ่านเชิงลึก · ใช้ 15 เครดิต",
+    deepNeedCredits: (have) => `การเปิด 12 ใบใช้ 15 เครดิต · ตอนนี้คุณมี ${have} เครดิต เติมเพิ่มด้านล่างได้เลยค่ะ`,
+    chargedDeep: "ใช้ 15 เครดิต · บทอ่านลึกปลดล็อกแล้ว",
     pickTitle: (n) => `เลือกไพ่ ${n} ใบ`,
     pickShuffle: "สับไพ่ใหม่",
     pickCount: (n, need) => n ? `เลือกแล้ว ${n}/${need} ใบ` : `ยังไม่ได้เลือกไพ่ (เลือก ${need} ใบ)`,
@@ -249,8 +252,13 @@ const I18N = {
     shareOracleEyebrow: "ไพ่ออราเคิล",
     oracleCounsel: "คำพูดจากไพ่",
     ownTitle: "ไพ่ที่คุณเปิดได้",
-    ownHint: "สับไพ่และเปิดไพ่จากสำรับของคุณเอง แล้วแตะเลือกไพ่ตามลำดับที่เปิดได้ 1–5 ใบ ถ้าไพ่ใบไหนออกกลับหัว กดปุ่ม “กลับหัว” ที่ใบนั้น",
+    ownHint: "สับไพ่และเปิดไพ่จากสำรับของคุณเอง แล้วแตะเลือกไพ่ตามลำดับที่เปิดได้ 1–5 ใบ หรือ 12 ใบสำหรับอ่านเชิงลึก (15 เครดิต) ถ้าไพ่ใบไหนออกกลับหัว กดปุ่ม “กลับหัว” ที่ใบนั้น",
     ownCount: (n, max) => n ? `เลือกแล้ว ${n}/${max} ใบ` : `ยังไม่ได้เลือกไพ่ (เลือกได้ 1–${max} ใบ)`,
+    ownCountDeep: (n) => n === 0 ? "ยังไม่ได้เลือกไพ่ (1–5 ใบ หรือ 12 ใบ)"
+      : n <= 5 ? `เลือกแล้ว ${n} ใบ`
+      : n < 12 ? `เลือกแล้ว ${n}/12 ใบ · ต้องครบ 12 ใบ`
+      : "เลือกครบ 12 ใบ · ใช้ 15 เครดิต",
+    ownNeedDeep: (n) => `เลือกได้ 1–5 ใบ หรือครบ 12 ใบ (ตอนนี้ ${n} ใบ)`,
     ownClear: "ล้างทั้งหมด",
     ownEmpty: "แตะไพ่ด้านล่างเพื่อเพิ่มตามลำดับที่คุณเปิด",
     ownFlip: "กลับหัว",
@@ -515,6 +523,9 @@ const I18N = {
     modeOwnSub: "1–5 cards you drew from your deck",
     cardCountLabel: "How many cards",
     cardCountOpt: (n) => n === 1 ? "1 card" : `${n} cards`,
+    deepNote: "Deep reading · uses 15 credits",
+    deepNeedCredits: (have) => `A 12-card reading uses 15 credits · you have ${have}. Top up below.`,
+    chargedDeep: "15 credits used · deep reading unlocked",
     pickTitle: (n) => n === 1 ? "Pick 1 card" : `Pick ${n} cards`,
     pickShuffle: "Shuffle again",
     pickCount: (n, need) => n ? `${n}/${need} cards chosen` : `No cards chosen yet (pick ${need})`,
@@ -523,8 +534,13 @@ const I18N = {
     shareOracleEyebrow: "ORACLE",
     oracleCounsel: "The card's counsel",
     ownTitle: "The cards you drew",
-    ownHint: "Shuffle and draw from your own deck, then tap the 1–5 cards in the order you drew them. If a card came out upside down, tap “Reversed” on it.",
+    ownHint: "Shuffle and draw from your own deck, then tap 1–5 cards (or 12 for a deep reading, 15 credits) in the order you drew them. If a card came out upside down, tap “Reversed” on it.",
     ownCount: (n, max) => n ? `${n}/${max} cards chosen` : `No cards chosen yet (pick 1–${max})`,
+    ownCountDeep: (n) => n === 0 ? "No cards chosen yet (1–5, or 12)"
+      : n <= 5 ? `${n} chosen`
+      : n < 12 ? `${n}/12 chosen · need all 12`
+      : "12 chosen · uses 15 credits",
+    ownNeedDeep: (n) => `Choose 1–5 cards, or exactly 12 (you have ${n}).`,
     ownClear: "Clear all",
     ownEmpty: "Tap cards below to add them in the order you drew them",
     ownFlip: "Reversed",
@@ -607,13 +623,15 @@ const state = {
   deckKind: "tarot", // "tarot" | "oracle"
   deck: [],
   deckMax: 5,
+  deepCount: 12, // the deep reading: tarot and own cards only
+  deepCost: 15,
   own: [], // [{ id, reversed }] in the order the person drew them
   ownGroup: "major",
   ownQuery: "",
   pick: [], // indexes into the facedown table, in tap order
   pickOrder: [], // visual permutation of the table slots
   pickTilts: [],
-  cardCount: 3, // 1, 2 or 3; default matches the previous fixed draw
+  cardCount: 3, // 1, 2 or 3 (tarot also 12 = deep reading); default matches the previous fixed draw
   cardBack: "/oracle/card-back.webp?v=1",
 };
 
@@ -786,7 +804,7 @@ function renderTarot(tarot) {
   const loads = [...row.querySelectorAll("img")].map(
     (img) => new Promise((resolve) => { if (img.complete) resolve(); else { img.onload = resolve; img.onerror = resolve; } }),
   );
-  const start = () => figs.forEach((fig, i) => setTimeout(() => fig.classList.add("is-flipped"), 500 + i * 650));
+  const start = () => figs.forEach((fig, i) => setTimeout(() => fig.classList.add("is-flipped"), 500 + i * (figs.length > 5 ? 260 : 650)));
   Promise.race([Promise.all(loads), new Promise((r) => setTimeout(r, 2500))]).then(start);
   tarotRevealed = key;
 }
@@ -807,6 +825,8 @@ function loadDeck() {
       if (!response.ok || !data.ok) throw new Error("deck");
       state.deck = data.cards || [];
       state.deckMax = data.max || 5;
+      state.deepCount = data.deep || 12;
+      state.deepCost = data.deepCost || 15;
       renderOwn();
     }).catch((err) => { deckPromise = null; throw err; });
   }
@@ -832,8 +852,8 @@ function applyChoiceChrome() {
   const pick = document.getElementById("pick-table");
   if (pick) pick.hidden = state.mode !== "draw";
   renderOwn();
+  renderCardCount(); // before renderPick: oracle drops a stray 12 back to 3 first
   renderPick();
-  renderCardCount();
 }
 
 function setMode(mode) {
@@ -869,9 +889,14 @@ function setChoice(choice) {
 }
 
 const PICK_N = 18;
+const PICK_N_DEEP = 24; // a 12-card pick gets a bigger table so it is not most of the deck
+
+function pickSlots() {
+  return state.cardCount === state.deepCount ? PICK_N_DEEP : PICK_N;
+}
 
 function shufflePick() {
-  const ids = [...Array(PICK_N).keys()];
+  const ids = [...Array(pickSlots()).keys()];
   for (let i = ids.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1));
     [ids[i], ids[j]] = [ids[j], ids[i]];
@@ -924,6 +949,11 @@ function renderPick() {
     return;
   }
   const need = state.cardCount;
+  if (state.pickOrder.length !== pickSlots()) {
+    shufflePick();
+    return;
+  }
+  fan.classList.toggle("is-deep", need === state.deepCount);
   const title = document.getElementById("pick-title");
   if (title) title.textContent = dict.pickTitle(need);
   const count = document.getElementById("pick-count");
@@ -964,7 +994,8 @@ function setupPick() {
 }
 
 function setCardCount(n) {
-  const next = (n === 1 || n === 2 || n === 3) ? n : 3;
+  const deepOk = state.deckKind !== "oracle"; // 12 cards is tarot only
+  const next = (n === 1 || n === 2 || n === 3 || (n === state.deepCount && deepOk)) ? n : 3;
   if (next !== state.cardCount) {
     state.cardCount = next;
     if (state.pick.length > next) state.pick = state.pick.slice(0, next);
@@ -979,21 +1010,32 @@ function renderCardCount() {
   if (label) label.textContent = dict.cardCountLabel;
   const group = document.getElementById("card-count");
   if (group) group.setAttribute("aria-label", dict.cardCountLabel);
+  const isOracle = state.deckKind === "oracle";
+  if (isOracle && state.cardCount === state.deepCount) {
+    state.cardCount = 3; // oracle stays 1/2/3
+    state.pick = state.pick.slice(0, 3);
+  }
   document.querySelectorAll("[data-count]").forEach((btn) => {
     const n = Number(btn.dataset.count);
     const on = n === state.cardCount;
+    btn.hidden = n === state.deepCount && isOracle;
     btn.classList.toggle("is-on", on);
     btn.setAttribute("aria-checked", on ? "true" : "false");
     btn.textContent = dict.cardCountOpt(n);
   });
+  const note = document.getElementById("card-count-note");
+  if (note) {
+    note.hidden = state.cardCount !== state.deepCount;
+    note.textContent = state.cardCount === state.deepCount ? dict.deepNote : "";
+  }
 }
 
 function ownToggle(id) {
   const at = state.own.findIndex((c) => c.id === id);
   if (at >= 0) {
     state.own.splice(at, 1);
-  } else if (state.own.length >= state.deckMax) {
-    toast(t().ownFull(state.deckMax));
+  } else if (state.own.length >= state.deepCount) {
+    toast(t().ownFull(state.deepCount));
     return;
   } else {
     state.own.push({ id, reversed: false });
@@ -1018,7 +1060,7 @@ function renderOwn() {
   if (state.mode !== "own") return;
   const byId = Object.fromEntries(state.deck.map((c) => [c.id, c]));
   const n = state.own.length;
-  document.getElementById("own-count").textContent = dict.ownCount(n, state.deckMax);
+  document.getElementById("own-count").textContent = dict.ownCountDeep(n);
   document.getElementById("own-clear").hidden = n === 0;
   const tray = document.getElementById("own-tray");
   tray.innerHTML = n
@@ -1505,7 +1547,7 @@ function renderResult(data) {
   let note = data.source === "llm" ? (ownMode ? dict.sourceLlmOwn(nCards) : dict.sourceLlm(nCards)) : dict.sourceTemplate;
   document.getElementById("profile-note").textContent = ownMode ? dict.profileNoteOwn : dict.profileNote(nCards);
   if (charge.kind && !charge.charged) note += " · " + dict.notCharged;
-  else if (charge.kind === "paid") note += " · " + dict.chargedPaid;
+  else if (charge.kind === "paid") note += " · " + (charge.cost === 15 ? dict.chargedDeep : dict.chargedPaid);
   else if (charge.kind === "free") note += " · " + dict.chargedFree;
   document.getElementById("source-note").textContent = note;
   const premiumCard = document.querySelector(".reading-card.premium");
@@ -1578,6 +1620,12 @@ async function onSubmit(event) {
     document.getElementById("own-picker").scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
+  if (ownMode && state.own.length > state.deckMax && state.own.length !== state.deepCount) {
+    error.textContent = dict.ownNeedDeep(state.own.length);
+    error.hidden = false;
+    document.getElementById("own-picker").scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
   if (!ownMode && state.pick.length !== state.cardCount) {
     error.textContent = dict.pickNeed(state.cardCount);
     error.hidden = false;
@@ -1592,6 +1640,11 @@ async function onSubmit(event) {
     return;
   }
 
+  const deepRead = ownMode ? state.own.length === state.deepCount : state.cardCount === state.deepCount;
+  if (deepRead && state.balance.credits < state.deepCost) {
+    showNoCredits(dict.deepNeedCredits(state.balance.credits));
+    return;
+  }
   if (!state.balance.freeAvailable && state.balance.credits <= 0) {
     showNoCredits();
     return;
@@ -1619,7 +1672,7 @@ async function onSubmit(event) {
     });
     if (response.status === 402) {
       await refreshBalance();
-      showNoCredits();
+      showNoCredits(data.code === "not_enough_credits" ? dict.deepNeedCredits(state.balance.credits) : undefined);
       return;
     }
     if (response.status === 401 && data.code === "login_required") {
@@ -1645,9 +1698,9 @@ async function onSubmit(event) {
   }
 }
 
-function showNoCredits() {
+function showNoCredits(message) {
   const error = document.getElementById("form-error");
-  error.textContent = t().noCredits;
+  error.textContent = message || t().noCredits;
   error.hidden = false;
   document.getElementById("pricing").scrollIntoView({ behavior: "smooth", block: "start" });
   document.getElementById("pricing").classList.add("flash");

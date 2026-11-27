@@ -253,7 +253,7 @@ class Http(unittest.TestCase):
         before = app.SERVICE.balance(uid)
         code, data, _ = self.req("POST", "/api/reading", {**BASE, "cardCount": 4})
         self.assertEqual(code, 400)
-        self.assertIn("1, 2 or 3", data.get("error", ""))
+        self.assertIn("1, 2, 3 or 12", data.get("error", ""))
         after = app.SERVICE.balance(uid)
         self.assertEqual(after["credits"], before["credits"])
         self.assertEqual(after["freeAvailable"], before["freeAvailable"])
