@@ -219,8 +219,8 @@ def order_expire_minutes() -> int:
 
 
 # The 12-card deep reading costs this many question credits (a normal reading costs 1).
-# Owner decision: 15, so a 150-baht package still leaves 5 questions.
-DEEP_READING_COST = 15
+# Owner decision: 20. A 150-baht package (20 questions in the current promo) covers one deep reading.
+DEEP_READING_COST = 20
 
 
 class PaymentError(Exception):

@@ -1,4 +1,4 @@
-"""The 12-card deep reading: 15 credits, tarot + own cards only (never oracle), deep model and token budget."""
+"""The 12-card deep reading: 20 credits, tarot + own cards only (never oracle), deep model and token budget."""
 
 from __future__ import annotations
 
@@ -48,10 +48,10 @@ class Base(unittest.TestCase):
 
 class Constants(unittest.TestCase):
     def test_cost_and_count(self):
-        self.assertEqual(billing.DEEP_READING_COST, 15)
-        self.assertEqual(app.DEEP_COST, 15)
+        self.assertEqual(billing.DEEP_READING_COST, 20)
+        self.assertEqual(app.DEEP_COST, 20)
         self.assertEqual(app.DEEP_COUNT, 12)
-        self.assertEqual(app.reading_cost(12), 15)
+        self.assertEqual(app.reading_cost(12), 20)
         for n in (1, 2, 3, 5):
             self.assertEqual(app.reading_cost(n), 1)
 
@@ -80,28 +80,28 @@ class Validation(unittest.TestCase):
 
 
 class Charging(Base):
-    def test_deep_draw_takes_exactly_15(self):
-        give(20)
+    def test_deep_draw_takes_exactly_20(self):
+        give(25)
         with mock.patch.object(app, "llm_generate", return_value=("AI deep", {})):
             r = app.paid_reading({**BASE, "cardCount": 12}, VISITOR)
         self.assertEqual(len(r["tarot"]["cards"]), 12)
         self.assertEqual(len({c["id"] for c in r["tarot"]["cards"]}), 12)
         self.assertEqual(credits_of(), 5)
-        self.assertEqual(r["charge"], {"kind": "paid", "charged": True, "cost": 15})
+        self.assertEqual(r["charge"], {"kind": "paid", "charged": True, "cost": 20})
         self.assertEqual(r["balance"]["credits"], 5)
         self.assertTrue(r["premiumUnlocked"])
 
-    def test_deep_own_cards_takes_15(self):
-        give(15)
+    def test_deep_own_cards_takes_20(self):
+        give(20)
         with mock.patch.object(app, "llm_generate", return_value=("AI deep", {})) as llm:
             r = app.paid_reading({**BASE, "cards": OWN12}, VISITOR, own=True)
         self.assertEqual(credits_of(), 0)
         self.assertEqual(r["mode"], "own")
-        self.assertEqual(r["charge"]["cost"], 15)
+        self.assertEqual(r["charge"]["cost"], 20)
         self.assertEqual(len(llm.call_args.kwargs["cards"]), 12)
 
     def test_insufficient_credits_blocks_without_partial_charge(self):
-        for have in (0, 1, 14):
+        for have in (0, 1, 19):
             give(have, free_used=True)
             with mock.patch.object(app, "llm_generate", return_value=("AI", {})) as llm:
                 with self.assertRaises(billing.PaymentError) as ctx:
@@ -121,20 +121,20 @@ class Charging(Base):
         llm.assert_not_called()
         self.assertTrue(app.SERVICE.balance(VISITOR)["freeAvailable"])  # still unused
 
-    def test_ai_failure_refunds_all_15(self):
-        give(15)
+    def test_ai_failure_refunds_all_20(self):
+        give(20)
         with mock.patch.object(app, "llm_generate", return_value=None):
             r = app.paid_reading({**BASE, "cardCount": 12}, VISITOR)
         self.assertEqual(r["source"], "template")
         self.assertEqual(r["charge"]["charged"], False)
-        self.assertEqual(credits_of(), 15)
+        self.assertEqual(credits_of(), 20)
 
-    def test_exception_refunds_all_15(self):
-        give(15)
+    def test_exception_refunds_all_20(self):
+        give(20)
         with mock.patch.object(app, "llm_generate", side_effect=RuntimeError("boom")):
             with self.assertRaises(RuntimeError):
                 app.paid_reading({**BASE, "cardCount": 12}, VISITOR)
-        self.assertEqual(credits_of(), 15)
+        self.assertEqual(credits_of(), 20)
 
     def test_oracle_12_rejected_before_any_charge(self):
         give(20)
@@ -153,7 +153,7 @@ class Charging(Base):
         self.assertEqual(credits_of(), 1)
 
     def test_concurrent_deep_readings_cannot_overdraw(self):
-        give(20)
+        give(25)
         results = []
 
         with mock.patch.object(app, "llm_generate", return_value=("AI", {})):
@@ -326,18 +326,18 @@ class Http(unittest.TestCase):
 
     def test_http_deep_flow_and_validation(self):
         uid = self.signup()
-        give(14, vid=uid)
-        # 14 credits: blocked with 402 + a distinct code, nothing taken.
+        give(19, vid=uid)
+        # 19 credits: blocked with 402 + a distinct code, nothing taken.
         code, data, _ = self.req("POST", "/api/reading", {**BASE, "cardCount": 12})
         self.assertEqual((code, data.get("code")), (402, "not_enough_credits"))
-        self.assertEqual(credits_of(uid), 14)
-        give(15, vid=uid)
+        self.assertEqual(credits_of(uid), 19)
+        give(20, vid=uid)
         with mock.patch.object(app, "llm_generate", return_value=("AI deep", {})):
             code, data, _ = self.req("POST", "/api/reading", {**BASE, "cardCount": 12})
             self.assertEqual(code, 200, data)
             self.assertEqual(len(data["tarot"]["cards"]), 12)
             self.assertEqual(data["balance"]["credits"], 0)
-            give(15, vid=uid)
+            give(20, vid=uid)
             code, data, _ = self.req("POST", "/api/reading/own", {**BASE, "cards": OWN12})
             self.assertEqual(code, 200, data)
             self.assertEqual(data["balance"]["credits"], 0)
@@ -354,7 +354,7 @@ class Http(unittest.TestCase):
 
     def test_deck_endpoint_and_oracle_route(self):
         code, data, _ = self.req("GET", "/api/deck")
-        self.assertEqual((data["min"], data["max"], data["deep"], data["deepCost"]), (1, 5, 12, 15))
+        self.assertEqual((data["min"], data["max"], data["deep"], data["deepCost"]), (1, 5, 12, 20))
         import urllib.error
         import urllib.request
         with self.assertRaises(urllib.error.HTTPError) as ctx:
@@ -369,9 +369,11 @@ class StaticUi(unittest.TestCase):
         js = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
         self.assertIn('data-count="12"', html)
         self.assertIn('id="card-count-note"', html)
-        self.assertIn("15 เครดิต", html)       # own-cards hint mentions the price
+        self.assertIn("20 เครดิต", html)       # own-cards hint mentions the price
+        self.assertIn("คำตอบยาว", html)
         self.assertIn("deepNote", js)
-        self.assertIn("อ่านเชิงลึก · ใช้ 15 เครดิต", js)
+        self.assertIn("อ่านเชิงลึก (คำตอบยาว) · ใช้ 20 เครดิต", js)
+        self.assertIn("ใช้ 20 เครดิต", js)
         self.assertIn("state.deckKind !== \"oracle\"", js)  # 12 is hidden/ignored for oracle
         self.assertNotIn("pick-hint", html)
         self.assertNotIn('name="topic"', html)

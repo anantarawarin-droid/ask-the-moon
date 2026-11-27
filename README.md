@@ -24,7 +24,7 @@ Optional environment variables:
 | `OPENAI_API_KEY` | If set, `/api/reading` asks an OpenAI-compatible model to write the prose |
 | `OPENAI_BASE_URL` | Optional, default `https://api.openai.com/v1`. For Gemini use `https://generativelanguage.googleapis.com/v1beta/openai/` |
 | `OPENAI_MODEL` | Optional, default `gpt-4o-mini`. For Gemini a current Flash model such as `gemini-3.5-flash-lite` |
-| `OPENAI_MODEL_DEEP` | Optional, default `gemini-3.8-flash`. Model for the 12-card deep reading only (15 credits); normal readings keep `OPENAI_MODEL` |
+| `OPENAI_MODEL_DEEP` | Optional, default `gemini-3.8-flash`. Model for the 12-card deep reading only (20 credits); normal readings keep `OPENAI_MODEL` |
 | `OPENAI_MAX_TOKENS_DEEP` | Optional, default `12000` (includes thinking tokens). Deep reading only; normal readings stay at 3072 |
 | `PROMPTPAY_ID` | Your PromptPay phone (10 digits) or national ID (13 digits). Unset = "payment coming soon" |
 | `ADMIN_TOKEN` | Long random password for `/admin`. Unset = admin disabled |

@@ -702,7 +702,7 @@ def llm_generate(
         if not text:
             return None
         if deep and (choice.get("finish_reason") == "length" or len(text) < DEEP_MIN_CHARS):
-            # A cut-off or too-short deep reading is not worth 15 credits: treat it as a failure (not charged).
+            # A cut-off or too-short deep reading is not worth 20 credits: treat it as a failure (not charged).
             print("Deep LLM reading was cut off or too short; using template generator.", file=sys.stderr)
             return None
         # If a model still returns a JSON wrapper, prefer the reading field.
@@ -746,7 +746,7 @@ def parse_card_count(body: dict[str, Any], deck: str = "tarot") -> int:
 
 
 def reading_cost(card_count: int) -> int:
-    """Question credits a reading uses: 15 for the 12-card deep reading, otherwise 1."""
+    """Question credits a reading uses: 20 for the 12-card deep reading, otherwise 1."""
     return DEEP_COST if card_count == DEEP_COUNT else 1
 
 
@@ -877,7 +877,7 @@ LOCKED_PREMIUM = {
 
 
 def paid_reading(body: dict[str, Any], visitor_id: Any, own: bool = False) -> dict[str, Any]:
-    """Validate, reserve one credit (or the one free preview; 15 credits for a 12-card deep reading) atomically,
+    """Validate, reserve one credit (or the one free preview; 20 credits for a 12-card deep reading) atomically,
     generate, and only keep the charge when the AI wrote the reading.
     own=True is the "เปิดไพ่เอง" mode: the same charge rules, cards chosen by the person."""
     if not billing.valid_visitor_id(visitor_id):
@@ -891,7 +891,7 @@ def paid_reading(body: dict[str, Any], visitor_id: Any, own: bool = False) -> di
     generate = generate_own_reading if own else generate_reading
     n_cards = len(params["cards"]) if own else params["cardCount"]
     cost = reading_cost(n_cards)
-    # Raises PaymentError(402): at 0 credits, or when a 12-card reading finds fewer than 15 (nothing is taken).
+    # Raises PaymentError(402): at 0 credits, or when a 12-card reading finds fewer than 20 (nothing is taken).
     kind = SERVICE.reserve_reading(visitor_id, cost)
     try:
         result = generate(params)

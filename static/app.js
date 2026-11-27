@@ -241,9 +241,9 @@ const I18N = {
     modeOwnSub: "เลือกไพ่ที่คุณเปิดจากสำรับคุณ 1–5 ใบ",
     cardCountLabel: "จำนวนใบ",
     cardCountOpt: (n) => `${n} ใบ`,
-    deepNote: "อ่านเชิงลึก · ใช้ 15 เครดิต",
-    deepNeedCredits: (have) => `การเปิด 12 ใบใช้ 15 เครดิต · ตอนนี้คุณมี ${have} เครดิต เติมเพิ่มด้านล่างได้เลยค่ะ`,
-    chargedDeep: "ใช้ 15 เครดิต · บทอ่านลึกปลดล็อกแล้ว",
+    deepNote: "อ่านเชิงลึก (คำตอบยาว) · ใช้ 20 เครดิต",
+    deepNeedCredits: (have) => `การเปิด 12 ใบใช้ 20 เครดิต · ตอนนี้คุณมี ${have} เครดิต เติมเพิ่มด้านล่างได้เลยค่ะ`,
+    chargedDeep: "ใช้ 20 เครดิต · บทอ่านลึกปลดล็อกแล้ว",
     pickTitle: (n) => `เลือกไพ่ ${n} ใบ`,
     pickShuffle: "สับไพ่ใหม่",
     pickCount: (n, need) => n ? `เลือกแล้ว ${n}/${need} ใบ` : `ยังไม่ได้เลือกไพ่ (เลือก ${need} ใบ)`,
@@ -252,12 +252,12 @@ const I18N = {
     shareOracleEyebrow: "ไพ่ออราเคิล",
     oracleCounsel: "คำพูดจากไพ่",
     ownTitle: "ไพ่ที่คุณเปิดได้",
-    ownHint: "สับไพ่และเปิดไพ่จากสำรับของคุณเอง แล้วแตะเลือกไพ่ตามลำดับที่เปิดได้ 1–5 ใบ หรือ 12 ใบสำหรับอ่านเชิงลึก (15 เครดิต) ถ้าไพ่ใบไหนออกกลับหัว กดปุ่ม “กลับหัว” ที่ใบนั้น",
+    ownHint: "สับไพ่และเปิดไพ่จากสำรับของคุณเอง แล้วแตะเลือกไพ่ตามลำดับที่เปิดได้ 1–5 ใบ หรือ 12 ใบสำหรับอ่านเชิงลึก (คำตอบยาว · 20 เครดิต) ถ้าไพ่ใบไหนออกกลับหัว กดปุ่ม “กลับหัว” ที่ใบนั้น",
     ownCount: (n, max) => n ? `เลือกแล้ว ${n}/${max} ใบ` : `ยังไม่ได้เลือกไพ่ (เลือกได้ 1–${max} ใบ)`,
     ownCountDeep: (n) => n === 0 ? "ยังไม่ได้เลือกไพ่ (1–5 ใบ หรือ 12 ใบ)"
       : n <= 5 ? `เลือกแล้ว ${n} ใบ`
       : n < 12 ? `เลือกแล้ว ${n}/12 ใบ · ต้องครบ 12 ใบ`
-      : "เลือกครบ 12 ใบ · ใช้ 15 เครดิต",
+      : "เลือกครบ 12 ใบ · ใช้ 20 เครดิต",
     ownNeedDeep: (n) => `เลือกได้ 1–5 ใบ หรือครบ 12 ใบ (ตอนนี้ ${n} ใบ)`,
     ownClear: "ล้างทั้งหมด",
     ownEmpty: "แตะไพ่ด้านล่างเพื่อเพิ่มตามลำดับที่คุณเปิด",
@@ -523,9 +523,9 @@ const I18N = {
     modeOwnSub: "1–5 cards you drew from your deck",
     cardCountLabel: "How many cards",
     cardCountOpt: (n) => n === 1 ? "1 card" : `${n} cards`,
-    deepNote: "Deep reading · uses 15 credits",
-    deepNeedCredits: (have) => `A 12-card reading uses 15 credits · you have ${have}. Top up below.`,
-    chargedDeep: "15 credits used · deep reading unlocked",
+    deepNote: "Deep reading (long answer) · uses 20 credits",
+    deepNeedCredits: (have) => `A 12-card reading uses 20 credits · you have ${have}. Top up below.`,
+    chargedDeep: "20 credits used · deep reading unlocked",
     pickTitle: (n) => n === 1 ? "Pick 1 card" : `Pick ${n} cards`,
     pickShuffle: "Shuffle again",
     pickCount: (n, need) => n ? `${n}/${need} cards chosen` : `No cards chosen yet (pick ${need})`,
@@ -534,12 +534,12 @@ const I18N = {
     shareOracleEyebrow: "ORACLE",
     oracleCounsel: "The card's counsel",
     ownTitle: "The cards you drew",
-    ownHint: "Shuffle and draw from your own deck, then tap 1–5 cards (or 12 for a deep reading, 15 credits) in the order you drew them. If a card came out upside down, tap “Reversed” on it.",
+    ownHint: "Shuffle and draw from your own deck, then tap 1–5 cards (or 12 for a deep reading (long answer), 20 credits) in the order you drew them. If a card came out upside down, tap “Reversed” on it.",
     ownCount: (n, max) => n ? `${n}/${max} cards chosen` : `No cards chosen yet (pick 1–${max})`,
     ownCountDeep: (n) => n === 0 ? "No cards chosen yet (1–5, or 12)"
       : n <= 5 ? `${n} chosen`
       : n < 12 ? `${n}/12 chosen · need all 12`
-      : "12 chosen · uses 15 credits",
+      : "12 chosen · uses 20 credits",
     ownNeedDeep: (n) => `Choose 1–5 cards, or exactly 12 (you have ${n}).`,
     ownClear: "Clear all",
     ownEmpty: "Tap cards below to add them in the order you drew them",
@@ -624,7 +624,7 @@ const state = {
   deck: [],
   deckMax: 5,
   deepCount: 12, // the deep reading: tarot and own cards only
-  deepCost: 15,
+  deepCost: 20,
   own: [], // [{ id, reversed }] in the order the person drew them
   ownGroup: "major",
   ownQuery: "",
@@ -831,7 +831,7 @@ function loadDeck() {
       state.deck = data.cards || [];
       state.deckMax = data.max || 5;
       state.deepCount = data.deep || 12;
-      state.deepCost = data.deepCost || 15;
+      state.deepCost = data.deepCost || 20;
       renderOwn();
     }).catch((err) => { deckPromise = null; throw err; });
   }
@@ -1552,7 +1552,7 @@ function renderResult(data) {
   let note = data.source === "llm" ? (ownMode ? dict.sourceLlmOwn(nCards) : dict.sourceLlm(nCards)) : dict.sourceTemplate;
   document.getElementById("profile-note").textContent = ownMode ? dict.profileNoteOwn : dict.profileNote(nCards);
   if (charge.kind && !charge.charged) note += " · " + dict.notCharged;
-  else if (charge.kind === "paid") note += " · " + (charge.cost === 15 ? dict.chargedDeep : dict.chargedPaid);
+  else if (charge.kind === "paid") note += " · " + (charge.cost === state.deepCost ? dict.chargedDeep : dict.chargedPaid);
   else if (charge.kind === "free") note += " · " + dict.chargedFree;
   document.getElementById("source-note").textContent = note;
   const premiumCard = document.querySelector(".reading-card.premium");
