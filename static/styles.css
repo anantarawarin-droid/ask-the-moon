@@ -1008,6 +1008,20 @@ body[data-lang="en"] .pricing h2 { font-family: var(--font-display); letter-spac
 @media (prefers-reduced-motion: reduce) { .tcard { animation: none; opacity: 1; } .tcard-inner { transition: none; } }
 
 
+.card-count { display: grid; justify-items: center; gap: 0.3rem; margin: 0 0 0.75rem; text-align: center; }
+.card-count-label { margin: 0; font-size: 0.82rem; color: var(--lavender); line-height: 1.45; }
+.card-count-options { display: flex; justify-content: center; gap: 0.4rem; }
+.card-count-btn {
+  appearance: none; min-width: 3.6rem; padding: 0.32rem 0.75rem; border-radius: 999px;
+  border: 1px solid var(--card-border); background: rgba(10, 6, 20, 0.5);
+  color: var(--text); font: 600 0.82rem var(--font-sans); cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+.card-count-btn.is-on { border-color: var(--gold); background: rgba(212, 175, 55, 0.12); color: var(--gold-soft);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.12); }
+.card-count-btn:hover, .card-count-btn:focus-visible { border-color: var(--gold); outline: none;
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.25); }
+
 .pick-table { margin: 0 0 1.2rem; padding: 1rem; border-radius: 16px; border: 1px solid var(--card-border); background: rgba(8, 4, 16, 0.45); }
 .pick-table[hidden] { display: none; }
 .pick-title { font-family: "Noto Serif Thai", var(--font-display), serif; font-weight: 600; font-size: 1.12rem;

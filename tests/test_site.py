@@ -64,7 +64,7 @@ class PageLayout(unittest.TestCase):
                 self.assertIn(term, d)
         self.assertIn("ไพ่ทาโรต์", re.search(r'<meta property="og:title" content="([^"]+)"', HTML).group(1))
         lede = re.search(r'data-i18n="heroLede">(.*?)</p>', HTML).group(1)
-        self.assertEqual(lede, "พิมพ์คำถาม จันทร์เปิดไพ่ 3 ใบ ตอบตรง ๆ พร้อมเหตุผลและคำแนะนำ")
+        self.assertEqual(lede, "พิมพ์คำถาม เลือกไพ่ 1–3 ใบ ตอบตรง ๆ พร้อมเหตุผลและคำแนะนำ")
         self.assertIn('data-i18n="faqTitle">คำถามที่พบบ่อย<', HTML)
         self.assertNotIn("faqIntro", HTML)
         self.assertNotIn("faq-intro", HTML)

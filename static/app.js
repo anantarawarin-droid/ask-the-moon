@@ -5,7 +5,7 @@ const I18N = {
     brandSub: "Ask the Moon",
     footBrand: "ถามจันทร์",
     heroTitle: "ถามจันทร์ · ดูดวงไพ่ทาโรต์ออนไลน์",
-    heroLede: "พิมพ์คำถาม จันทร์เปิดไพ่ 3 ใบ ตอบตรง ๆ พร้อมเหตุผลและคำแนะนำ",
+    heroLede: "พิมพ์คำถาม เลือกไพ่ 1–3 ใบ ตอบตรง ๆ พร้อมเหตุผลและคำแนะนำ",
     navMeanings: "ความหมายไพ่",
     heroMeanings: "ความหมายไพ่",
     faqTitle: "คำถามที่พบบ่อย",
@@ -14,9 +14,9 @@ const I18N = {
     faqQ2: "ไพ่ยิปซีกับไพ่ทาโรต์ต่างกันไหม?",
     faqA2: "บนเว็บนี้ไพ่ยิปซีกับไพ่ทาโรต์หมายถึงสำรับเดียวกันทั้ง 78 ใบ (Rider-Waite-Smith) คนไทยมักเรียกว่าไพ่ยิปซี",
     faqQ3: "เปิดไพ่กี่ใบ?",
-    faqA3: "โหมดหลักให้แตะเลือกไพ่ 3 ใบ ถ้ามีไพ่ทาโรต์อยู่แล้วจากสำรับที่บ้าน เลือกบนเว็บได้ 1–5 ใบ",
+    faqA3: "โหมดหลักเลือกได้ 1, 2 หรือ 3 ใบ (ค่าเริ่มต้น 3 ใบ) ถ้ามีไพ่ทาโรต์อยู่แล้วจากสำรับที่บ้าน เลือกบนเว็บได้ 1–5 ใบ",
     faqQOracle: "ไพ่ออราเคิล 37 ใบคืออะไร?",
-    faqAOracle: "เป็นสำรับของถามจันทร์เอง 37 ใบ แบ่งเป็นชุดเวลา อารมณ์ และคำพูด ชื่อบนไพ่เป็นภาษาอังกฤษ ความหมายอธิบายในคำทำนายหลังจั่วไพ่ แต่ละคำถามจั่ว 3 ใบจากทั้งสำรับ ใช้เครดิตเหมือนการถามไพ่ทาโรต์",
+    faqAOracle: "เป็นสำรับของถามจันทร์เอง 37 ใบ แบ่งเป็นชุดเวลา อารมณ์ และคำพูด ชื่อบนไพ่เป็นภาษาอังกฤษ ความหมายอธิบายในคำทำนายหลังจั่วไพ่ แต่ละคำถามเลือกได้ 1–3 ใบจากทั้งสำรับ ใช้เครดิตเหมือนการถามไพ่ทาโรต์",
     faqQ4: "คำตอบจากไพ่ใช้ตัดสินใจเรื่องสำคัญได้ไหม?",
     faqA4: "คำตอบจากไพ่มีไว้เป็นแนวทาง เพื่อความบันเทิง ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย หรือการเงิน การตัดสินใจสุดท้ายเป็นของคุณ",
     faqQ5: "จ่ายเงินอย่างไร?",
@@ -49,7 +49,7 @@ const I18N = {
     creditLogin: "สมัครฟรี รับคำถามแรกฟรี 1 ข้อ · เข้าสู่ระบบก่อนถามไพ่นะคะ",
     accNeedLoginAsk: "สมัครฟรี รับคำถามแรกฟรี 1 ข้อ ✨ กรุณาสมัครหรือเข้าสู่ระบบก่อนถามไพ่ค่ะ",
     profileTitle: "โปรไฟล์ดวงของคุณ",
-    profileNote: "ข้อมูลนี้คำนวณจากวันเกิดของคุณ แยกจากคำตอบของไพ่ซึ่งอ่านจากไพ่ 3 ใบเท่านั้น",
+    profileNote: (n) => `ข้อมูลนี้คำนวณจากวันเกิดของคุณ แยกจากคำตอบของไพ่ซึ่งอ่านจากไพ่ ${n} ใบเท่านั้น`,
     profileSub: (p) => `เกิด${p.weekdayTh}ที่ ${p.dateTh}${p.birthTime ? " เวลา " + p.birthTime + " น." : ""}`,
     profChinese: "ปีนักษัตร",
     profNumber: "เลขวันเกิด",
@@ -214,7 +214,7 @@ const I18N = {
     badgeHour: "ยามเกิด",
     master: "เลขปรมาจารย์",
     sourceTemplate: "คำตอบจากความหมายของไพ่ (ระบบสำรอง)",
-    sourceLlm: "เรียบเรียงโดยปัญญาประดิษฐ์ จากไพ่ 3 ใบของคุณ",
+    sourceLlm: (n) => `เรียบเรียงโดยปัญญาประดิษฐ์ จากไพ่ ${n} ใบของคุณ`,
     resultFor: (name, topic) => `คำตอบสำหรับ ${name} · ${topic}`,
     needName: "กรุณาใส่ชื่อ",
     needDate: "กรุณาใส่วันเกิด",
@@ -239,12 +239,14 @@ const I18N = {
     modeDrawSub: "แตะเลือก 3 ใบ",
     modeOwn: "มีไพ่อยู่แล้ว",
     modeOwnSub: "เลือกไพ่ที่คุณเปิดจากสำรับคุณ 1–5 ใบ",
-    pickTitle: "เลือกไพ่ 3 ใบ",
-    pickHint: "แตะเลือกไพ่ 3 ใบ",
+    cardCountLabel: "จำนวนใบ",
+    cardCountOpt: (n) => `${n} ใบ`,
+    pickTitle: (n) => `เลือกไพ่ ${n} ใบ`,
+    pickHint: (n) => `แตะเลือกไพ่ ${n} ใบ`,
     pickShuffle: "สับไพ่ใหม่",
-    pickCount: (n) => n ? `เลือกแล้ว ${n}/3 ใบ` : "ยังไม่ได้เลือกไพ่ (เลือก 3 ใบ)",
-    pickNeed: "กรุณาแตะเลือกไพ่ให้ครบ 3 ใบก่อนถาม",
-    pickFull: "เลือกได้ 3 ใบ เอาใบเดิมออกก่อนถ้าจะเปลี่ยน",
+    pickCount: (n, need) => n ? `เลือกแล้ว ${n}/${need} ใบ` : `ยังไม่ได้เลือกไพ่ (เลือก ${need} ใบ)`,
+    pickNeed: (need) => `กรุณาแตะเลือกไพ่ให้ครบ ${need} ใบก่อนถาม`,
+    pickFull: (need) => `เลือกได้ ${need} ใบ เอาใบเดิมออกก่อนถ้าจะเปลี่ยน`,
     shareOracleEyebrow: "ไพ่ออราเคิล",
     oracleCounsel: "คำพูดจากไพ่",
     ownTitle: "ไพ่ที่คุณเปิดได้",
@@ -273,12 +275,12 @@ const I18N = {
     shareOwnEyebrow: "ไพ่ที่เปิดเอง",
   },
   en: {
-    docTitle: "Ask the Moon — 3-card tarot, straight answers | ถามจันทร์",
+    docTitle: "Ask the Moon — 1–3 card tarot, straight answers | ถามจันทร์",
     brand: "Ask the Moon",
     brandSub: "ถามจันทร์",
     footBrand: "Ask the Moon",
     heroTitle: "Ask the Moon · Online Tarot",
-    heroLede: "Type a question. The Moon draws 3 cards and answers straight, with reasons and advice.",
+    heroLede: "Type a question. Choose 1–3 cards. The Moon answers straight, with reasons and advice.",
     navMeanings: "Card meanings",
     heroMeanings: "Card meanings",
     faqTitle: "Frequently asked questions",
@@ -287,9 +289,9 @@ const I18N = {
     faqQ2: "Are ไพ่ยิปซี and tarot different?",
     faqA2: "On this site they mean the same 78-card Rider-Waite-Smith deck. In Thai people often call it ไพ่ยิปซี.",
     faqQ3: "How many cards are drawn?",
-    faqA3: "The main mode lets you tap 3 cards. If you already drew tarot at home, you can enter 1–5 of those cards here.",
+    faqA3: "The main mode lets you choose 1, 2 or 3 cards (3 is the default). If you already drew tarot at home, you can enter 1–5 of those cards here.",
     faqQOracle: "What is the 37-card oracle?",
-    faqAOracle: "It is Ask the Moon’s own 37-card oracle: Time, Emotion, and Words. English titles are on the cards; a short name sits under them in the reading, and the meaning is explained in the reading itself. Each question draws 3 cards from the whole deck and uses the same question credits as tarot.",
+    faqAOracle: "It is Ask the Moon’s own 37-card oracle: Time, Emotion, and Words. English titles are on the cards; a short name sits under them in the reading, and the meaning is explained in the reading itself. Each question lets you choose 1–3 cards from the whole deck and uses the same question credits as tarot.",
     faqQ4: "Can I use a reading to make important decisions?",
     faqA4: "Readings are for guidance and entertainment only. They are not medical, legal, or financial advice. The final decision is yours.",
     faqQ5: "How does payment work?",
@@ -322,7 +324,7 @@ const I18N = {
     creditLogin: "Sign up free and get your first question free · please log in to ask.",
     accNeedLoginAsk: "Sign up free and get 1 free question ✨ Please sign up or log in to ask the cards.",
     profileTitle: "Your birth profile",
-    profileNote: "Worked out from your birthday, separate from the tarot answer, which reads only the three cards.",
+    profileNote: (n) => `Worked out from your birthday, separate from the tarot answer, which reads only the ${n} card${n === 1 ? "" : "s"}.`,
     profileSub: (p) => `Born on a ${p.weekdayEn}, ${p.dateEn}${p.birthTime ? " at " + p.birthTime : ""}`,
     profChinese: "Chinese zodiac",
     profNumber: "Birth number",
@@ -487,7 +489,7 @@ const I18N = {
     badgeHour: "Hour of birth",
     master: "Master number",
     sourceTemplate: "Answer from the card meanings (backup mode)",
-    sourceLlm: "Written by AI from your three cards",
+    sourceLlm: (n) => `Written by AI from your ${n} card${n === 1 ? "" : "s"}`,
     resultFor: (name, topic) => `An answer for ${name} · ${topic}`,
     needName: "Please enter a name.",
     needDate: "Please enter a birth date.",
@@ -512,12 +514,14 @@ const I18N = {
     modeDrawSub: "Tap 3 cards",
     modeOwn: "Use my own cards",
     modeOwnSub: "1–5 cards you drew from your deck",
-    pickTitle: "Pick 3 cards",
-    pickHint: "Tap 3 cards",
+    cardCountLabel: "How many cards",
+    cardCountOpt: (n) => n === 1 ? "1 card" : `${n} cards`,
+    pickTitle: (n) => n === 1 ? "Pick 1 card" : `Pick ${n} cards`,
+    pickHint: (n) => n === 1 ? "Tap 1 card" : `Tap ${n} cards`,
     pickShuffle: "Shuffle again",
-    pickCount: (n) => n ? `${n}/3 cards chosen` : "No cards chosen yet (pick 3)",
-    pickNeed: "Please tap 3 cards before asking.",
-    pickFull: "You can pick 3 cards. Remove one first to change.",
+    pickCount: (n, need) => n ? `${n}/${need} cards chosen` : `No cards chosen yet (pick ${need})`,
+    pickNeed: (need) => need === 1 ? "Please tap 1 card before asking." : `Please tap ${need} cards before asking.`,
+    pickFull: (need) => `You can pick ${need} card${need === 1 ? "" : "s"}. Remove one first to change.`,
     shareOracleEyebrow: "ORACLE",
     oracleCounsel: "The card's counsel",
     ownTitle: "The cards you drew",
@@ -608,9 +612,10 @@ const state = {
   own: [], // [{ id, reversed }] in the order the person drew them
   ownGroup: "major",
   ownQuery: "",
-  pick: [], // indexes into the facedown table, in tap order (max 3)
+  pick: [], // indexes into the facedown table, in tap order
   pickOrder: [], // visual permutation of the table slots
   pickTilts: [],
+  cardCount: 3, // 1, 2 or 3; default matches the previous fixed draw
   cardBack: "/oracle/card-back.webp?v=1",
 };
 
@@ -652,6 +657,7 @@ function applyLang() {
   renderPricing();
   renderOwn();
   renderPick();
+  renderCardCount();
   if (state.order) renderPayModal();
   if (state.last) renderResult(state.last);
   renderAccountButton();
@@ -829,6 +835,7 @@ function applyChoiceChrome() {
   if (pick) pick.hidden = state.mode !== "draw";
   renderOwn();
   renderPick();
+  renderCardCount();
 }
 
 function setMode(mode) {
@@ -864,7 +871,6 @@ function setChoice(choice) {
 }
 
 const PICK_N = 18;
-const PICK_NEED = 3;
 
 function shufflePick() {
   const ids = [...Array(PICK_N).keys()];
@@ -899,8 +905,8 @@ function pickToggle(slot) {
   const at = state.pick.indexOf(slot);
   if (at >= 0) {
     state.pick.splice(at, 1);
-  } else if (state.pick.length >= PICK_NEED) {
-    toast(t().pickFull);
+  } else if (state.pick.length >= state.cardCount) {
+    toast(t().pickFull(state.cardCount));
     return;
   } else {
     state.pick.push(slot);
@@ -919,13 +925,18 @@ function renderPick() {
     shufflePick();
     return;
   }
+  const need = state.cardCount;
+  const title = document.getElementById("pick-title");
+  const hint = document.getElementById("pick-hint");
+  if (title) title.textContent = dict.pickTitle(need);
+  if (hint) hint.textContent = dict.pickHint(need);
   const count = document.getElementById("pick-count");
-  if (count) count.textContent = dict.pickCount(state.pick.length);
+  if (count) count.textContent = dict.pickCount(state.pick.length, need);
   fan.innerHTML = state.pickOrder.map((slot, i) => {
     const pos = state.pick.indexOf(slot);
     const on = pos >= 0;
     const tilt = state.pickTilts[i] || 0;
-    const label = on ? (dict.pickCount(pos + 1)) : dict.pickTitle;
+    const label = on ? dict.pickCount(pos + 1, need) : dict.pickTitle(need);
     return `<button type="button" class="pick-card${on ? " is-on" : ""}" data-slot="${slot}" style="--tilt:${tilt}deg" aria-pressed="${on}" aria-label="${escapeHtml(label)}">
       <img src="${escapeHtml(state.cardBack)}" alt="" width="480" height="654" decoding="async" />
       ${on ? `<span class="pick-badge">${pos + 1}</span>` : ""}
@@ -949,6 +960,35 @@ function setupPick() {
   document.getElementById("pick-shuffle").addEventListener("click", () => shufflePick());
   document.querySelectorAll("[data-choice]").forEach((btn) => {
     btn.addEventListener("click", () => setChoice(btn.dataset.choice));
+  });
+  document.querySelectorAll("[data-count]").forEach((btn) => {
+    btn.addEventListener("click", () => setCardCount(Number(btn.dataset.count)));
+  });
+  renderCardCount();
+}
+
+function setCardCount(n) {
+  const next = (n === 1 || n === 2 || n === 3) ? n : 3;
+  if (next !== state.cardCount) {
+    state.cardCount = next;
+    if (state.pick.length > next) state.pick = state.pick.slice(0, next);
+  }
+  renderCardCount();
+  renderPick();
+}
+
+function renderCardCount() {
+  const dict = t();
+  const label = document.getElementById("card-count-label");
+  if (label) label.textContent = dict.cardCountLabel;
+  const group = document.getElementById("card-count");
+  if (group) group.setAttribute("aria-label", dict.cardCountLabel);
+  document.querySelectorAll("[data-count]").forEach((btn) => {
+    const n = Number(btn.dataset.count);
+    const on = n === state.cardCount;
+    btn.classList.toggle("is-on", on);
+    btn.setAttribute("aria-checked", on ? "true" : "false");
+    btn.textContent = dict.cardCountOpt(n);
   });
 }
 
@@ -1468,8 +1508,8 @@ function renderResult(data) {
   const charge = data.charge || {};
   const ownMode = data.mode === "own";
   const nCards = ((data.tarot && data.tarot.cards) || []).length;
-  let note = data.source === "llm" ? (ownMode ? dict.sourceLlmOwn(nCards) : dict.sourceLlm) : dict.sourceTemplate;
-  document.getElementById("profile-note").textContent = ownMode ? dict.profileNoteOwn : dict.profileNote;
+  let note = data.source === "llm" ? (ownMode ? dict.sourceLlmOwn(nCards) : dict.sourceLlm(nCards)) : dict.sourceTemplate;
+  document.getElementById("profile-note").textContent = ownMode ? dict.profileNoteOwn : dict.profileNote(nCards);
   if (charge.kind && !charge.charged) note += " · " + dict.notCharged;
   else if (charge.kind === "paid") note += " · " + dict.chargedPaid;
   else if (charge.kind === "free") note += " · " + dict.chargedFree;
@@ -1545,8 +1585,8 @@ async function onSubmit(event) {
     document.getElementById("own-picker").scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
-  if (!ownMode && state.pick.length !== 3) {
-    error.textContent = dict.pickNeed;
+  if (!ownMode && state.pick.length !== state.cardCount) {
+    error.textContent = dict.pickNeed(state.cardCount);
     error.hidden = false;
     document.getElementById("pick-table").scrollIntoView({ behavior: "smooth", block: "start" });
     return;
@@ -1581,6 +1621,7 @@ async function onSubmit(event) {
         details,
         lang: state.lang,
         deck: ownMode ? "tarot" : state.deckKind,
+        ...(ownMode ? {} : { cardCount: state.cardCount }),
         ...ownCards,
       }),
     });

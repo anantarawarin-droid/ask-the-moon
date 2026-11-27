@@ -3,8 +3,8 @@
 Background color marks the category:
   black-blue = Time (8 cards), brown = Emotion (19 cards), green = Words (10 cards).
 English titles are printed on the cards; Thai names and meanings are shown on the site.
-A reading draws 3 distinct cards at random from the full 37-card deck (categories may
-repeat). Cards are not reversed. The server always draws; the pick UI never chooses identities.
+A reading draws 1, 2 or 3 distinct cards at random from the full 37-card deck (categories may
+repeat). The default is 3. Cards are not reversed. The server always draws; the pick UI never chooses identities.
 """
 
 from __future__ import annotations
@@ -12,9 +12,19 @@ from __future__ import annotations
 import secrets
 from typing import Any
 
-HEADING_TH = "ไพ่ออราเคิล 3 ใบ"
-HEADING_EN = "3 oracle cards"
 DRAW_COUNT = 3
+
+
+def heading_th(count: int = DRAW_COUNT) -> str:
+    return f"ไพ่ออราเคิล {count} ใบ"
+
+
+def heading_en(count: int = DRAW_COUNT) -> str:
+    return "1 oracle card" if count == 1 else f"{count} oracle cards"
+
+
+HEADING_TH = heading_th(DRAW_COUNT)
+HEADING_EN = heading_en(DRAW_COUNT)
 IMAGE_VERSION = "1"
 THUMB_VERSION = "1"
 BACK_VERSION = "1"
@@ -331,12 +341,15 @@ def _drawn(card: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def draw() -> list[dict[str, Any]]:
-    """Three distinct cards from the full 37-card deck, without replacement.
+def draw(count: int = DRAW_COUNT) -> list[dict[str, Any]]:
+    """Distinct cards from the full 37-card deck, without replacement.
 
     Categories may repeat. OS randomness; no reversals; the client cannot choose identities.
+    Default is 3 cards; the API also allows 1 or 2.
     """
-    return [_drawn(card) for card in _RNG.sample(DECK, DRAW_COUNT)]
+    if count < 1 or count > len(DECK):
+        raise ValueError("Invalid card count.")
+    return [_drawn(card) for card in _RNG.sample(DECK, count)]
 
 
 def catalog() -> list[dict[str, Any]]:
@@ -373,10 +386,11 @@ YES_AT = 2.4
 LIKELY_AT = 1.0
 
 
-def verdict(cards: list[dict[str, Any]]) -> str:
-    score = sum(card_score(c) for c in cards)
+def verdict_for_score(score: float, cards: list[dict[str, Any]]) -> str:
     # "Not Yet Time" in the spread should not be talked past as a clear yes.
-    if any(c["id"] == "oracle-08" for c in cards) and score >= LIKELY_AT:
+    # A lone Not Yet Time card is "not yet", not a hard no.
+    has_not_yet = any(c["id"] == "oracle-08" for c in cards)
+    if has_not_yet and (len(cards) == 1 or score >= LIKELY_AT):
         return "not_yet"
     if score >= YES_AT:
         return "yes"
@@ -387,6 +401,18 @@ def verdict(cards: list[dict[str, Any]]) -> str:
     if score > -YES_AT:
         return "unlikely"
     return "no"
+
+
+def verdict(cards: list[dict[str, Any]]) -> str:
+    return verdict_for_score(sum(card_score(c) for c in cards), cards)
+
+
+def verdict_scaled(cards: list[dict[str, Any]]) -> str:
+    """Lean for 1–3 cards on the same scale as a 3-card draw (score * 3 / n).
+    Equals verdict() for 3 cards, except a lone Not Yet Time card stays not_yet."""
+    if not cards:
+        return "not_yet"
+    return verdict_for_score(sum(card_score(c) for c in cards) * DRAW_COUNT / len(cards), cards)
 
 
 ANSWER_TH = {
@@ -408,9 +434,19 @@ ANSWER_EN = {
 def fallback_reading(name: str, question: str, topic_th: str, topic_en: str,
                      cards: list[dict[str, Any]], lang: str) -> str:
     """A direct three-paragraph reading when the AI is unavailable."""
-    lean = verdict(cards)
+    lean = verdict_scaled(cards)
     th = lang == "th"
+    n = len(cards)
     q = (question or "").strip()
+    if n == 1:
+        th_ref, en_ref = "ไพ่ใบนี้คือ", "The card is"
+        th_adv, en_adv = "ความหมายของไพ่ใบนี้", "what this card shows"
+    elif n == 2:
+        th_ref, en_ref = "ไพ่สองใบคือ", "The two cards are"
+        th_adv, en_adv = "ความหมายของไพ่สองใบนี้", "what these two cards show"
+    else:
+        th_ref, en_ref = "ไพ่ทั้งสามใบคือ", "The three cards are"
+        th_adv, en_adv = "ความหมายของไพ่ทั้งสามใบ", "what these three cards show"
     if th:
         lead = ANSWER_TH[lean]
         if q:
@@ -418,9 +454,9 @@ def fallback_reading(name: str, question: str, topic_th: str, topic_en: str,
         else:
             p1 = f"{name}ค่ะ {lead} ในเรื่อง{topic_th}"
         bits = [f"«{c['nameTh']}» ({c['categoryTh']}) — {c['meaningTh']}" for c in cards]
-        p2 = "ไพ่ทั้งสามใบคือ " + " ".join(bits)
+        p2 = th_ref + " " + " ".join(bits)
         p3 = (
-            f"คำแนะนำที่ใช้ได้เลย: ถือความหมายของไพ่ทั้งสามใบไปลงมือ "
+            f"คำแนะนำที่ใช้ได้เลย: ถือ{th_adv}ไปลงมือ "
             f"โดยเฉพาะ «{cards[-1]['nameTh']}» อย่าฝืนเรื่องที่ยังไม่สุก และอย่าทิ้งสิ่งที่ไพ่ชี้ชัดแล้ว"
         )
         return "\n\n".join([p1, p2, p3])
@@ -432,9 +468,9 @@ def fallback_reading(name: str, question: str, topic_th: str, topic_en: str,
     else:
         p1 = f"{name}, {lead} About your {topic_en}."
     bits = [f"“{c['nameEn']}” ({c['categoryEn']}) — {c['meaningEn']}" for c in cards]
-    p2 = "The three cards are " + " ".join(bits)
+    p2 = en_ref + " " + " ".join(bits)
     p3 = (
-        f"Advice you can use now: act on what these three cards show, "
+        f"Advice you can use now: act on {en_adv}, "
         f"especially “{cards[-1]['nameEn']}”. Do not force what is not ripe, "
         f"and do not ignore what the cards have already made clear."
     )
@@ -442,7 +478,7 @@ def fallback_reading(name: str, question: str, topic_th: str, topic_en: str,
 
 
 def premium_from_cards(cards: list[dict[str, Any]], lang: str) -> dict[str, Any]:
-    """Paid deep section built only from the three oracle cards (no invented lucky numbers)."""
+    """Paid deep section built only from the drawn oracle cards (no invented lucky numbers)."""
     th = lang == "th"
     def first_of(category: str) -> dict[str, Any] | None:
         return next((c for c in cards if c.get("category") == category), None)

@@ -328,10 +328,15 @@ class Http(unittest.TestCase):
         self.assertIn('modeDraw: "Pick cards"', js)
         self.assertIn('modeDrawSub: "Tap 3 cards"', js)
         self.assertIn('deck: ownMode ? "tarot" : state.deckKind', js)
-        self.assertIn('pickTitle: "เลือกไพ่ 3 ใบ"', js)
-        self.assertIn('pickHint: "แตะเลือกไพ่ 3 ใบ"', js)
-        self.assertIn('pickTitle: "Pick 3 cards"', js)
-        self.assertIn('pickHint: "Tap 3 cards"', js)
+        self.assertIn("pickTitle: (n) =>", js)
+        self.assertIn("pickHint: (n) =>", js)
+        self.assertIn("cardCount: 3", js)
+        self.assertIn("cardCount: state.cardCount", js)
+        self.assertIn('id="card-count"', html)
+        self.assertIn('data-count="1"', html)
+        self.assertIn('data-count="2"', html)
+        self.assertIn('data-count="3"', html)
+        self.assertIn("function setCardCount", js)
         for phrase in ("สุ่มไพ่จริง", "ไม่ใช่ใบที่เห็นตอนคว่ำ", "คว่ำหน้า", "สุ่มไพ่ให้ตอนเปิด",
                        "the Moon draws the actual cards", "not the backs you see now",
                        "facedown cards", "Pick 3 facedown"):
@@ -344,8 +349,8 @@ class Http(unittest.TestCase):
         for phrase in ("จั่วหนึ่งใบต่อชุด", "หมวดละ 1 ใบ", "อย่างละใบ", "one from each group", "one card from each"):
             self.assertNotIn(phrase, html)
             self.assertNotIn(phrase, js)
-        self.assertIn("จั่ว 3 ใบจากทั้งสำรับ", html)
-        self.assertIn("draws 3 cards from the whole deck", js)
+        self.assertIn("เลือกได้ 1–3 ใบจากทั้งสำรับ", html)
+        self.assertIn("lets you choose 1–3 cards from the whole deck", js)
         self.assertIn('id="oracle-theme"', html)
         self.assertIn("ธีม Feeling Time · ถึง 15 ธ.ค. นี้", html)
         self.assertIn("ไพ่ออราเคิลธีม “Feeling Time” · ถึง 15 ธันวาคมนี้เท่านั้น", html)
