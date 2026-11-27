@@ -242,7 +242,6 @@ const I18N = {
     cardCountLabel: "จำนวนใบ",
     cardCountOpt: (n) => `${n} ใบ`,
     pickTitle: (n) => `เลือกไพ่ ${n} ใบ`,
-    pickHint: (n) => `แตะเลือกไพ่ ${n} ใบ`,
     pickShuffle: "สับไพ่ใหม่",
     pickCount: (n, need) => n ? `เลือกแล้ว ${n}/${need} ใบ` : `ยังไม่ได้เลือกไพ่ (เลือก ${need} ใบ)`,
     pickNeed: (need) => `กรุณาแตะเลือกไพ่ให้ครบ ${need} ใบก่อนถาม`,
@@ -517,7 +516,6 @@ const I18N = {
     cardCountLabel: "How many cards",
     cardCountOpt: (n) => n === 1 ? "1 card" : `${n} cards`,
     pickTitle: (n) => n === 1 ? "Pick 1 card" : `Pick ${n} cards`,
-    pickHint: (n) => n === 1 ? "Tap 1 card" : `Tap ${n} cards`,
     pickShuffle: "Shuffle again",
     pickCount: (n, need) => n ? `${n}/${need} cards chosen` : `No cards chosen yet (pick ${need})`,
     pickNeed: (need) => need === 1 ? "Please tap 1 card before asking." : `Please tap ${need} cards before asking.`,
@@ -927,9 +925,7 @@ function renderPick() {
   }
   const need = state.cardCount;
   const title = document.getElementById("pick-title");
-  const hint = document.getElementById("pick-hint");
   if (title) title.textContent = dict.pickTitle(need);
-  if (hint) hint.textContent = dict.pickHint(need);
   const count = document.getElementById("pick-count");
   if (count) count.textContent = dict.pickCount(state.pick.length, need);
   fan.innerHTML = state.pickOrder.map((slot, i) => {

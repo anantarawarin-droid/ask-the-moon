@@ -1025,8 +1025,7 @@ body[data-lang="en"] .pricing h2 { font-family: var(--font-display); letter-spac
 .pick-table { margin: 0 0 1.2rem; padding: 1rem; border-radius: 16px; border: 1px solid var(--card-border); background: rgba(8, 4, 16, 0.45); }
 .pick-table[hidden] { display: none; }
 .pick-title { font-family: "Noto Serif Thai", var(--font-display), serif; font-weight: 600; font-size: 1.12rem;
-  line-height: 1.45; padding-block: 0.08em; overflow: visible; color: var(--gold-soft); margin: 0 0 0.35rem; }
-.pick-hint { font-size: 0.82rem; color: var(--muted); line-height: 1.55; margin: 0 0 0.7rem; }
+  line-height: 1.45; padding-block: 0.08em; overflow: visible; color: var(--gold-soft); margin: 0 0 0.7rem; }
 .pick-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin: 0 0 0.7rem; font-size: 0.85rem; color: var(--lavender); }
 .pick-shuffle { appearance: none; border: 1px solid rgba(212, 175, 55, 0.45); background: rgba(10, 6, 20, 0.5);
   color: var(--gold-soft); border-radius: 999px; padding: 0.32rem 0.85rem; font: 600 0.8rem var(--font-sans); cursor: pointer; }
