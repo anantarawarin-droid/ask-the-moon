@@ -766,7 +766,9 @@ function renderTarot(tarot) {
   banner.hidden = !own;
   banner.textContent = own ? dict.ownBanner(cards.length) : "";
   const isOracle = (cards[0] && String(cards[0].id).startsWith("oracle-")) || (tarot && tarot.headingEn === "3 oracle cards");
-  row.classList.toggle("is-flex", cards.length !== 3);
+  const isDeep = cards.length === 12; // compact thumbnails: the reading text is what matters
+  row.classList.toggle("is-flex", cards.length !== 3 && !isDeep);
+  row.classList.toggle("is-deep", isDeep);
   row.innerHTML = cards
     .map((c, i) => {
       const name = th ? c.nameTh.replace(/\s*\(.*\)$/, "") : c.nameEn;
@@ -780,20 +782,23 @@ function renderTarot(tarot) {
         ? `<a class="tcard-link" href="/tarot/${escapeHtml(slug)}" target="_blank" rel="noopener">${escapeHtml(name)}</a>`
         : escapeHtml(name);
       const pos = th ? (c.positionTh || c.categoryTh || "") : (c.positionEn || c.categoryEn || "");
+      const art = isDeep ? String(c.image || "").replace(/(\/tarot\/[^/?]+)\.webp/, "$1-thumb.webp") : c.image;
       const back = `<span class="tcard-face tcard-back" aria-hidden="true"><img src="${escapeHtml(state.cardBack)}" alt="" /></span>`;
-      return `
-      <figure class="tcard${c.reversed ? " is-reversed" : ""}${oracleCard || isOracle ? " is-oracle" : ""}${already ? " is-flipped no-anim" : ""}" style="--i:${i}">
-        <button type="button" class="tcard-inner" aria-label="${escapeHtml(name)}" title="${escapeHtml(oracleCard ? name : meaning)}">
-          ${back}
-          <span class="tcard-face tcard-front"><img src="${escapeHtml(c.image)}" alt="${escapeHtml(c.nameEn)}" decoding="async" /></span>
-        </button>
+      const caption = isDeep ? "" : `
         <figcaption>
           ${pos ? `<span class="tcard-pos">${escapeHtml(pos)}</span>` : ""}
           <b class="tcard-name">${nameHtml}</b>
           ${oracleCard ? "" : `<small class="tcard-sub">${escapeHtml(sub)}</small>`}
           ${c.reversed ? `<span class="tcard-rev">${escapeHtml(dict.tarotReversed)}</span>` : ""}
           ${oracleCard ? "" : `<span class="tcard-meaning">${escapeHtml(meaning)}</span>`}
-        </figcaption>
+        </figcaption>`;
+      return `
+      <figure class="tcard${c.reversed ? " is-reversed" : ""}${oracleCard || isOracle ? " is-oracle" : ""}${already ? " is-flipped no-anim" : ""}" style="--i:${i}">
+        <button type="button" class="tcard-inner" aria-label="${escapeHtml(name)}${c.reversed ? " · " + dict.tarotReversed : ""}" title="${escapeHtml(oracleCard ? name : meaning)}">
+          ${back}
+          <span class="tcard-face tcard-front"><img src="${escapeHtml(art)}" alt="${escapeHtml(c.nameEn)}" decoding="async" /></span>
+        </button>
+        ${caption}
       </figure>`;
     })
     .join("");

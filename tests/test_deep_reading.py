@@ -377,6 +377,17 @@ class StaticUi(unittest.TestCase):
         self.assertNotIn('name="topic"', html)
         self.assertIn("google-site-verification", html)
 
+    def test_result_uses_compact_thumbnails_only_for_twelve(self):
+        js = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
+        css = (ROOT / "static" / "styles.css").read_text(encoding="utf-8")
+        self.assertIn('row.classList.toggle("is-deep", isDeep)', js)
+        self.assertIn('cards.length !== 3 && !isDeep', js)
+        self.assertIn("-thumb.webp", js)
+        self.assertIn(".tarot-row.is-deep", css)
+        self.assertIn("repeat(6, minmax(0, 1fr))", css)
+        # 1–3 card layout stays the default 3-column / is-flex rules
+        self.assertIn(".tarot-row.is-flex .tcard", css)
+
 
 if __name__ == "__main__":
     unittest.main()
