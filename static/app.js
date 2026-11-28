@@ -96,6 +96,10 @@ const I18N = {
     topUp: "เติมคำถาม",
     noCredits: "คำถามของคุณหมดแล้ว — เลือกแพ็กเกจด้านล่างเพื่อถามต่อนะคะ",
     notCharged: "ดวงจันทร์ใช้บทอ่านสำรองครั้งนี้ จึงไม่หักเครดิต",
+    jobRefunded: "สร้างคำทำนายไม่สำเร็จ ระบบคืนเครดิตให้อัตโนมัติแล้วค่ะ ลองเปิดไพ่อีกครั้งได้เลย",
+    jobGone: "คำทำนายนี้ถูกส่งไปแล้วค่ะ",
+    jobShowFail: "แสดงผลไม่สำเร็จ ลองรีเฟรชหน้านี้ คำทำนายจะยังรออยู่อีกสักครู่ค่ะ",
+    jobNetwork: "สัญญาณไม่เสถียร ยังไม่ทราบผล หากไม่ได้รับคำทำนาย ระบบจะคืนเครดิตให้อัตโนมัติ รีเฟรชหน้านี้เพื่อลองดึงผลอีกครั้งค่ะ",
     chargedPaid: "ใช้ 1 คำถาม · บทอ่านลึกปลดล็อกแล้ว",
     chargedFree: "ใช้คำถามฟรีแล้ว · เติมคำถามเพื่อปลดล็อกบทอ่านลึก",
     pricingEyebrow: "แพ็กเกจคำถาม · เติมผ่านพร้อมเพย์",
@@ -379,6 +383,10 @@ const I18N = {
     topUp: "Top up",
     noCredits: "You're out of questions — pick a package below to keep asking.",
     notCharged: "The moon used a backup reading this time, so no credit was used.",
+    jobRefunded: "We couldn't finish your reading, so your credits were refunded automatically. Please try again.",
+    jobGone: "This reading was already delivered.",
+    jobShowFail: "Couldn't display it. Refresh this page; your reading is held for a few minutes.",
+    jobNetwork: "Connection is unstable and the result is unknown. If no reading arrives, your credits are refunded automatically. Refresh to try fetching it again.",
     chargedPaid: "1 question used · deep reading unlocked",
     chargedFree: "Free question used · top up to unlock the deep reading",
     pricingEyebrow: "Question packages · PromptPay",
@@ -1663,9 +1671,11 @@ async function onSubmit(event) {
 
   try {
     const ownCards = ownMode ? { cards: state.own.map((c) => ({ id: c.id, reversed: Boolean(c.reversed) })) } : {};
-    const { response, data } = await api(ownMode ? "/api/reading/own" : "/api/reading", {
-      method: "POST",
-      body: JSON.stringify({
+    // The reading runs as a background job: this request only starts it and returns a job id at once,
+    // then the page polls. The id is chosen here, so a retried start can never be charged twice.
+    const jobId = newJobId();
+    const path = ownMode ? "/api/reading/own" : "/api/reading";
+    const payload = JSON.stringify({
         name,
         birthDate,
         birthTime,
@@ -1675,29 +1685,162 @@ async function onSubmit(event) {
         deck: ownMode ? "tarot" : state.deckKind,
         ...(ownMode ? {} : { cardCount: state.cardCount }),
         ...ownCards,
-      }),
-    });
-    if (response.status === 402) {
-      await refreshBalance();
-      showNoCredits(data.code === "not_enough_credits" ? dict.deepNeedCredits(state.balance.credits) : undefined);
-      return;
+        jobId,
+      });
+    const start = () => fetchTimeout(path, { method: "POST", body: payload }, 30000);
+    setStoredJob(jobId);
+    let first = null;
+    try { first = await start(); } catch (_) { first = null; } // unknown whether the server got it: poll, then retry once
+    if (first) {
+      const { response, data } = first;
+      if (response.status === 402) {
+        setStoredJob(null);
+        await refreshBalance();
+        showNoCredits(data.code === "not_enough_credits" ? dict.deepNeedCredits(state.balance.credits) : undefined);
+        return;
+      }
+      if (response.status === 401 && data.code === "login_required") {
+        setStoredJob(null);
+        state.account = null;
+        renderAccountButton();
+        state.afterLogin = () => document.getElementById("reading-form").requestSubmit();
+        openAccountModal("signup", dict.accNeedLoginAsk);
+        return;
+      }
+      if (response.status !== 202 && (!response.ok || !data.ok)) {
+        setStoredJob(null);
+        throw new Error(data.error || "The stars flickered.");
+      }
     }
-    if (response.status === 401 && data.code === "login_required") {
-      state.account = null;
-      renderAccountButton();
-      state.afterLogin = () => document.getElementById("reading-form").requestSubmit();
-      openAccountModal("signup", dict.accNeedLoginAsk);
-      return;
-    }
-    if (!response.ok || !data.ok) {
-      throw new Error(data.error || "The stars flickered.");
-    }
-    if (data.balance) setBalance(data.balance);
-    state.last = data;
-    renderResult(data);
-    result.scrollIntoView({ behavior: "smooth", block: "start" });
+    await followJob(jobId, first ? null : start);
   } catch (err) {
     error.textContent = err.message || (state.lang === "th" ? "เกิดข้อผิดพลาด กรุณาลองใหม่" : "Something went wrong. Please try again.");
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+    status.hidden = true;
+  }
+}
+
+// -- reading jobs: poll for the answer, survive leaving the page, refund notice ----------------
+const JOB_KEY = "moon.job";
+
+function newJobId() {
+  const bytes = new Uint8Array(16);
+  if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(bytes);
+  else for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function getStoredJob() {
+  try { return sessionStorage.getItem(JOB_KEY); } catch (_) { return null; }
+}
+
+function setStoredJob(id) {
+  try { if (id) sessionStorage.setItem(JOB_KEY, id); else sessionStorage.removeItem(JOB_KEY); } catch (_) { /* private mode */ }
+}
+
+async function fetchTimeout(path, options, ms) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await api(path, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Wait for a started reading and show it. Resolves once it is shown, refunded, or we give up (the job id
+// stays saved, so a refresh or coming back to the page can pick it up again).
+async function followJob(jobId, retryStart) {
+  const dict = t();
+  const error = document.getElementById("form-error");
+  const result = document.getElementById("result");
+  const started = Date.now();
+  let failures = 0;
+  let restarted = false;
+  state.jobBusy = true;
+  try {
+    for (;;) {
+      let reply = null;
+      try {
+        reply = await fetchTimeout(`/api/reading/job/${encodeURIComponent(jobId)}`, {}, 15000);
+      } catch (_) { reply = null; }
+      const response = reply && reply.response;
+      const data = (reply && reply.data) || {};
+      if (response && response.status === 401) {
+        state.account = null;
+        renderAccountButton();
+        state.afterLogin = resumeJob; // the saved job continues after signing back in
+        openAccountModal("login", dict.accNeedLoginAsk);
+        return;
+      }
+      if (response && response.status === 404) {
+        if (retryStart && !restarted) { // the server never got the start request: send it again, same id
+          restarted = true;
+          try { await retryStart(); } catch (_) { /* polled again below */ }
+          continue;
+        }
+        setStoredJob(null);
+        if (!retryStart) return; // an old saved job the server no longer knows (nothing was charged): drop it quietly
+        throw new Error(dict.jobNetwork);
+      }
+      if (response && response.ok && data.ok) {
+        failures = 0;
+        if (data.status === "done") {
+          if (data.result) {
+            const reading = data.result;
+            try {
+              if (reading.balance) setBalance(reading.balance);
+              state.last = reading;
+              renderResult(reading);
+              result.scrollIntoView({ behavior: "smooth", block: "start" });
+            } catch (_) {
+              error.textContent = dict.jobShowFail; // the answer stays held for a few minutes: refresh fetches it again
+              error.hidden = false;
+              return;
+            }
+            setStoredJob(null);
+            api(`/api/reading/job/${encodeURIComponent(jobId)}/ack`, { method: "POST", body: "{}" }).catch(() => {});
+          }
+          return;
+        }
+        if (data.status === "refunded" || data.status === "gone") {
+          setStoredJob(null);
+          if (data.balance) setBalance(data.balance); else await refreshBalance();
+          error.textContent = data.status === "refunded" ? dict.jobRefunded : dict.jobGone;
+          error.hidden = false;
+          return;
+        }
+      } else {
+        failures += 1; // network error, timeout, or a 5xx: keep trying for a while
+      }
+      if (Date.now() - started > 8 * 60 * 1000) {
+        error.textContent = dict.jobNetwork;
+        error.hidden = false;
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, Math.min(2000 * (failures + 1), 8000)));
+    }
+  } finally {
+    state.jobBusy = false;
+  }
+}
+
+// Coming back (reload, tab switch, app switch): pick up a reading that was started on this tab.
+async function resumeJob() {
+  const jobId = getStoredJob();
+  if (!jobId || state.jobBusy) return;
+  const error = document.getElementById("form-error");
+  const status = document.getElementById("status");
+  const button = document.getElementById("submit-btn");
+  error.hidden = true;
+  button.disabled = true;
+  status.hidden = false;
+  try {
+    await followJob(jobId, null);
+  } catch (err) {
+    error.textContent = err.message || t().jobNetwork;
     error.hidden = false;
   } finally {
     button.disabled = false;
@@ -2653,6 +2796,9 @@ function setup() {
   paintStars();
   loadPackages();
   checkOrders();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) resumeJob(); });
+  window.addEventListener("pageshow", (e) => { if (e.persisted) resumeJob(); });
+  resumeJob();
 }
 
 function setupFeedback() {

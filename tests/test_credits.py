@@ -62,7 +62,7 @@ def pg_service():
     if _PG is None:
         _PG = billing.PostgresCreditService(TEST_PG)
     with _PG._tx() as cur:
-        cur.execute("TRUNCATE moon_visitors, moon_orders, moon_sessions, moon_users, moon_feedback")
+        cur.execute("TRUNCATE moon_visitors, moon_orders, moon_sessions, moon_users, moon_feedback, moon_reservations")
     return _PG
 
 

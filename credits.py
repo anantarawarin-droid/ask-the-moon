@@ -18,6 +18,7 @@ import re
 import secrets
 import tempfile
 import threading
+import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
@@ -244,6 +245,14 @@ def order_has_slip(order: dict[str, Any]) -> bool:
 # Owner decision: 20. A 150-baht package (20 questions in the current promo) covers one deep reading.
 DEEP_READING_COST = 20
 
+# Reading jobs: a charged reading runs as a short-lived job so a finished answer is never lost.
+# The database keeps only billing metadata (id, who, cost, state, deadline), never the reading itself.
+RESERVE_RUN_SECONDS = 240       # a reading still unfinished after this is refunded (covers a process restart)
+PICKUP_SECONDS = 20 * 60        # a finished reading waits this long to be picked up, else it is refunded
+JOB_ROW_KEEP_SECONDS = 2 * 86400  # delivered/refunded billing rows are deleted after this
+JOB_ID_RE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
+OPEN_JOB_STATES = ("reserved", "charged")
+
 
 class PaymentError(Exception):
     def __init__(self, message: str, status: int = 400, code: str = "error"):
@@ -280,6 +289,7 @@ class JsonStore:
         data.setdefault("users", {})
         data.setdefault("sessions", {})
         data.setdefault("feedback", {})
+        data.setdefault("reservations", {})
         return data
 
     def _save(self) -> None:
@@ -366,6 +376,94 @@ class CreditService:
                 v["credits"] += int(cost)
             elif kind == "free":
                 v["freeUsed"] = False
+
+    # -- reading jobs (billing metadata only; never the reading text) -------------
+    def reserve_job(self, job_id: str, visitor_id: str, cost: int, now: float | None = None) -> dict[str, Any]:
+        """Take the credits for a reading job and record one reservation row, atomically.
+        Calling again with the same job id (a retried request) never charges twice."""
+        now = time.time() if now is None else now
+        cost = int(cost)
+        with self.store.transaction() as data:
+            res = data.setdefault("reservations", {})
+            row = res.get(job_id)
+            if row is not None:
+                if row["visitor"] != visitor_id:
+                    raise PaymentError("This job id is already in use.", 409, "job_conflict")
+                return {"created": False, "state": row["state"], "kind": row["kind"], "cost": row["cost"]}
+            v = self._visitor(data, visitor_id)
+            if v["credits"] >= cost:
+                v["credits"] -= cost
+                kind = "paid"
+            elif cost == 1 and not v["freeUsed"]:
+                v["freeUsed"] = True
+                kind = "free"
+            elif cost > 1:
+                raise PaymentError(f"This reading needs {cost} question credits.", status=402,
+                                   code="not_enough_credits")
+            else:
+                raise PaymentError("No question credits left.", status=402, code="no_credits")
+            res[job_id] = {"visitor": visitor_id, "kind": kind, "cost": cost, "state": "reserved",
+                           "deadline": now + RESERVE_RUN_SECONDS, "updatedAt": now}
+            return {"created": True, "state": "reserved", "kind": kind, "cost": cost}
+
+    def reservation(self, job_id: str) -> dict[str, Any] | None:
+        with self.store.read() as data:
+            row = (data.get("reservations") or {}).get(job_id)
+            return dict(row, jobId=job_id) if row else None
+
+    def advance_reservation(self, job_id: str, from_state: str, to_state: str,
+                            deadline_in: float | None = None, now: float | None = None) -> bool:
+        """Move a reservation from one state to the next. Only one caller can win; no credit change."""
+        now = time.time() if now is None else now
+        with self.store.transaction() as data:
+            row = (data.get("reservations") or {}).get(job_id)
+            if row is None or row["state"] != from_state:
+                return False
+            row["state"] = to_state
+            row["updatedAt"] = now
+            if deadline_in is not None:
+                row["deadline"] = now + deadline_in
+            return True
+
+    def _refund_row(self, data: dict[str, Any], job_id: str, from_states: tuple[str, ...], now: float) -> bool:
+        row = (data.get("reservations") or {}).get(job_id)
+        if row is None or row["state"] not in from_states:
+            return False
+        row["state"] = "refunded"
+        row["updatedAt"] = now
+        v = self._visitor(data, row["visitor"])
+        if row["kind"] == "paid":
+            v["credits"] += int(row["cost"])
+        elif row["kind"] == "free":
+            v["freeUsed"] = False
+        return True
+
+    def refund_reservation(self, job_id: str, from_states: tuple[str, ...] = OPEN_JOB_STATES,
+                           now: float | None = None) -> bool:
+        """Give the credits back once. Returns True only for the call that actually refunded."""
+        now = time.time() if now is None else now
+        with self.store.transaction() as data:
+            return self._refund_row(data, job_id, from_states, now)
+
+    def refund_due_reservations(self, now: float | None = None) -> list[str]:
+        """Refund every unfinished or never-picked-up reading whose deadline has passed."""
+        now = time.time() if now is None else now
+        done: list[str] = []
+        with self.store.transaction() as data:
+            for job_id, row in list((data.get("reservations") or {}).items()):
+                if row["state"] in OPEN_JOB_STATES and row["deadline"] <= now:
+                    if self._refund_row(data, job_id, OPEN_JOB_STATES, now):
+                        done.append(job_id)
+        return done
+
+    def purge_reservations(self, older_than: float = JOB_ROW_KEEP_SECONDS, now: float | None = None) -> int:
+        now = time.time() if now is None else now
+        with self.store.transaction() as data:
+            res = data.get("reservations") or {}
+            gone = [k for k, r in res.items() if r["state"] not in OPEN_JOB_STATES and r["updatedAt"] <= now - older_than]
+            for k in gone:
+                del res[k]
+            return len(gone)
 
     # -- orders -----------------------------------------------------------
     def create_order(self, visitor_id: str, amount: Any) -> dict[str, Any]:
@@ -953,6 +1051,16 @@ CREATE TABLE IF NOT EXISTS moon_feedback (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS moon_feedback_created_idx ON moon_feedback (created_at DESC);
+CREATE TABLE IF NOT EXISTS moon_reservations (
+    job_id      TEXT PRIMARY KEY,
+    visitor     TEXT NOT NULL,
+    kind        TEXT NOT NULL CHECK (kind IN ('paid', 'free')),
+    cost        INTEGER NOT NULL,
+    state       TEXT NOT NULL CHECK (state IN ('reserved', 'charged', 'delivered', 'refunded')),
+    deadline    TIMESTAMPTZ NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS moon_reservations_open_idx ON moon_reservations (state, deadline);
 """
 
 
@@ -1171,6 +1279,131 @@ class PostgresCreditService:
             elif kind == "free":
                 cur.execute("UPDATE moon_visitors SET free_used = FALSE WHERE id = %s", (visitor_id,))
         self._run(fn)
+
+    # -- reading jobs (billing metadata only; never the reading text) -----------------
+    def reserve_job(self, job_id: str, visitor_id: str, cost: int, now: float | None = None) -> dict[str, Any]:
+        cost = int(cost)
+
+        def fn(cur):
+            # Serialize per job id so a retried request can never reserve twice.
+            cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", ("moon-job:" + job_id,))
+            cur.execute("SELECT visitor, kind, cost, state FROM moon_reservations WHERE job_id = %s", (job_id,))
+            row = cur.fetchone()
+            if row:
+                if row[0] != visitor_id:
+                    return "conflict", None
+                return "existing", {"created": False, "state": row[3], "kind": row[1], "cost": row[2]}
+            cur.execute(
+                "UPDATE moon_visitors SET credits = credits - %s WHERE id = %s AND credits >= %s RETURNING credits",
+                (cost, visitor_id, cost),
+            )
+            kind = "paid" if cur.fetchone() else None
+            if kind is None and cost > 1:
+                return "short", None
+            if kind is None:
+                cur.execute(
+                    "INSERT INTO moon_visitors (id, free_used) VALUES (%s, TRUE) "
+                    "ON CONFLICT (id) DO UPDATE SET free_used = TRUE WHERE moon_visitors.free_used = FALSE "
+                    "RETURNING id",
+                    (visitor_id,),
+                )
+                if not cur.fetchone():
+                    return "none", None
+                kind = "free"
+            cur.execute(
+                "INSERT INTO moon_reservations (job_id, visitor, kind, cost, state, deadline) "
+                "VALUES (%s, %s, %s, %s, 'reserved', now() + make_interval(secs => %s))",
+                (job_id, visitor_id, kind, cost, float(RESERVE_RUN_SECONDS)),
+            )
+            return "ok", {"created": True, "state": "reserved", "kind": kind, "cost": cost}
+        status, out = self._run(fn)
+        if status == "conflict":
+            raise PaymentError("This job id is already in use.", 409, "job_conflict")
+        if status == "short":
+            raise PaymentError(f"This reading needs {cost} question credits.", status=402,
+                               code="not_enough_credits")
+        if status == "none":
+            raise PaymentError("No question credits left.", status=402, code="no_credits")
+        return out
+
+    def reservation(self, job_id: str) -> dict[str, Any] | None:
+        def fn(cur):
+            cur.execute("SELECT visitor, kind, cost, state, extract(epoch FROM deadline), "
+                        "extract(epoch FROM updated_at) FROM moon_reservations WHERE job_id = %s", (job_id,))
+            r = cur.fetchone()
+            if not r:
+                return None
+            return {"jobId": job_id, "visitor": r[0], "kind": r[1], "cost": r[2], "state": r[3],
+                    "deadline": float(r[4]), "updatedAt": float(r[5])}
+        return self._run(fn)
+
+    def advance_reservation(self, job_id: str, from_state: str, to_state: str,
+                            deadline_in: float | None = None, now: float | None = None) -> bool:
+        def fn(cur):
+            if deadline_in is None:
+                cur.execute("UPDATE moon_reservations SET state = %s, updated_at = now() "
+                            "WHERE job_id = %s AND state = %s RETURNING job_id", (to_state, job_id, from_state))
+            else:
+                cur.execute("UPDATE moon_reservations SET state = %s, updated_at = now(), "
+                            "deadline = now() + make_interval(secs => %s) "
+                            "WHERE job_id = %s AND state = %s RETURNING job_id",
+                            (to_state, float(deadline_in), job_id, from_state))
+            return cur.fetchone() is not None
+        return self._run(fn)
+
+    @staticmethod
+    def _refund_in_tx(cur, where_sql: str, params: tuple) -> list[str]:
+        """Flip matching open reservations to refunded and return their credits, in one transaction."""
+        cur.execute(
+            "UPDATE moon_reservations SET state = 'refunded', updated_at = now() "
+            f"WHERE state IN ('reserved', 'charged') AND {where_sql} RETURNING job_id, visitor, kind, cost",
+            params,
+        )
+        rows = cur.fetchall()
+        for _job, visitor, kind, cost in rows:
+            if kind == "paid":
+                cur.execute("UPDATE moon_visitors SET credits = credits + %s WHERE id = %s", (int(cost), visitor))
+            elif kind == "free":
+                cur.execute("UPDATE moon_visitors SET free_used = FALSE WHERE id = %s", (visitor,))
+        return [r[0] for r in rows]
+
+    def refund_reservation(self, job_id: str, from_states: tuple[str, ...] = OPEN_JOB_STATES,
+                           now: float | None = None) -> bool:
+        states = [s for s in from_states if s in OPEN_JOB_STATES]
+        if not states:
+            return False
+
+        def fn(cur):
+            marks = ", ".join(["%s"] * len(states))
+            cur.execute(
+                f"UPDATE moon_reservations SET state = 'refunded', updated_at = now() "
+                f"WHERE job_id = %s AND state IN ({marks}) RETURNING visitor, kind, cost",
+                (job_id, *states),
+            )
+            row = cur.fetchone()
+            if not row:
+                return False
+            visitor, kind, cost = row
+            if kind == "paid":
+                cur.execute("UPDATE moon_visitors SET credits = credits + %s WHERE id = %s", (int(cost), visitor))
+            elif kind == "free":
+                cur.execute("UPDATE moon_visitors SET free_used = FALSE WHERE id = %s", (visitor,))
+            return True
+        return self._run(fn)
+
+    def refund_due_reservations(self, now: float | None = None) -> list[str]:
+        if now is None:
+            return self._run(lambda cur: self._refund_in_tx(cur, "deadline <= now()", ()))
+        return self._run(lambda cur: self._refund_in_tx(cur, "deadline <= to_timestamp(%s)", (float(now),)))
+
+    def purge_reservations(self, older_than: float = JOB_ROW_KEEP_SECONDS, now: float | None = None) -> int:
+        def fn(cur):
+            clock = "now()" if now is None else "to_timestamp(%s)"
+            params = (float(older_than),) if now is None else (float(now), float(older_than))
+            cur.execute("DELETE FROM moon_reservations WHERE state IN ('delivered', 'refunded') "
+                        f"AND updated_at < {clock} - make_interval(secs => %s)", params)
+            return max(0, cur.rowcount or 0)
+        return self._run(fn)
 
     # -- orders ---------------------------------------------------------------
     def create_order(self, visitor_id: str, amount: Any) -> dict[str, Any]:

@@ -17,6 +17,7 @@ import random
 import time
 import re
 import sys
+import threading
 import traceback
 import urllib.error
 import urllib.parse
@@ -880,17 +881,8 @@ def paid_reading(body: dict[str, Any], visitor_id: Any, own: bool = False) -> di
     """Validate, reserve one credit (or the one free preview; 20 credits for a 12-card deep reading) atomically,
     generate, and only keep the charge when the AI wrote the reading.
     own=True is the "เปิดไพ่เอง" mode: the same charge rules, cards chosen by the person."""
-    if not billing.valid_visitor_id(visitor_id):
-        raise ValueError("Missing visitor id. Please reload the page.")
     # Validation (including the chosen cards) happens before any credit is reserved.
-    params = parse_own_reading_request(body) if own else parse_reading_request(body)
-    if own and params.get("deck") == "oracle":
-        raise ValueError("The oracle deck does not support entering your own cards.")
-    if own:
-        params["deck"] = "tarot"
-    generate = generate_own_reading if own else generate_reading
-    n_cards = len(params["cards"]) if own else params["cardCount"]
-    cost = reading_cost(n_cards)
+    params, generate, cost = _reading_plan(body, visitor_id, own)
     # Raises PaymentError(402): at 0 credits, or when a 12-card reading finds fewer than 20 (nothing is taken).
     kind = SERVICE.reserve_reading(visitor_id, cost)
     try:
@@ -902,19 +894,195 @@ def paid_reading(body: dict[str, Any], visitor_id: Any, own: bool = False) -> di
     if not charged:
         # Template fallback (AI unavailable): this question is on the house.
         SERVICE.release_reading(visitor_id, kind, cost)
+    _apply_charge(result, kind, cost, charged)
+    result["balance"] = SERVICE.balance(visitor_id)
+    return result
+
+
+def _apply_charge(result: dict[str, Any], kind: str, cost: int, charged: bool) -> None:
     result["charge"] = {"kind": kind, "charged": charged}
     if cost != 1:
         result["charge"]["cost"] = cost
     result["premiumUnlocked"] = kind == "paid"
     if kind != "paid":
         result["premium"] = dict(LOCKED_PREMIUM)
-    result["balance"] = SERVICE.balance(visitor_id)
-    return result
+
+
+def _reading_plan(body: dict[str, Any], visitor_id: Any, own: bool) -> tuple[dict[str, Any], Any, int]:
+    """Validate a reading request (before any credit is touched): params, generator, credit cost."""
+    if not billing.valid_visitor_id(visitor_id):
+        raise ValueError("Missing visitor id. Please reload the page.")
+    params = parse_own_reading_request(body) if own else parse_reading_request(body)
+    if own and params.get("deck") == "oracle":
+        raise ValueError("The oracle deck does not support entering your own cards.")
+    if own:
+        params["deck"] = "tarot"
+    n_cards = len(params["cards"]) if own else params["cardCount"]
+    return params, (generate_own_reading if own else generate_reading), reading_cost(n_cards)
+
+
+# -- Reading jobs ---------------------------------------------------------------------------------
+# A reading runs as a short-lived background job: POST returns a job id at once (no long request for
+# Cloudflare to cut), the page polls for the answer. The finished answer lives only in memory, for a
+# few minutes, and is dropped once it is picked up. The database keeps billing metadata only.
+# Credits are taken when the job starts. They are kept only once the answer has been handed over; if it
+# is never picked up (or the server restarts, or the job fails) they are refunded exactly once.
+JOBS: dict[str, dict[str, Any]] = {}
+JOBS_LOCK = threading.Lock()
+MAX_LIVE_JOBS = 300
+MAX_JOBS_PER_VISITOR = 3
+DELIVERED_KEEP_SECONDS = 300      # after the answer is handed over, keep it briefly so a lost response can retry
+
+
+def _job_state(job_id: str, **changes: Any) -> None:
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+        if job is not None:
+            job.update(changes)
+
+
+def start_reading_job(body: dict[str, Any], visitor_id: Any, own: bool = False) -> dict[str, Any]:
+    """Reserve the credits and start generating in the background. Safe to call again with the same job id."""
+    job_id = body.get("jobId")
+    if not isinstance(job_id, str) or not billing.JOB_ID_RE.match(job_id):
+        raise ValueError("Missing job id. Please reload the page.")
+    params, generate, cost = _reading_plan(body, visitor_id, own)
+    with JOBS_LOCK:
+        known = JOBS.get(job_id)
+        if known is not None:
+            if known["visitor"] != visitor_id:
+                raise billing.PaymentError("This job id is already in use.", 409, "job_conflict")
+            return {"jobId": job_id, "status": known["status"]}
+        live = [j for j in JOBS.values() if j["status"] == "working"]
+        if len(live) >= MAX_LIVE_JOBS or sum(1 for j in live if j["visitor"] == visitor_id) >= MAX_JOBS_PER_VISITOR:
+            raise billing.PaymentError("Too many readings in progress. Please wait a moment.", 429, "too_many_jobs")
+    # Raises PaymentError(402) when the credits are not there (nothing is taken).
+    reserved = SERVICE.reserve_job(job_id, visitor_id, cost)
+    if not reserved["created"]:
+        return {"jobId": job_id, "status": "working"}  # a retry we already charged for; polling settles it
+    with JOBS_LOCK:
+        JOBS[job_id] = {"visitor": visitor_id, "status": "working", "result": None, "free": False,
+                        "delivered": False, "expires": time.time() + billing.RESERVE_RUN_SECONDS}
+    try:
+        threading.Thread(target=_run_reading_job, name="reading-job",
+                         args=(job_id, params, generate, reserved["kind"], cost), daemon=True).start()
+    except BaseException:
+        SERVICE.refund_reservation(job_id)
+        with JOBS_LOCK:
+            JOBS.pop(job_id, None)
+        raise
+    return {"jobId": job_id, "status": "working"}
+
+
+def _run_reading_job(job_id: str, params: dict[str, Any], generate: Any, kind: str, cost: int) -> None:
+    try:
+        try:
+            result = generate(params)
+        except BaseException as exc:
+            print(f"Reading job failed ({type(exc).__name__}); credits refunded.", file=sys.stderr, flush=True)
+            SERVICE.refund_reservation(job_id)
+            _job_state(job_id, status="refunded")
+            return
+        charged = result.get("source") == "llm"
+        _apply_charge(result, kind, cost, charged)
+        if not charged:
+            # Template fallback (AI unavailable): on the house, handed over without a charge.
+            SERVICE.refund_reservation(job_id, ("reserved",))
+            _job_state(job_id, status="done", result=result, free=True,
+                       expires=time.time() + billing.PICKUP_SECONDS)
+        elif SERVICE.advance_reservation(job_id, "reserved", "charged", deadline_in=billing.PICKUP_SECONDS):
+            _job_state(job_id, status="done", result=result, free=False,
+                       expires=time.time() + billing.PICKUP_SECONDS)
+        else:  # the sweeper already refunded a job that ran too long: drop the answer, never deliver it
+            _job_state(job_id, status="refunded")
+    except Exception as exc:  # e.g. database down: the sweeper refunds at the deadline
+        print(f"Reading job bookkeeping failed ({type(exc).__name__}); the sweeper will settle it.",
+              file=sys.stderr, flush=True)
+
+
+def _job_payload(status: str, visitor_id: str, result: dict[str, Any] | None = None) -> dict[str, Any]:
+    out: dict[str, Any] = {"ok": True, "status": status, "balance": SERVICE.balance(visitor_id)}
+    if result is not None:
+        out["result"] = dict(result, balance=out["balance"])
+    return out
+
+
+def poll_reading_job(job_id: str, visitor_id: str) -> dict[str, Any]:
+    """Where a reading job stands: working, done (with the answer), refunded, or gone (already delivered)."""
+    if not billing.JOB_ID_RE.match(job_id or ""):
+        raise billing.PaymentError("Reading not found.", 404, "unknown_job")
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+        snap = dict(job) if job is not None else None
+    if snap is not None and snap["visitor"] != visitor_id:
+        raise billing.PaymentError("Reading not found.", 404, "unknown_job")
+    if snap is not None:
+        if snap["status"] == "working":
+            return {"ok": True, "status": "working"}
+        if snap["status"] == "refunded":
+            return _job_payload("refunded", visitor_id)
+        if snap["free"]:
+            _mark_delivered(job_id)
+            return _job_payload("done", visitor_id, snap["result"])
+        # A charged answer is handed over only if we win the charged -> delivered step. If the sweeper
+        # refunded it first we lose, and the customer gets the refund instead (never both).
+        if SERVICE.advance_reservation(job_id, "charged", "delivered"):
+            _mark_delivered(job_id)
+            return _job_payload("done", visitor_id, snap["result"])
+        row = SERVICE.reservation(job_id)
+        if row is not None and row["state"] == "delivered":
+            _mark_delivered(job_id)
+            return _job_payload("done", visitor_id, snap["result"])  # a retry after a lost response
+        with JOBS_LOCK:
+            JOBS.pop(job_id, None)
+        return _job_payload("refunded", visitor_id)
+    # Not in memory: another process, or this one restarted. The database row says what happened.
+    row = SERVICE.reservation(job_id)
+    if row is None or row["visitor"] != visitor_id:
+        raise billing.PaymentError("Reading not found.", 404, "unknown_job")
+    state = row["state"]
+    if state == "reserved" and row["deadline"] > time.time():
+        return {"ok": True, "status": "working"}
+    if state in billing.OPEN_JOB_STATES:  # the answer is lost (restart) or the job overran: refund once
+        SERVICE.refund_reservation(job_id)
+        state = (SERVICE.reservation(job_id) or {}).get("state", "refunded")
+    return _job_payload("gone" if state == "delivered" else "refunded", visitor_id)
+
+
+def _mark_delivered(job_id: str) -> None:
+    _job_state(job_id, delivered=True)
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+        if job is not None:
+            job["expires"] = min(job["expires"], time.time() + DELIVERED_KEEP_SECONDS)
+
+
+def ack_reading_job(job_id: str, visitor_id: str) -> None:
+    """The page showed the answer: drop it from memory now. Only an answer already handed over is dropped."""
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+        if job is not None and job["visitor"] == visitor_id and job["delivered"]:
+            del JOBS[job_id]
+
+
+def sweep_reading_jobs(now: float | None = None) -> list[str]:
+    """Refund readings that were never finished or picked up, and forget old answers and billing rows."""
+    now = time.time() if now is None else now
+    refunded = SERVICE.refund_due_reservations(now)
+    SERVICE.purge_reservations(now=now)
+    with JOBS_LOCK:
+        for job_id in refunded:
+            JOBS.pop(job_id, None)
+        for job_id in [k for k, j in JOBS.items() if j["expires"] <= now]:
+            del JOBS[job_id]
+    return refunded
 
 
 ORDER_PATH = re.compile(r"^/api/admin/orders/([A-Za-z0-9]{4,12})/(approve|reject|revoke)$")
 FEEDBACK_DEL_PATH = re.compile(r"^/api/admin/feedback/(fb_[A-Za-z0-9_-]{4,40})/delete$")
 SLIP_PATH = re.compile(r"^/api/orders/([A-Za-z0-9]{4,12})/slip$")
+JOB_PATH = re.compile(r"^/api/reading/job/([A-Za-z0-9_-]{16,64})$")
+JOB_ACK_PATH = re.compile(r"^/api/reading/job/([A-Za-z0-9_-]{16,64})/ack$")
 
 
 def verify_slip(code: str, visitor_id: str, image: bytes, qr: str | None = None) -> tuple[int, dict[str, Any]]:
@@ -1438,6 +1606,23 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send(200, {"ok": True, "mode": auth_config()["mode"], "users": SERVICE.list_users()})
             self._handle(run)
             return
+        job = JOB_PATH.match(route)
+        if job:
+            def run() -> None:
+                user = self._user()
+                if not user:
+                    raise billing.PaymentError("Please log in.", 401, "login_required")
+                out = poll_reading_job(job.group(1), user["id"])
+                result = out.get("result")
+                if result is not None:
+                    result["account"] = {"username": user["username"]}
+                    if result.get("profile"):
+                        bd, bt = result["profile"]["birthDate"], result["profile"]["birthTime"]
+                        if (bd, bt) != (user.get("birthDate"), user.get("birthTime")):
+                            SERVICE.set_birth(user["id"], bd, bt)  # prefill next time
+                self._send(200, out)
+            self._handle(run)
+            return
         if route == "/api/deck":
             self._send(200, {"ok": True, "min": tarot.OWN_MIN, "max": tarot.OWN_MAX, "deep": tarot.DEEP_COUNT,
                                   "deepCost": DEEP_COST, "cards": tarot.picker_deck()})
@@ -1518,6 +1703,9 @@ class Handler(SimpleHTTPRequestHandler):
                         "กรุณาสมัครหรือเข้าสู่ระบบก่อนถามไพ่ค่ะ (สมัครฟรี รับคำถามแรกฟรี 1 ข้อ) · "
                         "Please sign up or log in to ask (free sign-up includes 1 free question).",
                         401, "login_required")
+                if body.get("jobId"):  # the page's normal path: start a background job, poll for the answer
+                    self._send(202, {"ok": True, **start_reading_job(body, user["id"], own=own)})
+                    return
                 result = paid_reading(body, user["id"], own=own)
                 if result.get("profile"):
                     bd, bt = result["profile"]["birthDate"], result["profile"]["birthTime"]
@@ -1525,6 +1713,16 @@ class Handler(SimpleHTTPRequestHandler):
                         SERVICE.set_birth(user["id"], bd, bt)  # prefill next time
                 result["account"] = {"username": user["username"]}
                 self._send(200, result)
+            self._handle(run)
+            return
+        ack = JOB_ACK_PATH.match(route)
+        if ack:
+            def run() -> None:
+                user = self._user()
+                if not user:
+                    raise billing.PaymentError("Please log in.", 401, "login_required")
+                ack_reading_job(ack.group(1), user["id"])
+                self._send(200, {"ok": True})
             self._handle(run)
             return
         if route == "/api/orders":
@@ -1765,11 +1963,22 @@ def _expiry_loop(interval: float = 60.0) -> None:
             print(f"Order expiry skipped ({type(exc).__name__})", flush=True)
 
 
+def _job_loop(interval: float = 30.0) -> None:
+    """Every 30 s: refund readings that never finished or were never picked up (also after a restart)."""
+    while True:
+        time.sleep(interval)
+        try:
+            refunded = sweep_reading_jobs()
+            if refunded:
+                print(f"Refunded {len(refunded)} reading(s) that were never delivered", flush=True)
+        except Exception as exc:  # housekeeping only; never crash the server
+            print(f"Reading sweep skipped ({type(exc).__name__})", flush=True)
+
+
 def main() -> None:
     STATIC.mkdir(parents=True, exist_ok=True)
+    threading.Thread(target=_job_loop, name="reading-sweep", daemon=True).start()
     if billing.order_expire_minutes() > 0:
-        import threading
-
         threading.Thread(target=_expiry_loop, name="order-expiry", daemon=True).start()
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     has_key = bool(os.environ.get("OPENAI_API_KEY"))
