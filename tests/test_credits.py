@@ -182,17 +182,17 @@ class Orders(unittest.TestCase):
         self.svc.begin_slip_check(tried["code"], OTHER, 5)  # upload in flight, attempt counted
         self.svc.approve(approved["code"])
         credits_before = (self.svc.balance(VISITOR)["credits"], self.svc.balance(OTHER)["credits"])
-        self.assertEqual(self.svc.expire_stale_orders(30), 1)
-        self.assertEqual(self.svc.expire_stale_orders(30), 0)
+        self.assertEqual(self.svc.expire_stale_orders(30), (1, []))
+        self.assertEqual(self.svc.expire_stale_orders(30), (0, []))
         self.assertEqual((self.svc.balance(VISITOR)["credits"], self.svc.balance(OTHER)["credits"]), credits_before)
         pending = {o["code"] for o in self.svc.list_orders("pending")}
         self.assertEqual(pending, {fresh["code"], reviewed["code"], tried["code"]})
         self.assertEqual(self.svc.list_orders("expired"), [])
-        rejected = self.svc.list_orders("rejected")
-        self.assertEqual([o["code"] for o in rejected], [old["code"]])
-        self.assertIsNotNone(rejected[0]["decidedAt"])
-        self.assertEqual(len(self.svc.list_orders()), 5)  # nothing deleted yet
-        self.assertEqual(self.svc.expire_stale_orders(0), 0)  # 0 = off (still folds leftover expired only)
+        self.assertEqual(self.svc.list_orders("rejected"), [])
+        codes = {o["code"] for o in self.svc.list_orders()}
+        self.assertNotIn(old["code"], codes)
+        self.assertEqual(len(codes), 4)
+        self.assertEqual(self.svc.expire_stale_orders(0), (0, []))  # 0 = off for pending; leftover expired still cleaned
 
     def test_list_orders_expires_lazily_with_env_minutes(self):
         old = self.svc.create_order(VISITOR, 15)
@@ -202,34 +202,36 @@ class Orders(unittest.TestCase):
         with mock.patch.dict(os.environ, {"ORDER_EXPIRE_MINUTES": "10"}):
             self.assertEqual(self.svc.list_orders("pending"), [])
             self.assertEqual(self.svc.list_orders("expired"), [])
-            self.assertEqual(self.svc.list_orders("rejected")[0]["code"], old["code"])
+            self.assertEqual(self.svc.list_orders("rejected"), [])
+            self.assertEqual(self.svc.list_orders(), [])
 
-    def test_expired_order_takes_late_slip_and_admin_approval(self):
+    def test_stale_unpaid_orders_are_gone_and_a_new_order_can_be_paid(self):
         a = self.svc.create_order(VISITOR, 45)
         b = self.svc.create_order(OTHER, 15)
         self.backdate(a["code"], 40)
         self.backdate(b["code"], 40)
-        self.assertEqual(self.svc.expire_stale_orders(30), 2)
-        # A late slip reopens the order and SlipOK can still credit it.
-        reopened = self.svc.begin_slip_check(a["code"], VISITOR, 5)
-        self.assertEqual(reopened["status"], "pending")
-        self.assertIsNone(reopened["decidedAt"])
-        self.assertEqual(self.svc.expire_stale_orders(30), 0)  # has a slip attempt now
-        res = self.svc.approve_with_slip(a["code"], "REF-LATE-1", {"amount": 45})
+        self.assertEqual(self.svc.expire_stale_orders(30), (2, []))
+        with self.assertRaises(billing.PaymentError) as ctx:
+            self.svc.begin_slip_check(a["code"], VISITOR, 5)
+        self.assertEqual(ctx.exception.code, "not_found")
+        with self.assertRaises(billing.PaymentError) as ctx:
+            self.svc.approve(b["code"])
+        self.assertEqual(ctx.exception.code, "not_found")
+        # The customer starts over with a fresh order.
+        new = self.svc.create_order(VISITOR, 45)
+        self.assertNotEqual(new["code"], a["code"])
+        res = self.svc.approve_with_slip(new["code"], "REF-NEW-1", {"amount": 45})
         self.assertEqual(res["order"]["status"], "approved")
         self.assertEqual(self.svc.balance(VISITOR)["credits"], 3)
-        # The admin can approve a just-auto-rejected order (e.g. after checking the bank).
-        res = self.svc.approve(b["code"])
-        self.assertEqual(res["order"]["status"], "approved")
-        self.assertEqual(self.svc.balance(OTHER)["credits"], 1)
 
     def test_new_order_after_expiry_is_not_the_expired_one(self):
         old = self.svc.create_order(VISITOR, 15)
         self.backdate(old["code"], 31)
-        self.svc.expire_stale_orders(30)
+        self.assertEqual(self.svc.expire_stale_orders(30), (1, []))
         new = self.svc.create_order(VISITOR, 15)
         self.assertNotEqual(new["code"], old["code"])
         self.assertEqual(new["status"], "pending")
+        self.assertEqual({o["code"] for o in self.svc.list_orders()}, {new["code"]})
 
     def force_status(self, code, status):
         with self.svc.store.transaction() as data:
@@ -244,14 +246,40 @@ class Orders(unittest.TestCase):
         with self.svc.store.transaction() as data:
             data["orders"][code]["slipTransRef"] = trans_ref
 
-    def test_leftover_expired_is_folded_into_rejected(self):
+    def test_leftover_expired_without_slip_is_deleted(self):
         order = self.svc.create_order(VISITOR, 15)
         self.force_status(order["code"], "expired")
-        self.assertEqual(self.svc.expire_stale_orders(0), 0)
+        self.assertEqual(self.svc.expire_stale_orders(0), (1, []))
+        self.assertEqual(self.svc.list_orders("rejected"), [])
+        self.assertEqual(self.svc.list_orders("expired"), [])
+        self.assertEqual(self.svc.list_orders(), [])
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], 0)
+
+    def test_leftover_expired_with_slip_is_moved_to_rejected(self):
+        order = self.svc.create_order(VISITOR, 15)
+        self.svc.begin_slip_check(order["code"], VISITOR, 5)
+        self.svc.set_slip_result(order["code"], "fail", "bad slip", {})
+        self.force_status(order["code"], "expired")
+        deleted, kept = self.svc.expire_stale_orders(0)
+        self.assertEqual(deleted, 0)
+        self.assertEqual([k["code"] for k in kept], [order["code"]])
+        self.assertEqual(int(kept[0]["price"]), 15)
         found = {o["code"]: o for o in self.svc.list_orders("rejected")}
         self.assertIn(order["code"], found)
+        self.assertIsNotNone(found[order["code"]]["decidedAt"])
         self.assertEqual(self.svc.list_orders("expired"), [])
         self.assertEqual(self.svc.balance(VISITOR)["credits"], 0)
+
+    def test_leftover_expired_with_trans_ref_is_moved_to_rejected(self):
+        order = self.svc.create_order(VISITOR, 15)
+        self.force_status(order["code"], "expired")
+        self._set_slip_ref(order["code"], "REF-EXPIRED-KEEP")
+        deleted, kept = self.svc.expire_stale_orders(0)
+        self.assertEqual(deleted, 0)
+        self.assertEqual([k["code"] for k in kept], [order["code"]])
+        found = {o["code"]: o for o in self.svc.list_orders("rejected")}
+        self.assertIn(order["code"], found)
+        self.assertTrue(self.svc.trans_ref_used("REF-EXPIRED-KEEP"))
 
     def test_purge_old_unpaid_rejected_keeps_the_rest(self):
         old = self.svc.create_order(VISITOR, 15)
@@ -279,6 +307,24 @@ class Orders(unittest.TestCase):
         self.assertNotIn(old["code"], codes)
         self.assertEqual(codes, {recent["code"], approved["code"], revoked["code"], slipped["code"]})
         self.assertTrue(self.svc.trans_ref_used("REF-KEEP"))
+
+    def test_housekeep_deletes_stale_unpaid_and_old_rejected(self):
+        stale = self.svc.create_order(VISITOR, 15)
+        old_rej = self.svc.create_order(VISITOR, 30)
+        slipped = self.svc.create_order(OTHER, 15)
+        self.backdate(stale["code"], 40)
+        self.svc.reject(old_rej["code"])
+        self.backdate_decided(old_rej["code"], 4)
+        self.svc.begin_slip_check(slipped["code"], OTHER, 5)
+        self.svc.set_slip_result(slipped["code"], "fail", "bad slip", {})
+        self.force_status(slipped["code"], "expired")
+        result = self.svc.housekeep_orders()
+        self.assertEqual(result["deletedStale"], 1)
+        self.assertEqual(result["deletedRejected"], 1)
+        self.assertEqual([k["code"] for k in result["keptRejected"]], [slipped["code"]])
+        codes = {o["code"] for o in self.svc.list_orders()}
+        self.assertEqual(codes, {slipped["code"]})
+        self.assertEqual(self.svc.list_orders("rejected")[0]["code"], slipped["code"])
 
     def test_revoke_takes_back_unused_credits_once(self):
         order = self.svc.create_order(VISITOR, 45)  # 3 questions

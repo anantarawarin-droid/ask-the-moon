@@ -1733,17 +1733,34 @@ Handler._auth_post = _auth_post
 
 
 def _expiry_loop(interval: float = 60.0) -> None:
-    """Every minute: auto-reject stale unpaid orders and delete old unpaid rejected ones."""
+    """Every minute: delete stale unpaid orders with no slip, and old unpaid rejected ones."""
     import time
 
     while True:
         time.sleep(interval)
         try:
-            n, deleted = SERVICE.housekeep_orders()
-            if n:
-                print(f"Auto-rejected {n} unpaid order(s) with no slip after {billing.order_expire_minutes()} min", flush=True)
-            if deleted:
-                print(f"Deleted {deleted} rejected order(s) older than {billing.REJECT_RETAIN_DAYS} days", flush=True)
+            result = SERVICE.housekeep_orders()
+            deleted_stale = result.get("deletedStale") or 0
+            deleted_rejected = result.get("deletedRejected") or 0
+            kept = result.get("keptRejected") or []
+            if deleted_stale:
+                print(
+                    f"Deleted {deleted_stale} unpaid order(s) with no slip after "
+                    f"{billing.order_expire_minutes()} min",
+                    flush=True,
+                )
+            if kept:
+                bits = ", ".join(f"{k['code']} ฿{k['price']}" for k in kept)
+                print(
+                    f"Kept and rejected {len(kept)} stale order(s) that had a slip: {bits}",
+                    flush=True,
+                )
+            if deleted_rejected:
+                print(
+                    f"Deleted {deleted_rejected} rejected order(s) older than "
+                    f"{billing.REJECT_RETAIN_DAYS} days",
+                    flush=True,
+                )
         except Exception as exc:  # housekeeping only; never crash the server
             print(f"Order expiry skipped ({type(exc).__name__})", flush=True)
 
