@@ -248,13 +248,13 @@ class SlipHttp(tc.Http):
         self.assertEqual((status, data["code"]), (404, "not_found"))
         self.assertEqual(self.calls, [])
 
-    def test_rejected_order_closed(self):
+    def test_rejected_order_still_takes_a_late_slip(self):
         code = self.order()
         self.req("POST", f"/api/admin/orders/{code}/reject", {}, self.ADMIN)
         with self.mock_slipok((200, ok_payload("REF-C"))):
             status, data = self.upload(code)
-        self.assertEqual((status, data["code"]), (409, "not_pending"))
-        self.assertEqual(self.calls, [])
+        self.assertEqual((status, data["result"], data["order"]["status"]), (200, "success", "approved"))
+        self.assertEqual(self.credits(), 1)
 
     def test_rate_limits(self):
         code = self.order()

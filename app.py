@@ -1733,15 +1733,17 @@ Handler._auth_post = _auth_post
 
 
 def _expiry_loop(interval: float = 60.0) -> None:
-    """Every minute, expire pending orders that never got a slip (one cheap UPDATE)."""
+    """Every minute: auto-reject stale unpaid orders and delete old unpaid rejected ones."""
     import time
 
     while True:
         time.sleep(interval)
         try:
-            n = SERVICE.expire_stale_orders()
+            n, deleted = SERVICE.housekeep_orders()
             if n:
-                print(f"Expired {n} unpaid order(s) with no slip after {billing.order_expire_minutes()} min", flush=True)
+                print(f"Auto-rejected {n} unpaid order(s) with no slip after {billing.order_expire_minutes()} min", flush=True)
+            if deleted:
+                print(f"Deleted {deleted} rejected order(s) older than {billing.REJECT_RETAIN_DAYS} days", flush=True)
         except Exception as exc:  # housekeeping only; never crash the server
             print(f"Order expiry skipped ({type(exc).__name__})", flush=True)
 

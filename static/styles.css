@@ -857,7 +857,16 @@ body[data-lang="en"] .pricing h2 { font-family: var(--font-display); letter-spac
 .qr-head { background: #113566; color: #fff; font-weight: 600; font-size: 0.85rem; padding: 0.4rem; }
 .qr { padding: 0.4rem 0.6rem 0; }
 .qr svg { width: 100%; height: auto; display: block; }
-.qr-amount { color: #113566; font-weight: 700; font-size: 1.1rem; padding: 0 0 0.5rem; }
+.qr-amount { color: #113566; font-weight: 700; font-size: 1.1rem; padding: 0 0 0.25rem; }
+.pay-expire-note {
+  margin: 0;
+  padding: 0 0.75rem 0.55rem;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #5b6b80;
+}
 .pay-steps { text-align: left; margin: 1rem 0 0.6rem; padding-left: 1.2rem; font-size: 0.86rem; color: var(--lavender); }
 .pay-steps li { margin-bottom: 0.3rem; }
 .pay-steps b { color: var(--gold-soft); }

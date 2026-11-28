@@ -130,6 +130,7 @@ const I18N = {
     payRejected: "คำสั่งซื้อนี้ถูกปฏิเสธ หากโอนแล้ว ติดต่อ LINE: ivymoonask",
     paySoonTitle: "ระบบชำระเงินกำลังจะเปิด",
     paySoonBody: "ดวงจันทร์กำลังเตรียมช่องทางพร้อมเพย์ให้คุณ หากต้องการเติมตอนนี้ ทักมาได้ที่ LINE: ivymoonask",
+    payExpireNote: "กรุณาแนบสลิปภายใน 30 นาที มิฉะนั้นออเดอร์จะถูกยกเลิกอัตโนมัติ",
     payError: "สร้างคำสั่งซื้อไม่สำเร็จ กรุณาลองใหม่",
     close: "ปิด",
     pendingNote: (c) => `มีคำสั่งซื้อ ${c} รอตรวจสอบ`,
@@ -412,6 +413,7 @@ const I18N = {
     payRejected: "This order was declined. If you already paid, contact LINE: ivymoonask",
     paySoonTitle: "Payments are coming soon",
     paySoonBody: "The moon is preparing PromptPay for you. To top up now, message LINE: ivymoonask",
+    payExpireNote: "Please upload your slip within 30 minutes, or the order will be cancelled automatically.",
     payError: "Couldn't create the order. Please try again.",
     close: "Close",
     pendingNote: (c) => `Order ${c} is awaiting review`,
@@ -1907,7 +1909,6 @@ function renderPayModal() {
     const head = r && r.kind === "success" ? (state.lang === "th" ? r.th : r.en) : dict.payApproved(order.questions);
     statusHtml = `<p class="pay-status ok">${escapeHtml(head)}<br><b class="new-balance">${escapeHtml(dict.balanceNow(state.balance.credits))}</b></p>`;
   }
-  if (order.status === "rejected") statusHtml = `<p class="pay-status bad">${escapeHtml(dict.payRejected)}</p>`;
   box.innerHTML = `
     <h3 id="pay-title">${escapeHtml(dict.payTitle)}</h3>
     <div class="pay-summary">
@@ -1918,6 +1919,7 @@ function renderPayModal() {
       <div class="qr-head">PromptPay · พร้อมเพย์</div>
       <div class="qr" id="qr">${qrSvg(o.promptpay.payload)}</div>
       <div class="qr-amount">฿${order.price}.00</div>
+      <p class="pay-expire-note">${escapeHtml(dict.payExpireNote)}</p>
     </div>
     <ol class="pay-steps">
       <li>${dict.payStep1(order.price)}</li>
@@ -1929,9 +1931,9 @@ function renderPayModal() {
   if (state.slipEnabled && isOpenOrder(order)) setupSlipUpload();
 }
 
-// "expired" = no slip within 30 min; a late slip still works, so keep showing the upload.
+// Unpaid rejected (and leftover expired) orders can still take a late slip within 3 days.
 function isOpenOrder(order) {
-  return order.status === "pending" || order.status === "expired";
+  return order.status === "pending" || order.status === "expired" || order.status === "rejected";
 }
 
 function slipSectionHtml(dict) {

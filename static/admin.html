@@ -87,7 +87,6 @@
         <button class="ghost on" data-status="pending">รอตรวจสอบ</button>
         <button class="ghost" data-status="approved">อนุมัติแล้ว</button>
         <button class="ghost" data-status="rejected">ปฏิเสธ</button>
-        <button class="ghost" data-status="expired" title="ไม่มีสลิปเกิน 30 นาที ระบบปิดให้เอง (ถ้าลูกค้าอัปโหลดสลิปทีหลัง ยังตรวจ/อนุมัติได้)">หมดเวลา</button>
         <button class="ghost" data-status="">ทั้งหมด</button>
       </div>
       <div class="row">
@@ -276,9 +275,9 @@
         <td data-label="คำถาม">${esc(o.questions)}${o.bonus ? ` <small>(โบนัส ${esc(o.bonus)})</small>` : ""}</td>
         <td data-label="เวลา">${esc(fmt(o.createdAt))}</td>
         <td><span class="pill ${esc(o.status)}">${esc(o.revokedAt ? "revoked" : o.status === "expired" ? "หมดเวลา" : o.status)}</span>${revokedTag(o)}${approvedFlags(o)}${slipInfo(o)}</td>
-        <td class="row">${o.status === "pending" || o.status === "expired"
-          ? `<button class="ok" data-act="approve" data-code="${esc(o.code)}" data-noslip="${o.slipStatus ? "" : "1"}">อนุมัติ</button>
-             <button class="no" data-act="reject" data-code="${esc(o.code)}">ปฏิเสธ</button>`
+        <td class="row">${o.status === "pending" || o.status === "expired" || (o.status === "rejected" && !o.revokedAt)
+          ? `${o.status === "rejected" ? `<small style="color:var(--muted)">${esc(fmt(o.decidedAt))}</small>` : ""}<button class="ok" data-act="approve" data-code="${esc(o.code)}" data-noslip="${o.slipStatus ? "" : "1"}">อนุมัติ</button>
+             ${o.status === "rejected" ? "" : `<button class="no" data-act="reject" data-code="${esc(o.code)}">ปฏิเสธ</button>`}`
           : `<small style="color:var(--muted)">${esc(fmt(o.decidedAt))}</small>${o.status === "approved"
             ? `<button class="revoke mini" data-act="revoke" data-code="${esc(o.code)}">ดึงเครดิตคืน</button>` : ""}`}</td>
       </tr>`).join("");

@@ -144,7 +144,10 @@ class PayStepsWording(unittest.TestCase):
         self.assertNotIn("payStep3", js)
         self.assertNotIn("line-btn\" href=\"https://line.me/ti/p/~ivymoonask\" target=\"_blank\" rel=\"noopener\">${escapeHtml(dict.payLine)}", body)
         for text in ("สแกน QR ด้วยแอปธนาคาร แล้วโอน", "อัปโหลดสลิปด้านล่าง ระบบตรวจและเติมคำถามให้ทันที",
-                     "กำลังตรวจสอบเพิ่มเติม เครดิตจะเข้าอัตโนมัติเมื่อผ่าน", 'payLine: "มีปัญหา? ติดต่อ LINE"'):
+                     "กำลังตรวจสอบเพิ่มเติม เครดิตจะเข้าอัตโนมัติเมื่อผ่าน", 'payLine: "มีปัญหา? ติดต่อ LINE"',
+                     "กรุณาแนบสลิปภายใน 30 นาที มิฉะนั้นออเดอร์จะถูกยกเลิกอัตโนมัติ",
+                     "Please upload your slip within 30 minutes, or the order will be cancelled automatically.",
+                     "pay-expire-note"):
             self.assertIn(text, js)
 
 

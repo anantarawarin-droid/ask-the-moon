@@ -207,7 +207,9 @@ VISITOR_RE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 ORDER_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 MAX_PENDING_PER_VISITOR = 5
 MAX_PENDING_TOTAL = 2000
-OPEN_STATUSES = ("pending", "expired")  # an expired order can still take a late slip / admin approval
+OPEN_STATUSES = ("pending", "expired", "rejected")  # unpaid rejected (and leftover expired) can still take a late slip / admin approval
+REJECT_RETAIN_DAYS = 3  # unpaid rejected orders are hard-deleted after this many days
+
 
 
 def order_expire_minutes() -> int:
@@ -216,6 +218,15 @@ def order_expire_minutes() -> int:
         return max(0, int(os.environ.get("ORDER_EXPIRE_MINUTES", "30").strip() or 30))
     except ValueError:
         return 30
+
+
+def order_is_open(order: dict[str, Any]) -> bool:
+    """True when a late slip or admin approval is still allowed.
+
+    Unpaid rejected orders stay open until they are purged. Revoked orders are
+    also stored as rejected but must stay closed so credits are not granted twice.
+    """
+    return order.get("status") in OPEN_STATUSES and not order.get("revokedAt")
 
 
 # The 12-card deep reading costs this many question credits (a normal reading costs 1).
@@ -378,24 +389,65 @@ class CreditService:
                 return code
 
     def expire_stale_orders(self, minutes: int | None = None) -> int:
-        """Mark pending orders with no slip upload older than `minutes` as expired. Never touches credits."""
+        """Mark stale unpaid pending orders as rejected (no credits). Also folds leftover
+        expired rows into rejected so nothing sits in the expired state. Never touches credits."""
         minutes = order_expire_minutes() if minutes is None else minutes
-        if minutes <= 0:
+        n = 0
+        if minutes > 0:
+            cutoff = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+            with self.store.read() as data:
+                stale = [o["code"] for o in data["orders"].values() if self._expirable(o, cutoff)]
+            if stale:
+                with self.store.transaction() as data:
+                    for code in stale:
+                        o = data["orders"].get(code)
+                        if o is not None and self._expirable(o, cutoff):
+                            o["status"] = "rejected"
+                            o["decidedAt"] = _now()
+                            n += 1
+        with self.store.transaction() as data:
+            for o in data["orders"].values():
+                if o["status"] == "expired":
+                    o["status"] = "rejected"  # keep decidedAt; the 3-day clock already started
+        return n
+
+    def purge_old_rejected(self, days: int | None = None) -> int:
+        """Hard-delete unpaid rejected orders older than `days`. Never deletes approved,
+        revoked, or any order that recorded a slip transRef."""
+        days = REJECT_RETAIN_DAYS if days is None else days
+        if days <= 0:
             return 0
-        cutoff = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         with self.store.read() as data:
-            stale = [o["code"] for o in data["orders"].values() if self._expirable(o, cutoff)]
-        if not stale:
+            doomed = [o["code"] for o in data["orders"].values() if self._purgeable_rejected(o, cutoff)]
+        if not doomed:
             return 0
         n = 0
         with self.store.transaction() as data:
-            for code in stale:
+            for code in doomed:
                 o = data["orders"].get(code)
-                if o is not None and self._expirable(o, cutoff):
-                    o["status"] = "expired"
-                    o["decidedAt"] = _now()
+                if o is not None and self._purgeable_rejected(o, cutoff):
+                    del data["orders"][code]
                     n += 1
         return n
+
+    @staticmethod
+    def _purgeable_rejected(o: dict[str, Any], cutoff: datetime) -> bool:
+        if o["status"] != "rejected" or o.get("revokedAt") or o.get("slipTransRef"):
+            return False
+        raw = o.get("decidedAt")
+        if not raw:
+            return False
+        try:
+            decided = datetime.fromisoformat(raw)
+        except (TypeError, ValueError):
+            return False
+        if decided.tzinfo is None:
+            decided = decided.replace(tzinfo=timezone.utc)
+        return decided < cutoff
+
+    def housekeep_orders(self) -> tuple[int, int]:
+        return self.expire_stale_orders(), self.purge_old_rejected()
 
     @staticmethod
     def _expirable(o: dict[str, Any], cutoff: datetime) -> bool:
@@ -416,7 +468,7 @@ class CreditService:
         return mine[:limit]
 
     def list_orders(self, status: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
-        self.expire_stale_orders()
+        self.housekeep_orders()
         with self.store.read() as data:
             orders = [dict(o) for o in data["orders"].values() if status in (None, o["status"])]
             for o in orders:
@@ -435,7 +487,7 @@ class CreditService:
             if order["status"] == "approved":
                 return {"order": dict(order), "alreadyApproved": True,
                         "credits": self._visitor(data, order["visitor"])["credits"]}
-            if order["status"] not in OPEN_STATUSES:
+            if not order_is_open(order):
                 raise PaymentError("Only pending orders can be approved.", 409, "not_pending")
             v = self._visitor(data, order["visitor"])
             v["credits"] += int(order["questions"])
@@ -450,7 +502,7 @@ class CreditService:
                 raise PaymentError("Order not found.", 404, "not_found")
             if order["status"] == "rejected":
                 return {"order": dict(order)}
-            if order["status"] not in OPEN_STATUSES:
+            if not order_is_open(order):
                 raise PaymentError("Only pending orders can be rejected.", 409, "not_pending")
             order["status"] = "rejected"
             order["decidedAt"] = _now()
@@ -621,11 +673,11 @@ class CreditService:
                 raise PaymentError("Order not found.", 404, "not_found")
             if order["status"] == "approved":
                 return dict(order)
-            if order["status"] not in OPEN_STATUSES:
+            if not order_is_open(order):
                 raise PaymentError("This order is closed. Please create a new one.", 409, "not_pending")
             if int(order.get("slipAttempts") or 0) >= max_attempts:
                 raise PaymentError("Too many slip uploads for this order.", 429, "too_many_slips")
-            if order["status"] == "expired":  # a late slip reopens the order
+            if order["status"] in ("expired", "rejected"):  # a late slip reopens the order
                 order["status"] = "pending"
                 order["decidedAt"] = None
             order["slipAttempts"] = int(order.get("slipAttempts") or 0) + 1
@@ -666,7 +718,7 @@ class CreditService:
                     order["slipTransRef"] = trans_ref
                 v = self._visitor(data, order["visitor"])
                 return {"order": dict(order), "alreadyApproved": True, "credits": v["credits"]}
-            if order["status"] not in OPEN_STATUSES:
+            if not order_is_open(order):
                 raise PaymentError("Only pending orders can be approved.", 409, "not_pending")
             v = self._visitor(data, order["visitor"])
             v["credits"] += int(order["questions"])
@@ -1134,23 +1186,45 @@ class PostgresCreditService:
         return self._run(fn)
 
     def expire_stale_orders(self, minutes: int | None = None) -> int:
-        """One UPDATE: pending orders with no slip upload older than `minutes` become expired. Never touches credits."""
+        """Mark stale unpaid pending orders as rejected (no credits). Also folds leftover
+        expired rows into rejected so nothing sits in the expired state. Never touches credits."""
         minutes = order_expire_minutes() if minutes is None else minutes
-        if minutes <= 0:
+        def fn(cur):
+            n = 0
+            if minutes > 0:
+                cur.execute(
+                    "UPDATE moon_orders SET status = 'rejected', decided_at = now() "
+                    "WHERE status = 'pending' AND slip_attempts = 0 AND slip_status IS NULL "
+                    "AND created_at < now() - make_interval(mins => %s)",
+                    (int(minutes),),
+                )
+                n = max(0, cur.rowcount or 0)
+            cur.execute("UPDATE moon_orders SET status = 'rejected' WHERE status = 'expired'")
+            return n
+        return self._run(fn)
+
+    def purge_old_rejected(self, days: int | None = None) -> int:
+        """Hard-delete unpaid rejected orders older than `days`. Never deletes approved,
+        revoked, or any order that recorded a slip transRef."""
+        days = REJECT_RETAIN_DAYS if days is None else days
+        if days <= 0:
             return 0
         def fn(cur):
             cur.execute(
-                "UPDATE moon_orders SET status = 'expired', decided_at = now() "
-                "WHERE status = 'pending' AND slip_attempts = 0 AND slip_status IS NULL "
-                "AND created_at < now() - make_interval(mins => %s)",
-                (int(minutes),),
+                "DELETE FROM moon_orders "
+                "WHERE status = 'rejected' AND revoked_at IS NULL AND slip_trans_ref IS NULL "
+                "AND decided_at IS NOT NULL AND decided_at < now() - make_interval(days => %s)",
+                (int(days),),
             )
             return max(0, cur.rowcount or 0)
         return self._run(fn)
 
+    def housekeep_orders(self) -> tuple[int, int]:
+        return self.expire_stale_orders(), self.purge_old_rejected()
+
     def list_orders(self, status: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
         try:
-            self.expire_stale_orders()
+            self.housekeep_orders()
         except Exception as exc:  # expiry is housekeeping; never break the admin list
             print(f"Order expiry skipped ({type(exc).__name__})", flush=True)
         def fn(cur):
@@ -1185,7 +1259,7 @@ class PostgresCreditService:
                 cur.execute("SELECT credits FROM moon_visitors WHERE id = %s", (order["visitor"],))
                 r = cur.fetchone()
                 return {"order": order, "alreadyApproved": True, "credits": int(r[0]) if r else 0}
-            if order["status"] not in OPEN_STATUSES:
+            if not order_is_open(order):
                 raise PaymentError("Only pending orders can be approved.", 409, "not_pending")
             cur.execute(
                 "INSERT INTO moon_visitors (id, credits) VALUES (%s, %s) "
@@ -1210,7 +1284,7 @@ class PostgresCreditService:
             order = self._order(row)
             if order["status"] == "rejected":
                 return {"order": order}
-            if order["status"] not in OPEN_STATUSES:
+            if not order_is_open(order):
                 raise PaymentError("Only pending orders can be rejected.", 409, "not_pending")
             cur.execute(
                 f"UPDATE moon_orders SET status = 'rejected', decided_at = now() WHERE code = %s RETURNING {self.ORDER_COLS}",
@@ -1359,12 +1433,12 @@ class PostgresCreditService:
                 raise PaymentError("Order not found.", 404, "not_found")
             if order["status"] == "approved":
                 return order
-            if order["status"] not in OPEN_STATUSES:
+            if not order_is_open(order):
                 raise PaymentError("This order is closed. Please create a new one.", 409, "not_pending")
             if order["slipAttempts"] >= max_attempts:
                 raise PaymentError("Too many slip uploads for this order.", 429, "too_many_slips")
             cur.execute("UPDATE moon_orders SET slip_attempts = slip_attempts + 1, "
-                        "status = 'pending', decided_at = CASE WHEN status = 'expired' THEN NULL ELSE decided_at END "
+                        "status = 'pending', decided_at = CASE WHEN status IN ('expired', 'rejected') THEN NULL ELSE decided_at END "
                         f"WHERE code = %s RETURNING {self.ORDER_COLS}",
                         (order["code"],))
             return self._order(cur.fetchone())
@@ -1415,7 +1489,7 @@ class PostgresCreditService:
                 cur.execute("SELECT credits FROM moon_visitors WHERE id = %s", (order["visitor"],))
                 r = cur.fetchone()
                 return {"order": order, "alreadyApproved": True, "credits": int(r[0]) if r else 0}
-            if order["status"] not in OPEN_STATUSES:
+            if not order_is_open(order):
                 raise PaymentError("Only pending orders can be approved.", 409, "not_pending")
             cur.execute(
                 "INSERT INTO moon_visitors (id, credits) VALUES (%s, %s) "

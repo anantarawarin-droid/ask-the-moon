@@ -187,11 +187,12 @@ class Orders(unittest.TestCase):
         self.assertEqual((self.svc.balance(VISITOR)["credits"], self.svc.balance(OTHER)["credits"]), credits_before)
         pending = {o["code"] for o in self.svc.list_orders("pending")}
         self.assertEqual(pending, {fresh["code"], reviewed["code"], tried["code"]})
-        expired = self.svc.list_orders("expired")
-        self.assertEqual([o["code"] for o in expired], [old["code"]])
-        self.assertIsNotNone(expired[0]["decidedAt"])
-        self.assertEqual(len(self.svc.list_orders()), 5)  # nothing deleted
-        self.assertEqual(self.svc.expire_stale_orders(0), 0)  # 0 = off
+        self.assertEqual(self.svc.list_orders("expired"), [])
+        rejected = self.svc.list_orders("rejected")
+        self.assertEqual([o["code"] for o in rejected], [old["code"]])
+        self.assertIsNotNone(rejected[0]["decidedAt"])
+        self.assertEqual(len(self.svc.list_orders()), 5)  # nothing deleted yet
+        self.assertEqual(self.svc.expire_stale_orders(0), 0)  # 0 = off (still folds leftover expired only)
 
     def test_list_orders_expires_lazily_with_env_minutes(self):
         old = self.svc.create_order(VISITOR, 15)
@@ -200,7 +201,8 @@ class Orders(unittest.TestCase):
             self.assertEqual([o["code"] for o in self.svc.list_orders("pending")], [old["code"]])
         with mock.patch.dict(os.environ, {"ORDER_EXPIRE_MINUTES": "10"}):
             self.assertEqual(self.svc.list_orders("pending"), [])
-            self.assertEqual(self.svc.list_orders("expired")[0]["code"], old["code"])
+            self.assertEqual(self.svc.list_orders("expired"), [])
+            self.assertEqual(self.svc.list_orders("rejected")[0]["code"], old["code"])
 
     def test_expired_order_takes_late_slip_and_admin_approval(self):
         a = self.svc.create_order(VISITOR, 45)
@@ -216,7 +218,7 @@ class Orders(unittest.TestCase):
         res = self.svc.approve_with_slip(a["code"], "REF-LATE-1", {"amount": 45})
         self.assertEqual(res["order"]["status"], "approved")
         self.assertEqual(self.svc.balance(VISITOR)["credits"], 3)
-        # The admin can approve straight from the expired tab too.
+        # The admin can approve a just-auto-rejected order (e.g. after checking the bank).
         res = self.svc.approve(b["code"])
         self.assertEqual(res["order"]["status"], "approved")
         self.assertEqual(self.svc.balance(OTHER)["credits"], 1)
@@ -228,6 +230,55 @@ class Orders(unittest.TestCase):
         new = self.svc.create_order(VISITOR, 15)
         self.assertNotEqual(new["code"], old["code"])
         self.assertEqual(new["status"], "pending")
+
+    def force_status(self, code, status):
+        with self.svc.store.transaction() as data:
+            data["orders"][code]["status"] = status
+
+    def backdate_decided(self, code, days):
+        from datetime import datetime, timedelta, timezone
+        with self.svc.store.transaction() as data:
+            data["orders"][code]["decidedAt"] = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat(timespec="seconds")
+
+    def _set_slip_ref(self, code, trans_ref):
+        with self.svc.store.transaction() as data:
+            data["orders"][code]["slipTransRef"] = trans_ref
+
+    def test_leftover_expired_is_folded_into_rejected(self):
+        order = self.svc.create_order(VISITOR, 15)
+        self.force_status(order["code"], "expired")
+        self.assertEqual(self.svc.expire_stale_orders(0), 0)
+        found = {o["code"]: o for o in self.svc.list_orders("rejected")}
+        self.assertIn(order["code"], found)
+        self.assertEqual(self.svc.list_orders("expired"), [])
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], 0)
+
+    def test_purge_old_unpaid_rejected_keeps_the_rest(self):
+        old = self.svc.create_order(VISITOR, 15)
+        recent = self.svc.create_order(VISITOR, 30)
+        approved = self.svc.create_order(OTHER, 15)
+        revoked = self.svc.create_order(OTHER, 30)
+        slipped = self.svc.create_order(OTHER, 45)
+        self.svc.reject(old["code"])
+        self.svc.reject(recent["code"])
+        self.svc.approve(approved["code"])
+        self.svc.approve(revoked["code"])
+        self.svc.revoke(revoked["code"])
+        self.svc.reject(slipped["code"])
+        self._set_slip_ref(slipped["code"], "REF-KEEP")
+        self.backdate_decided(old["code"], 4)
+        self.backdate_decided(recent["code"], 2)
+        self.backdate_decided(revoked["code"], 4)
+        self.backdate_decided(slipped["code"], 4)
+        self.backdate_decided(approved["code"], 4)
+        credits = (self.svc.balance(VISITOR)["credits"], self.svc.balance(OTHER)["credits"])
+        self.assertEqual(self.svc.purge_old_rejected(), 1)
+        self.assertEqual(self.svc.purge_old_rejected(), 0)
+        self.assertEqual((self.svc.balance(VISITOR)["credits"], self.svc.balance(OTHER)["credits"]), credits)
+        codes = {o["code"] for o in self.svc.list_orders()}
+        self.assertNotIn(old["code"], codes)
+        self.assertEqual(codes, {recent["code"], approved["code"], revoked["code"], slipped["code"]})
+        self.assertTrue(self.svc.trans_ref_used("REF-KEEP"))
 
     def test_revoke_takes_back_unused_credits_once(self):
         order = self.svc.create_order(VISITOR, 45)  # 3 questions
@@ -345,12 +396,17 @@ class Orders(unittest.TestCase):
         self.svc.release_reading(VISITOR, "paid")
         self.assertEqual(self.svc.balance(VISITOR)["credits"], 1)
 
-    def test_reject_then_cannot_approve(self):
+    def test_rejected_unpaid_can_still_be_approved(self):
         order = self.svc.create_order(VISITOR, 30)
         self.svc.reject(order["code"])
-        with self.assertRaises(billing.PaymentError):
-            self.svc.approve(order["code"])
-        self.assertEqual(self.svc.balance(VISITOR)["credits"], 0)
+        res = self.svc.approve(order["code"])
+        self.assertFalse(res["alreadyApproved"])
+        self.assertEqual(res["order"]["status"], "approved")
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], 2)
+        # Approving again does not add credits twice.
+        again = self.svc.approve(order["code"])
+        self.assertTrue(again["alreadyApproved"])
+        self.assertEqual(self.svc.balance(VISITOR)["credits"], 2)
 
     def test_concurrent_approve_adds_once(self):
         order = self.svc.create_order(VISITOR, 150)
@@ -556,13 +612,13 @@ class Http(unittest.TestCase):
         st, data = self.req("POST", f"/api/admin/orders/{code}/reject", headers=self.ADMIN)
         self.assertEqual((st, data["order"]["status"]), (200, "rejected"))
         self.assertIsNotNone(data["order"]["decidedAt"])
-        # Rejecting twice is harmless; it is gone from pending and cannot be approved.
+        # Rejecting twice is harmless; it is gone from pending, but the admin can still approve if the money arrived.
         self.assertEqual(self.req("POST", f"/api/admin/orders/{code}/reject", headers=self.ADMIN)[0], 200)
         pending = self.req("GET", "/api/admin/orders?status=pending", headers=self.ADMIN)[1]["orders"]
         self.assertNotIn(code, [o["code"] for o in pending])
         st, data = self.req("POST", f"/api/admin/orders/{code}/approve", headers=self.ADMIN)
-        self.assertEqual((st, data["code"]), (409, "not_pending"))
-        self.assertEqual(self.req("GET", "/api/balance", headers=h)[1]["credits"], 0)
+        self.assertEqual((st, data["order"]["status"]), (200, "approved"))
+        self.assertEqual(self.req("GET", "/api/balance", headers=h)[1]["credits"], 1)
         # Lower-case codes work; unknown codes give a clear 404.
         code2 = self.req("POST", "/api/orders", {"amount": 30}, h)[1]["order"]["code"]
         self.assertEqual(self.req("POST", f"/api/admin/orders/{code2.lower()}/reject", headers=self.ADMIN)[0], 200)
@@ -656,6 +712,19 @@ class PgOrders(Orders):
         with self.svc._tx() as cur:
             cur.execute("UPDATE moon_orders SET created_at = now() - make_interval(mins => %s) WHERE code = %s",
                         (minutes, code))
+
+    def force_status(self, code, status):
+        with self.svc._tx() as cur:
+            cur.execute("UPDATE moon_orders SET status = %s WHERE code = %s", (status, code))
+
+    def backdate_decided(self, code, days):
+        with self.svc._tx() as cur:
+            cur.execute("UPDATE moon_orders SET decided_at = now() - make_interval(days => %s) WHERE code = %s",
+                        (days, code))
+
+    def _set_slip_ref(self, code, trans_ref):
+        with self.svc._tx() as cur:
+            cur.execute("UPDATE moon_orders SET slip_trans_ref = %s WHERE code = %s", (trans_ref, code))
 
     def reopen(self):
         # A brand-new connection/service, like a restarted server.
